@@ -40,7 +40,7 @@ import { submitUrlsToWwwRag, wwwRagEnabled } from "./www-rag.js";
 import { generateQaSuite } from "./qa-suite-gen.js";
 import { COVERAGE_HALT_THRESHOLD, auditCoverage, fetchSitemapUrls } from "./coverage-audit.js";
 import { checkAuth, formatVerdict } from "./auth-preflight.js";
-import { STEP_ORDER, gate2Decision, gatesAreAdvisory, resolveCursor, stepOrderViolations, validateOnlySteps } from "./run-policy.js";
+import { STEP_ORDER, gate2Decision, gatesAreAdvisory, resolveCursor, smokeLiveRefusal, stepOrderViolations, validateOnlySteps } from "./run-policy.js";
 import {
   DEMO_EXPIRY_DAYS,
   demoLinkBlock,
@@ -164,6 +164,9 @@ const QUEUE_PATH = process.env.PROSPECT_QUEUE ?? join(repoRoot, "research", "pro
 const args = parseArgs(process.argv.slice(2));
 const prospect = args.prospect;
 if (!prospect) fail("--prospect <slug> is required");
+// The synthetic fixture must never reach a real API — see smokeLiveRefusal.
+const smokeRefusal = smokeLiveRefusal(prospect);
+if (smokeRefusal) fail(smokeRefusal);
 const watchMode = "watch" in args;
 const watchInterval = Number(args["watch-interval"] ?? 30) * 1000;
 const runId = args.run ?? latestRun(prospect);

@@ -32,9 +32,15 @@ them toward keeping a divergence they never asked for.
 
 ```sh
 cd orchestrator && npm ci
-npm test                                          # 64 files, ~1150 tests, no network
-npm run demo -- --prospect __smoke__ --run dry    # whole pipeline, no external calls
+npm test          # 66 files, ~1170 tests, no network
+npm run smoke     # whole pipeline, no external calls, no credentials
 ```
+
+⚠️ **Use `npm run smoke`, never `npm run demo -- --prospect __smoke__ --run dry`.**
+`--run dry` is a run ID; the dry-run switch is `DRY_RUN=1` in the environment.
+Without it that command performs a REAL run against production — the docs said
+otherwise until 2026-08-18 and it created a live workspace and published a
+release. `smokeLiveRefusal` in `src/run-policy.ts` now refuses it.
 
 The package lives in `orchestrator/`, not the repo root. The dry run is the
 fastest proof an install works, and it is the first thing to run after any
@@ -70,11 +76,16 @@ and reads the environment before `run.ts` loads `.env`.
 becomes a deployed assistant's compliance scope verbatim. Operator material in
 that field is elicitable by a visitor.
 
-**The loop never approves a gate.** Intake writes `approvedBy: null`.
-Everything that spends money or reaches a real company is behind a human
-decision. Do not add an auto-approval path, and never set `GATE1_AUTO_APPROVE`
-for a `clinic-high` or flagged prospect — there is a test asserting the first
-of those cannot auto-approve.
+**Gate 3 blocks; gates 1 and 2 are advisory by default.** Nothing reaches a real
+company without a human — do not weaken that. But do not repeat the claim this
+file used to make, that "everything that spends money is behind a human
+decision": `gatesAreAdvisory()` returns true unless `GATES_BLOCKING=1`, so an
+unattended loop crawls and spends on its own. What still holds is that Gate 2
+refuses a run with **no QA score** (`ALLOW_UNSCORED_GATE2=1` is the only way
+past), and that `GATE1_AUTO_APPROVE` must never be set for a `clinic-high` or
+flagged prospect — there is a test asserting the first of those cannot
+auto-approve. Read `gatesAreAdvisory()` in `src/run-policy.ts` before changing
+any of it.
 
 **No developer-local absolute paths.** Derive from the repo root
 (`fileURLToPath(import.meta.url)`) or take an env var. CI greps for `/Users/…`.

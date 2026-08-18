@@ -1,4 +1,5 @@
 import { defineConfig } from "vitest/config";
+import { DRY_RUN_PLACEHOLDERS } from "./src/dry-run-placeholders.js";
 
 /**
  * ─────────────────────────────────────────────────────────────────────────────
@@ -25,13 +26,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     include: ["src/**/*.test.ts"],
-    env: {
-      CF_WORKERS_SUBDOMAIN: "example-invalid.workers.dev",
-      LANDING_KV_NAMESPACE_ID: "kv-namespace-not-set-in-tests",
-      DEMO_ASSETS_R2_BUCKET: "example-invalid-demo-assets",
-      DEMO_ASSETS_R2_BASE: "https://r2-base-not-set-in-tests.example.invalid",
-      VERTEX_PROJECT: "example-invalid-project",
-    },
+    env: { ...DRY_RUN_PLACEHOLDERS },
 
     // Worker limits. The dry-run smoke test spawns a real `tsx src/run.ts`
     // subprocess, so an unbounded pool multiplies actual processes rather than

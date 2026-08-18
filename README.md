@@ -186,21 +186,45 @@ npm run loop                       # one real tick
 ../launchd/install.sh install      # schedule it (hourly)
 ```
 
-The loop **never approves a gate**. Intake writes `approvedBy: null`, so
-overnight it prepares reviewable work and stops; everything that spends money
-is behind a human decision.
+**What the loop will and will not do on its own.** Gates 1 (corpus) and 2 (demo
+review) are **advisory by default**: they run, stamp who approved and when, and
+open a board task for the audit trail, but they do not pause. So an unattended
+loop *does* crawl queued prospects and spend embedding and model budget with no
+human in front of it — bounded by each run's `budgets.crawlPages` and by
+`hold: true` on a queue entry. `GATES_BLOCKING=1` restores the pause.
+
+Two things still hold unconditionally, and they are the ones that matter most:
+
+- **Gate 3 blocks.** Nothing reaches a prospect without a human. That is where
+  the outward-facing risk lives.
+- **Gate 2 refuses an unmeasured run.** A missing QA score fails rather than
+  sails past (`ALLOW_UNSCORED_GATE2=1` is the only override). 17 of the first 19
+  runs once reached Gate 2 with no score at all and were waved through.
+
+The reasoning behind that trade is written out in full at `gatesAreAdvisory()`
+in `orchestrator/src/run-policy.ts`. Read it before scheduling the loop.
 
 ## Getting started
 
 ```sh
 cd orchestrator && npm install
-npm test                              # 63 files, ~1140 tests, no network
-npm run demo -- --prospect __smoke__ --run dry   # DRY_RUN: decides everything, calls nothing
+npm test                # 66 files, ~1170 tests, no network
+npm run smoke           # every pipeline step, no external calls, no credentials
 ```
 
-The smoke run exercises every pipeline step against the synthetic fixture
+`npm run smoke` exercises every pipeline step against the synthetic fixture
 without a single external call, which makes it the fastest way to confirm a
 working install before configuring any credentials.
+
+⚠️ **`--run dry` is a run ID, not a mode.** The dry-run switch is the
+environment variable `DRY_RUN=1` — `npm run smoke` is exactly
+`DRY_RUN=1 npm run demo -- --prospect __smoke__ --run dry`. Until 2026-08-18
+this section printed that command *without* `DRY_RUN=1` and called it a dry
+run, so following it authenticated against production and performed a real one:
+a workspace, a crawl, a published release with anonymous chat open, and model
+spend. The pipeline now refuses a live `__smoke__` run outright
+(`smokeLiveRefusal` in `orchestrator/src/run-policy.ts`), and a test fails if
+any documentation here describes the command without the flag again.
 
 To run it for real, add a prospect to `research/prospect-queue.yaml` (copy the
 shape from `prospect-queue.example.yaml`), then:

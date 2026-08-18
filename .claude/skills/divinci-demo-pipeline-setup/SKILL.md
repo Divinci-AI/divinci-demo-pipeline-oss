@@ -106,14 +106,23 @@ still work — the decision just happens wherever the operator is looking.
 
 ```sh
 cd orchestrator
-npm test                                          # 64 files, ~1150 tests, no network
-npm run demo -- --prospect __smoke__ --run dry    # DRY_RUN fixture, no external calls
+npm test          # 66 files, ~1170 tests, no network
+npm run smoke     # the dry fixture — no external calls, no credentials
 ```
 
 The dry run walks gate1 → done against a synthetic fixture ("Smoke Test
 Clinic", example.com) and calls nothing. **If this passes, the install is
 good.** If it fails, the install is the problem — do not go on to a real
 prospect to find out.
+
+⚠️ **Run `npm run smoke`, and do not "expand" it to
+`npm run demo -- --prospect __smoke__ --run dry`.** `--run dry` is a run ID —
+a directory name — and the dry-run switch is the environment variable
+`DRY_RUN=1`. This skill told you to run the expanded form without it until
+2026-08-18, which authenticated against production and performed a REAL run:
+a workspace, a crawl, a published release with anonymous chat open, and model
+spend, on a fixture whose clinic does not exist. The pipeline now refuses that
+invocation outright, so if you meet the refusal, the fix is `npm run smoke`.
 
 ## When something fails
 

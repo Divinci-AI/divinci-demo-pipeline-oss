@@ -181,3 +181,65 @@ export function isHostAlreadyCrawling(err: unknown): boolean {
 export function gatesAreAdvisory(): boolean {
   return process.env.GATES_BLOCKING !== "1";
 }
+
+/**
+ * The synthetic prospect the smoke run uses.
+ *
+ * `runs/__smoke__/` is the one fixture in this repository — an invented clinic
+ * pointed at example.com. It exists so a fresh clone can exercise every step
+ * before any credential is configured, and it is the first thing the README
+ * tells a new user to run.
+ */
+export const SMOKE_PROSPECT = "__smoke__";
+
+/**
+ * Refuse to run the synthetic fixture against a real API.
+ *
+ * ⚠️ THIS GUARD EXISTS BECAUSE THE DOCUMENTED COMMAND DID THE OPPOSITE OF WHAT
+ * IT SAID. `--run dry` is a run ID — the name of a directory — and nothing
+ * more. The mode flag is the ENVIRONMENT variable `DRY_RUN=1`, which is what
+ * `run.dry.test.ts` sets and what the README's `--run dry` was mistaken for.
+ *
+ * So `npm run demo -- --prospect __smoke__ --run dry`, documented as "decides
+ * everything, calls nothing", authenticated against production and performed a
+ * REAL run: it created a workspace, a RAG vector, crawled and ingested, pushed
+ * to the public WWW-RAG corpus, PUBLISHED a release with anonymous chat open,
+ * and spent model budget on QA — before dying on a missing infrastructure
+ * variable at the landing step. Verified on a clean clone 2026-08-18; the
+ * production workspace it created had to be deleted by hand.
+ *
+ * It was invisible in the documented ORDER, which is the worst part. README
+ * says `npm test` first, and the dry integration test leaves the fixture's
+ * state at `done` — so the very next command prints "run already complete —
+ * nothing to do" and exits 0. Only someone who skips the tests, or runs the
+ * smoke a second time, gets a live run. A guard is therefore the only fix that
+ * holds: the docs were wrong for as long as they existed and nothing noticed.
+ *
+ * The fixture can only ever be a rehearsal — there is no company at
+ * example.com to demo to — so a live `__smoke__` run is always a mistake.
+ * `SMOKE_ALLOW_LIVE=1` exists for deliberately exercising the real path against
+ * it, and must stay explicit.
+ *
+ * @returns the refusal message, or null if the run may proceed.
+ */
+export function smokeLiveRefusal(
+  prospect: string,
+  env: NodeJS.ProcessEnv = process.env,
+): string | null {
+  if (prospect !== SMOKE_PROSPECT) return null;
+  if (env.DRY_RUN === "1" || env.SMOKE_ALLOW_LIVE === "1") return null;
+  return [
+    `refusing to run the synthetic "${SMOKE_PROSPECT}" fixture against a live API.`,
+    "",
+    "  --run dry is a run ID, not a mode. The dry-run flag is an environment",
+    "  variable, so the smoke run is:",
+    "",
+    "      npm run smoke",
+    `      DRY_RUN=1 npm run demo -- --prospect ${SMOKE_PROSPECT} --run dry`,
+    "",
+    "  Without it this creates a real workspace, publishes a real release and",
+    "  spends real budget — on a fixture whose company does not exist.",
+    "",
+    "  If you genuinely mean to exercise the live path: SMOKE_ALLOW_LIVE=1",
+  ].join("\n");
+}

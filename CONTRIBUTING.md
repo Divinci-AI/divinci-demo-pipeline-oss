@@ -45,9 +45,13 @@ Before you push:
 ```sh
 cd orchestrator && npm ci
 npx tsc --noEmit
-npm test                                          # no network
-npm run demo -- --prospect __smoke__ --run dry    # whole pipeline, no external calls
+npm test          # no network
+npm run smoke     # whole pipeline, no external calls, no credentials
 ```
+
+⚠️ It is `npm run smoke`, not `npm run demo -- --prospect __smoke__ --run dry`.
+`--run dry` names a run directory; the dry-run switch is `DRY_RUN=1`. Without
+it, that command runs the fixture for real against production.
 
 CI runs the same, plus a hygiene job for developer-local paths, account-specific
 identifiers, and tracked run data. **Never commit anything under `runs/`** —
