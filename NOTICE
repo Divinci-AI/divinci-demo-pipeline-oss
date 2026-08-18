@@ -20,3 +20,10 @@ operate — none of which this licence speaks to.
 `policies/crawl-policy.md` records the policy this pipeline was operated under.
 It is documentation of one operator's practice, not legal advice and not a
 warranty that following it makes any particular crawl lawful.
+
+----
+
+The Divinci robot mark in `docs/header/` is a trademark of Divinci AI. Apache-2.0
+covers the code in this repository and, per section 6, grants no trademark
+licence — a fork may keep the images as they are, but should replace the mark
+rather than reuse it to identify a different project.

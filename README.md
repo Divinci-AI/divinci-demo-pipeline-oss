@@ -1,3 +1,9 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/header/header-dark.png">
+  <img src="docs/header/header-light.png" width="880"
+       alt="divinci-demo-pipeline · oss — Crawl a company's public site, build a citation-grounded RAG demo from it, and deliver a working link. Nothing reaches the company without a human. The twelve pipeline steps: gate1 (advisory), workspace, vector, ingest, wwwrag, hygiene, probe, release, qa, gate2 (advisory), landing, outreach (blocks). Apache-2.0, runs from a clean clone with npm run smoke. Part of the Open Web Vectors Initiative.">
+</picture>
+
 # Divinci Demo Pipeline
 
 Autonomous adjacent-customer demo pipeline: research companies adjacent to
