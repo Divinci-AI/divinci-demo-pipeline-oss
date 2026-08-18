@@ -1,0 +1,32 @@
+{
+  "prospect": "__smoke__",
+  "prospectName": "Smoke Test Clinic",
+  "anchorCustomer": "attio:deals/0000-smoke",
+  "run": "dry",
+  "created": "2026-06-13",
+  "complianceTier": "wellness-low",
+  "complianceNotes": "Fixture manifest for the DRY_RUN integration smoke test. Not a real prospect.",
+  "budgets": {
+    "crawlPages": 10,
+    "embeddingTokens": 100000
+  },
+  "evalQueries": [
+    "What does this clinic do?",
+    "How do I book an appointment?"
+  ],
+  "sources": [
+    {
+      "id": "site-main",
+      "url": "https://example.com",
+      "tier": "T1",
+      "type": "website",
+      "destination": "rag",
+      "rationale": "Primary marketing site",
+      "license": "owner-permitted",
+      "estPages": 5,
+      "crawl": { "multi": true, "limit": 5 }
+    }
+  ],
+  "approvedBy": null,
+  "approvedAt": null
+}

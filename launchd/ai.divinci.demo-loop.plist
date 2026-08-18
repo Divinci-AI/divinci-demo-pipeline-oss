@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>ai.divinci.demo-loop</string>
+
+  <!-- Absolute paths: launchd does not read a login shell, so nvm/asdf shims
+       and anything from .zshrc are NOT on PATH. A bare "npx" here fails with
+       an exit 127 that looks like a code error. -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/local/bin/node</string>
+    <string>__REPO__/orchestrator/node_modules/.bin/tsx</string>
+    <string>__REPO__/orchestrator/src/loop.ts</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>__REPO__/orchestrator</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <!-- `claude` and `divinci` are invoked as bare commands by the pipeline. -->
+    <key>PATH</key>
+    <string>__HOME__/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>HOME</key>
+    <string>__HOME__</string>
+    <!-- FORCE_COLOR breaks shell-consumed Node output elsewhere in this org;
+         keep the loop's output plain so log parsing stays predictable. -->
+    <key>NO_COLOR</key>
+    <string>1</string>
+  </dict>
+
+  <!-- Hourly. The loop is idempotent and takes a lock, so a long tick simply
+       causes the next one to exit immediately rather than overlapping. -->
+  <key>StartInterval</key>
+  <integer>3600</integer>
+
+  <key>StandardOutPath</key>
+  <string>__HOME__/Library/Logs/divinci-demo-loop.log</string>
+  <key>StandardErrorPath</key>
+  <string>__HOME__/Library/Logs/divinci-demo-loop.log</string>
+
+  <!-- Deliberately NOT RunAtLoad: loading the agent should not immediately
+       start crawling someone's website. Run one tick by hand first. -->
+  <key>RunAtLoad</key>
+  <false/>
+</dict>
+</plist>

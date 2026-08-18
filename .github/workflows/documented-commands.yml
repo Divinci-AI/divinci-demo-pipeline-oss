@@ -1,0 +1,40 @@
+name: Documented commands
+
+# The `divinci` CLI is an EXTERNAL dependency. It can rename or remove a command
+# without anyone touching this repository, so these docs rot on somebody else's
+# release schedule. A check that only ran on our commits would go stale exactly
+# when it matters — hence the schedule.
+#
+# This is deliberately NOT part of the main CI gate: an upstream CLI change
+# should not block an unrelated pull request. It should raise its hand.
+on:
+  schedule:
+    - cron: "17 6 * * 1"     # Mondays, 06:17 UTC
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "**/*.md"
+      - ".claude/skills/**"
+      - "orchestrator/scripts/check-documented-cli.mjs"
+      - ".github/workflows/documented-commands.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  documented-commands:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # No authentication, no account, no spend. The check only ever runs
+      # `--help`, which executes nothing — see the header of the script for why
+      # probing without --help would be unsafe.
+      - name: Install the Divinci CLI
+        run: npm i -g @divinci-ai/cli
+
+      - name: Every documented `divinci` command still exists
+        run: node orchestrator/scripts/check-documented-cli.mjs

@@ -1,0 +1,33 @@
+node_modules/
+.DS_Store
+
+# Local secrets / env
+.env
+*.env
+runs/teardown.log
+
+# ── runs/ is IGNORED WHOLESALE ───────────────────────────────────────────────
+#
+# A run directory holds a real company's crawled corpus, its generated landing
+# page, and outreach drafts written about it. The repository this one was
+# extracted from committed all of that — 4,868 files across 104 prospects — and
+# that history is the single reason the extraction had to be a fresh repo
+# rather than a visibility change. Nothing recovers from publishing it except
+# starting over.
+#
+# So the default is: runs are never tracked. The synthetic smoke fixture is the
+# one deliberate exception, re-admitted below.
+runs/*
+!runs/__smoke__/
+runs/__smoke__/*
+!runs/__smoke__/dry/
+runs/__smoke__/dry/*
+!runs/__smoke__/dry/manifest.json
+
+# (the smoke fixture's manifest is committed; its state.json is generated)
+
+# Cloned landing template per run (rebuilt on demand; has node_modules + dist)
+runs/*/*/landing/site/
+
+# Generated-media scratch (Imagen/Veo stills + clips; finals live on R2)
+runs/*/*/landing/gen/

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>ai.divinci.demo-teardown</string>
+
+  <!-- The loop already tears down expired demos every tick. This agent exists
+       so that "expires in 14 days" stays true even when the loop is stopped —
+       a promise made to a real company should not depend on a feature flag.
+       Teardown is idempotent, so the overlap is free. -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/local/bin/node</string>
+    <string>__REPO__/orchestrator/node_modules/.bin/tsx</string>
+    <string>__REPO__/orchestrator/src/teardown.ts</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>__REPO__/orchestrator</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>__HOME__/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>HOME</key>
+    <string>__HOME__</string>
+    <key>NO_COLOR</key>
+    <string>1</string>
+  </dict>
+
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>9</integer>
+    <key>Minute</key><integer>15</integer>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>__HOME__/Library/Logs/divinci-demo-teardown.log</string>
+  <key>StandardErrorPath</key>
+  <string>__HOME__/Library/Logs/divinci-demo-teardown.log</string>
+
+  <key>RunAtLoad</key>
+  <false/>
+</dict>
+</plist>

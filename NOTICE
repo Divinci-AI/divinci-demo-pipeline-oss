@@ -1,0 +1,22 @@
+Divinci Demo Pipeline
+Copyright (c) 2026 Divinci AI
+
+This product is licensed under the Apache License, Version 2.0 (the "License").
+You may not use this file except in compliance with the License. A copy of the
+License is distributed with this work in the file LICENSE, and is available at:
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+--------------------------------------------------------------------------------
+
+This repository drives third-party websites: it crawls them, builds a retrieval
+corpus from what it finds, and generates a demo from that corpus.
+
+Nothing in the Apache License grants you any right to the content of a site you
+point this at. Whether you may crawl, store, or reproduce a given site's content
+is governed by that site's terms, its robots.txt, and the law where you and it
+operate — none of which this licence speaks to.
+
+`policies/crawl-policy.md` records the policy this pipeline was operated under.
+It is documentation of one operator's practice, not legal advice and not a
+warranty that following it makes any particular crawl lawful.

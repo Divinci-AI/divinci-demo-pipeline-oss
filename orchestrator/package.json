@@ -1,0 +1,34 @@
+{
+  "name": "@divinci/demo-factory",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "description": "Demo factory orchestrator \u2014 drives the divinci CLI through the per-prospect demo pipeline",
+  "scripts": {
+    "demo": "tsx src/run.ts",
+    "typecheck": "tsc --noEmit",
+    "listen": "tsx src/listen.ts",
+    "video": "tsx src/video-ingest.ts",
+    "teardown": "tsx src/teardown.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "loop": "tsx src/loop.ts",
+    "intake": "tsx src/intake-cli.ts",
+    "health": "tsx src/demo-health-cli.ts",
+    "discover": "tsx src/discover-cli.ts",
+    "gate2": "tsx src/gate2-cli.ts",
+    "wwwrag:backfill": "tsx src/wwwrag-backfill.ts",
+    "metrics": "tsx src/metrics-cli.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.9"
+  },
+  "dependencies": {
+    "playwright": "^1.60.0",
+    "yaml": "^2.9.0"
+  }
+}

@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A second push to the same branch cancels the first — this repo's suite is
+# fast and there is no value in finishing a run for a superseded commit.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: orchestrator
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: orchestrator/package-lock.json
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      # No secrets, no network, no credentials. `vitest.config.ts` supplies
+      # deliberately-implausible placeholder values for every infrastructure
+      # variable, so a test can neither reach a real account nor pass because
+      # someone happened to have their own credentials in the environment.
+      - name: Test
+        run: npm test
+
+  hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # These are the mistakes that made this repo an extraction rather than a
+      # visibility flip. The unit suite covers infra fallbacks inside src/;
+      # this covers the files it cannot reach — plists, shell scripts, docs —
+      # and it is deliberately a separate job so a hygiene failure is not
+      # buried in a test log.
+      - name: No developer-local absolute paths
+        run: |
+          if git grep -nE '/Users/[a-z]+' -- . ':!*.test.ts' ':!.github/**'; then
+            echo "::error::a developer-local path is committed — derive it from the repo root or an env var"
+            exit 1
+          fi
+
+      - name: No account-specific infrastructure identifiers
+        run: |
+          # A default naming real infrastructure does not fail loudly when it is
+          # wrong; it succeeds against somebody else's account.
+          # No exclusion list on purpose. The test placeholders in
+          # vitest.config.ts are deliberately NOT identifier-shaped, so this
+          # pattern stays simple and nothing has to be carved out of it —
+          # a carve-out is where the next real identifier would hide.
+          if git grep -nE 'openai-api-4375643|pub-[0-9a-f]{32}\.r2\.dev|[0-9a-f]{32}' \
+               -- . ':!package-lock.json' ':!.github/**'; then
+            echo "::error::an account-specific identifier is committed — route it through requireEnv"
+            exit 1
+          fi
+
+      - name: No internal hostnames
+        run: |
+          # This class was missed twice. The first sweep looked for
+          # `process.env.X ?? "literal"` in TypeScript, so it could not see a
+          # hardcoded constant in a Python script, and it did not look at prose
+          # at all — the README and docs/LOOP.md both went on documenting one
+          # deployment's internal host as "the default, no configuration
+          # needed" for a whole release cycle.
+          #
+          # A grep over every tracked file, in any language, is the only form
+          # of this check that holds. divinci.app is the PUBLIC product API and
+          # is deliberately allowed.
+          if git grep -nE 'review-board-acme|demo-hooks\.divinci\.net' -- . ':!.github/**'; then
+            echo "::error::an internal hostname is committed — read it from an env var with no default"
+            exit 1
+          fi
+
+      - name: No run data beyond the synthetic fixture
+        run: |
+          # runs/ holds real companies' crawled corpora and outreach drafts.
+          # Committing it is what forced this repository to be re-created from
+          # scratch; the .gitignore prevents it and this proves the .gitignore.
+          unexpected="$(git ls-files runs/ | grep -v '^runs/__smoke__/' || true)"
+          if [ -n "$unexpected" ]; then
+            echo "::error::run data is tracked:"; echo "$unexpected"; exit 1
+          fi

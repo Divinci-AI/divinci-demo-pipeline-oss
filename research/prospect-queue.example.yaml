@@ -1,0 +1,152 @@
+# Example prospect queue.
+#
+# This is BOTH the format documentation and the fixture the compliance and
+# gate-1 safety tests run against. Every prospect below is invented; the real
+# queue this pipeline was built against is not part of this repository.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# WHY THE TESTS RUN AGAINST THIS FILE
+# ─────────────────────────────────────────────────────────────────────────────
+# Several tests assert safety properties over EVERY entry in the queue — that
+# no `clinic-high` prospect can auto-approve, that no model-facing scope
+# contains operator-facing material, that a flagged prospect always requires a
+# human. Those properties are about the queue as a whole, so the tests need a
+# queue to quantify over.
+#
+# Keep this file exercising the full vocabulary — all four tiers and all four
+# flags — or the safety tests silently narrow to whatever happens to be here.
+# A tier with no example is a tier nothing tests.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# THE TWO NOTE FIELDS ARE NOT INTERCHANGEABLE
+# ─────────────────────────────────────────────────────────────────────────────
+#   notes            operator-facing. Never reaches a model. Recon, scoring,
+#                    scheduling, CRM state — anything you would not want an
+#                    assistant to read out to a visitor.
+#   complianceNotes  MODEL-FACING. Becomes the assistant's compliance scope,
+#                    verbatim. Write it as an instruction to the assistant.
+#
+# Putting operator material in `complianceNotes` leaks it into the deployed
+# assistant's prompt. `compliance-flags.test.ts` fails on the giveaway patterns
+# (scores, CRM refs, "TIER GAP", "NURTURE"), which is a backstop and not a
+# substitute for keeping the two straight.
+
+prospects:
+
+  # ── wellness-low: general wellness content, no clinical claims ─────────────
+  - slug: examplewellness
+    name: Example Wellness Co
+    url: https://wellness.example.com
+    requestedBy: discovered
+    anchorCustomer: "crm:deals/0000-example-wellness"
+    complianceTier: wellness-low
+    score: 62
+    notes: >-
+      Recon: ~40 sitemap pages, blog-heavy. Straightforward corpus.
+    complianceNotes: >-
+      Describe only what this company's own pages say, attributed to them.
+      Never give individual health advice and never tell a reader what to take
+      or do. Point to a qualified professional for anything personal.
+
+  # ── commerce-medium: sells a product; marketing claims are the hazard ──────
+  - slug: exampleshop
+    name: Example Shop
+    url: https://shop.example.com
+    requestedBy: discovered
+    anchorCustomer: "crm:deals/0000-example-shop"
+    complianceTier: commerce-medium
+    score: 55
+    notes: >-
+      Recon: catalogue of ~120 products. Expect a product-heavy corpus.
+    complianceNotes: >-
+      Describe products only as this company's own pages describe them,
+      attributed. Never assert an outcome on your own authority and never
+      generalise a stated result to the reader's own situation.
+
+  # ── clinic-high: patient-facing clinical site. MUST always need a human ────
+  - slug: exampleclinic
+    name: Example Orthopaedic Clinic
+    url: https://clinic.example.com
+    requestedBy: discovered
+    anchorCustomer: "crm:deals/0000-example-clinic"
+    complianceTier: clinic-high
+    score: 71
+    notes: >-
+      Recon: ~200 pages including physician bios and condition pages.
+    complianceNotes: >-
+      Describe only what this clinic's own pages state, attributed to the
+      clinic. Never diagnose, never recommend a treatment, never comment on an
+      individual's symptoms, and never estimate a recovery time. Direct anyone
+      describing a personal medical situation to contact the clinic directly.
+
+  # ── sensitive-audience as a TIER (distinct from the flag of the same name) ─
+  - slug: examplesupport
+    name: Example Support Network
+    url: https://support.example.com
+    requestedBy: direct
+    directSeq: 1
+    anchorCustomer: "crm:deals/0000-example-support"
+    complianceTier: sensitive-audience
+    score: 48
+    notes: >-
+      Requested directly. Small corpus.
+    complianceNotes: >-
+      Readers may be in distress. Never give clinical or crisis advice, never
+      speculate about a reader's circumstances, and surface the organisation's
+      own published contact routes rather than improvising guidance.
+
+  # ── flag coverage: financial-advice ───────────────────────────────────────
+  - slug: examplecapital
+    name: Example Capital
+    url: https://capital.example.com
+    requestedBy: discovered
+    anchorCustomer: "crm:deals/0000-example-capital"
+    complianceTier: commerce-medium
+    complianceFlags: [financial-advice]
+    score: 44
+    complianceNotes: >-
+      Describe this firm's published services, attributed. Never advise on any
+      investment decision and never comment on whether something is a good
+      investment.
+
+  # ── flag coverage: legal-advice ───────────────────────────────────────────
+  - slug: examplelaw
+    name: Example Law Group
+    url: https://law.example.com
+    requestedBy: discovered
+    anchorCustomer: "crm:deals/0000-example-law"
+    complianceTier: commerce-medium
+    complianceFlags: [legal-advice]
+    score: 41
+    complianceNotes: >-
+      Describe this firm's published practice areas, attributed. Never give
+      legal advice, never assess anyone's case, and never predict an outcome.
+
+  # ── flag coverage: public-service ─────────────────────────────────────────
+  - slug: exampleagency
+    name: Example County Services
+    url: https://agency.example.gov
+    requestedBy: discovered
+    anchorCustomer: "crm:deals/0000-example-agency"
+    complianceTier: wellness-low
+    complianceFlags: [public-service]
+    score: 39
+    complianceNotes: >-
+      Describe only the services this agency's own pages document, attributed.
+      Never assert eligibility for any benefit or programme and never state a
+      deadline that is not published on the page you are drawing from.
+
+  # ── flag coverage: sensitive-audience AS A FLAG on a commerce tier ────────
+  - slug: examplesupplements
+    name: Example Supplements
+    url: https://supplements.example.com
+    requestedBy: discovered
+    anchorCustomer: "crm:deals/0000-example-supplements"
+    complianceTier: commerce-medium
+    complianceFlags: [sensitive-audience]
+    score: 37
+    complianceNotes: >-
+      Describe products only as this company's own pages describe them,
+      attributed. Never advise anyone on what to take, never comment on an
+      interaction with a medication, and never address a reader's stated
+      health condition.
