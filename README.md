@@ -9,14 +9,38 @@ approval and demo review, and hard spend caps via Kill Switch Agent Guard.
 Start with [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 **Using an AI coding agent?** [`AGENTS.md`](AGENTS.md) carries the rules that
-are load-bearing here, and Claude Code picks up three task skills from
-`.claude/skills/` automatically:
+are load-bearing here, and the repo ships agent skills that take an agent from
+a clone to a working demo — see [Agent skills](#agent-skills) below.
+
+## Agent skills
+
+Three [Agent Skills](https://docs.claude.com/en/docs/agents-and-tools/agent-skills)
+live in `.claude/skills/`, covering the `divinci` CLI work this pipeline does.
+Claude Code loads them automatically from a clone; any agent that reads
+`SKILL.md` packages can use them, and an agent without skill support can simply
+read the three files in this order:
 
 | skill | for |
 |---|---|
-| `divinci-demo-pipeline-setup` | fresh clone → verified install |
-| `divinci-demo-pipeline-run` | running against a real company |
-| `divinci-cli-release-demo` | one demo by hand, with just the `divinci` CLI |
+| [`divinci-demo-pipeline-setup`](.claude/skills/divinci-demo-pipeline-setup/SKILL.md) | fresh clone → verified install: CLI auth, the Cloudflare/GCP resources, the required environment, and the no-network dry run that proves it |
+| [`divinci-demo-pipeline-run`](.claude/skills/divinci-demo-pipeline-run/SKILL.md) | running against a real company: the crawl policy, queueing a prospect at the right compliance tier, intake, the human gates, cost, teardown |
+| [`divinci-cli-release-demo`](.claude/skills/divinci-cli-release-demo/SKILL.md) | one demo by hand with just the CLI — workspace → RAG vector → crawl → release → publish. The same path the orchestrator automates, which is what makes it the tool for debugging a step that failed inside it |
+
+They are deliberately scoped to *this* pipeline. For building on the Divinci
+platform generally — the CLI's full command surface, `@divinci-ai/client`,
+`@divinci-ai/server`, `@divinci-ai/mcp`, and the REST API — install the
+platform-wide `divinci` skill alongside them:
+
+```sh
+curl -sL https://sdk.divinci.ai/divinci-skill.zip -o /tmp/divinci-skill.zip
+unzip -q /tmp/divinci-skill.zip -d .claude/skills/   # or ~/.claude/skills/ for every project
+```
+
+Full docs: [sdk.divinci.ai](https://sdk.divinci.ai).
+
+⚠️ Agent skills are unrelated to `divinci user-skills` in the CLI, which manages
+per-user *platform* skill instances (email and the like). Same word, different
+thing.
 
 ## What is NOT in this repository
 
@@ -186,6 +210,29 @@ npm run intake -- --next     # queue → recon → manifest
 npm run loop -- --dry-run    # decide everything, change nothing
 npm run loop                 # one real tick
 ```
+
+## Forking, experimenting, contributing
+
+**Fork it and make it yours.** This was extracted from something Divinci runs on
+its own accounts, against its own prospects, under a crawl policy encoding
+commitments *we* made — so the prospect queue, the review board, the policy and
+the pipeline steps themselves are all meant to be replaced rather than merely
+configured. You need no permission and owe no pull request; Apache-2.0 means
+what it says. If you get it working for a use we never imagined, we would love
+to hear about it.
+
+We do appreciate contributions back — including a bug report that amounts to
+"this setup step does not work on my machine", since *can a stranger run this?*
+is the test this repo is built around. And the wider project it feeds is the
+[**Open Web Vectors Initiative**](https://divinci.ai/open-web-vectors/): a
+public, per-site retrieval index where every site gets its own vectors, its own
+embeddings and a citation-backed chat endpoint, nothing is trained on, and any
+site owner can claim theirs. You contribute to it by indexing sites (the opt-in
+`wwwrag` step above) and by improving the crawling — pages our scrapers cannot
+read are the main limit on its coverage.
+
+Details, and the checks to run before you push, are in
+[`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Licence
 

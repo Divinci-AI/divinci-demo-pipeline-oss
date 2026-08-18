@@ -11,6 +11,23 @@ reads the task-specific skills in `.claude/skills/`:
 
 Agents without skill support: read those three files directly, in that order.
 
+Those three are scoped to this pipeline. For the Divinci platform generally —
+the CLI's whole command surface, the client/server/MCP SDKs, the REST API —
+install the platform-wide `divinci` skill next to them:
+
+```sh
+curl -sL https://sdk.divinci.ai/divinci-skill.zip -o /tmp/divinci-skill.zip
+unzip -q /tmp/divinci-skill.zip -d .claude/skills/
+```
+
+(Unrelated to `divinci user-skills` in the CLI, which manages per-user platform
+skill instances.)
+
+This repo is meant to be forked and adapted — see
+[`CONTRIBUTING.md`](CONTRIBUTING.md). If the user is changing the pipeline for
+their own use rather than contributing back, say so plainly and do not steer
+them toward keeping a divergence they never asked for.
+
 ## Orient
 
 ```sh
