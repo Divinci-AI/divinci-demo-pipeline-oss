@@ -71,10 +71,12 @@ and point crawls at a Cloudflare deployment you own.
   [`chunk.js`](../targets/cloudflare/src/chunk.js) from the Cloudflare target
   rather than copying it, so a corpus built half locally and half on the edge
   has one chunking, not two.
-- **The same embedding space.** Ollama's `embeddinggemma` is what Cloudflare
-  serves as `@cf/google/embeddinggemma-300m`, 768-d. Vectors from different
-  embedding models are not comparable even at identical dimensionality —
-  mixing them does not error, it just returns wrong neighbours, quietly.
+- **The same embedding space, verified.** Ollama's `embeddinggemma` is what
+  Cloudflare serves as `@cf/google/embeddinggemma-300m`, 768-d. The same
+  sentence through both gives **cosine 0.99998**, both unit-length. That is
+  worth measuring rather than assuming: vectors from different embedding models
+  are not comparable even at identical dimensionality, and mixing them does not
+  error — it returns wrong neighbours, quietly and forever.
 - **Tests that need no account.** Every target's suite runs with no network, no
   credentials and no cloud provider.
 

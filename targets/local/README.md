@@ -23,11 +23,14 @@ against Ollama, then sync precomputed vectors up.
 - **The text stays put.** Only 768-float vectors and their source URLs are
   uploaded. For a corpus you cannot send to a third party, that is the whole
   argument.
-- **It is genuinely the same vector space.** Ollama's `embeddinggemma` is the
-  model Cloudflare serves as `@cf/google/embeddinggemma-300m`, and the chunker
-  is imported from [the Cloudflare target](../cloudflare/src/chunk.js) rather
-  than copied. A corpus can be built locally, on the edge, or half each, and
-  retrieval still works.
+- **It is genuinely the same vector space — measured, not assumed.** Ollama's
+  `embeddinggemma` is the model Cloudflare serves as
+  `@cf/google/embeddinggemma-300m`. Embedding the same sentence through both
+  gives **cosine 0.99998**, and both return unit-length vectors, so no
+  normalisation step is needed on this side. The chunker is *imported* from
+  [the Cloudflare target](../cloudflare/src/chunk.js) rather than copied. A
+  corpus can be built locally, on the edge, or half each, and retrieval still
+  works.
 - **Re-running is free and safe.** Every row is keyed by content hash and
   Vectorize upserts by id, so a re-crawl writes only what actually changed and
   a crashed run is resumed by running it again. There is no session state.

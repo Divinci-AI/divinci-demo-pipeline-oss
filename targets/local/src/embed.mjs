@@ -63,6 +63,16 @@ export async function embedBatch(texts, { host = process.env.OLLAMA_HOST || OLLA
     // here loses the whole batch's compute.
     signal: AbortSignal.timeout(180_000),
   });
+  // ⚠️ /api/embed (batch) was added in Ollama 0.3.x. Older builds have only
+  // /api/embeddings (singular), and answer this with a 404 whose body says
+  // nothing about versions — which reads as "the model is missing" and sends
+  // people to re-pull a model that is already there.
+  if (res.status === 404) {
+    throw new EmbeddingError(
+      "Ollama has no /api/embed — that batch endpoint needs Ollama 0.3 or newer.\n" +
+      "  Upgrade Ollama, then re-run.  (`ollama --version`)",
+    );
+  }
   const text = await res.text();
   let json;
   try { json = JSON.parse(text); }

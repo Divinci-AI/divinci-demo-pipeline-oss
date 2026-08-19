@@ -1,0 +1,16 @@
+# ⚠️ Without this, `COPY orchestrator ./orchestrator` copies the developer's
+# local node_modules OVER the one `npm ci` just installed in the image —
+# slow, and on an Apple-silicon laptop building for linux/amd64 it overwrites
+# correct binaries with the wrong architecture's.
+**/node_modules
+
+# Run data is real companies' corpora and outreach. It is gitignored; keep it
+# out of a pushed image too, which is a second way to publish it.
+runs
+!runs/__smoke__
+
+**/.git
+**/.wrangler
+**/.env
+**/*.log
+.DS_Store

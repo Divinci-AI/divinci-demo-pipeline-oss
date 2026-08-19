@@ -21,12 +21,23 @@ export function contentHash(text) {
 }
 
 export class SyncError extends Error {
-  constructor(message, status, code) {
+  constructor(message, status, code, retryAfterMs = null) {
     super(message);
     this.name = "SyncError";
     this.status = status;
     this.code = code;
+    /** Milliseconds the server asked us to wait, when it said. */
+    this.retryAfterMs = retryAfterMs;
   }
+}
+
+/** Parse a Retry-After header (delta-seconds or HTTP-date) into ms. */
+export function retryAfterMs(header, now = Date.now()) {
+  if (!header) return null;
+  const secs = Number(header);
+  if (Number.isFinite(secs)) return Math.max(0, secs * 1000);
+  const at = Date.parse(header);
+  return Number.isNaN(at) ? null : Math.max(0, at - now);
 }
 
 async function call(session, path, body) {
@@ -51,7 +62,7 @@ async function call(session, path, body) {
     const e = json?.error ?? {};
     throw new SyncError(
       `local-sync/${path} → ${res.status}${e.code ? ` ${e.code}` : ""}: ${e.message ?? text.slice(0, 200)}`,
-      res.status, e.code,
+      res.status, e.code, retryAfterMs(res.headers.get("retry-after")),
     );
   }
   return json;
@@ -95,12 +106,33 @@ export async function pushAll(session, whitelabelId, vectorId, rows, { onProgres
       } catch (e) {
         lastErr = e;
         // A 4xx is a statement about the request and will not become true by
-        // being repeated. Only retry transport and 5xx.
-        if (e instanceof SyncError && e.status >= 400 && e.status < 500) break;
-        if (a < attempts - 1) await new Promise((r) => setTimeout(r, (a + 1) * 2000));
+        // being repeated — EXCEPT 429, which says the opposite: try again later.
+        //
+        // ⚠️ local-sync is rate-limited PER USER (every batch is a billable
+        // Vectorize upsert), so 429 is an ordinary outcome of a large push, not
+        // an exceptional one. Treating it as terminal aborted the whole run —
+        // and because a partial push must never be finalized, the user lost
+        // every batch that had already landed and had to start over.
+        const retryable = !(e instanceof SyncError) || e.status === 429 || e.status >= 500;
+        if (!retryable) break;
+        if (a < attempts - 1) {
+          // Honour Retry-After when the server sends one; it knows the window.
+          const wait = e instanceof SyncError && e.retryAfterMs != null
+            ? e.retryAfterMs
+            : (a + 1) * 2000;
+          await new Promise((r) => setTimeout(r, wait));
+        }
       }
     }
-    if (lastErr) throw lastErr;
+    if (lastErr) {
+      // Name the vector. `init` already created it, and a push that dies
+      // half-way leaves it in the workspace un-finalized — findable only if the
+      // error says which one it is.
+      lastErr.message = `${lastErr.message}\n  vector ${vectorId}: ${sent}/${rows.length} rows landed, ` +
+        `NOT finalized. Re-run to resume — rows are keyed by content hash, so ` +
+        `re-sending what already landed is a no-op.`;
+      throw lastErr;
+    }
     sent += batch.length;
     onProgress?.({ batch: i + 1, batches: chunks.length, sent, total: rows.length });
   }

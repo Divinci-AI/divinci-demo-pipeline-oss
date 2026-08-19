@@ -104,8 +104,23 @@ export function parseDisallows(txt, ua = "*") {
     m = /^disallow\s*:\s*(.*)$/i.exec(l);
     if (m && current.length) for (const g of current) groups.get(g).push(m[1].trim());
   }
-  // A group naming us specifically wins over the wildcard.
-  return groups.get(ua.toLowerCase()) ?? groups.get("*") ?? [];
+
+  // ⚠️ Match on the PRODUCT TOKEN, not the full User-Agent string.
+  //
+  // robots.txt groups name a token — `User-agent: divinci-local-pipeline` —
+  // while the header we send is the whole string, version and contact URL
+  // included. Looking the full string up in `groups` therefore never matched
+  // anything, and every site silently fell through to the `*` rules.
+  //
+  // The direction of that failure is what makes it worth fixing rather than
+  // noting: a site giving THIS crawler a stricter group than `*` would have
+  // had its stricter rules ignored.
+  //
+  // The first test written for this passed the token directly, so it exercised
+  // a path the real caller never took and proved the wrong thing.
+  const full = String(ua).toLowerCase();
+  const token = full.split("/")[0].split(/\s/)[0];
+  return groups.get(full) ?? groups.get(token) ?? groups.get("*") ?? [];
 }
 
 export const isAllowed = (pathname, disallows) =>

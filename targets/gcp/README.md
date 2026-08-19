@@ -31,20 +31,28 @@ Nothing outside would show it.
 (`ALLOW_EPHEMERAL_STATE=1` for a deliberate one-shot). That is a hard refusal
 rather than a warning because the failure is invisible from the outside.
 
-### ⚠️ Single-writer is enforced by the JOB, not by the lock
+### ⚠️ Single-writer comes from the TIMEOUT, not from `--parallelism`
 
-The orchestrator's run lock is an `O_EXCL` file create, which is atomic on a
-local filesystem. **GCS FUSE does not guarantee that**, so two concurrent
-executions could both believe they hold it — and two processes on one run
-directory overwrite each other's `state.json`, which is how a finished run was
-once rewritten back to an earlier step.
+Two orchestrator processes on one run directory overwrite each other's
+`state.json` — that is how a finished run was once rewritten back to an earlier
+step. So exactly one tick may be running at a time.
 
-`deploy.sh` therefore sets `--tasks=1 --parallelism=1` and `--max-retries=0`.
-Those are correctness settings, not performance tuning. If you raise them, you
-have removed the only thing enforcing single-writer.
+**`--tasks=1 --parallelism=1` does not achieve that.** Those bound concurrency
+*within* one execution. Cloud Run Jobs will happily start a second **execution**
+while the first is still running, and Cloud Scheduler fires on the clock without
+looking at whether the last tick finished.
 
-Keep the schedule comfortably longer than a tick takes. An hourly schedule
-against ticks that run 20 minutes is fine; a 5-minute schedule is not.
+What actually prevents the overlap is **`TASK_TIMEOUT` being shorter than the
+schedule interval**, so a slow tick is killed before the next one starts. The
+defaults are 3000s against an hourly schedule, and `deploy.sh` **refuses to
+deploy** if you shorten `SCHEDULE` without shortening `TASK_TIMEOUT` — the
+relationship is enforced rather than left as advice.
+
+The orchestrator's own lock is a real backstop, better than first assumed:
+`openSync(path, "wx")` becomes a GCS create with `ifGenerationMatch=0`, which is
+atomic at the storage layer. But GCS FUSE caches metadata, so a stale negative
+lookup can still let two clients through, and `flock` is not supported at all.
+Treat the lock as defence in depth and the timeout as the control.
 
 ## Deploy
 
@@ -82,6 +90,21 @@ Add the orchestrator's own configuration (`CF_WORKERS_SUBDOMAIN`,
 `LANDING_KV_NAMESPACE_ID`, `DEMO_ASSETS_R2_BUCKET`, `DEMO_ASSETS_R2_BASE`,
 `VERTEX_PROJECT`) with `--set-env-vars`, or extend `SECRETS`. See the root
 README's configuration table.
+
+### The prospect queue
+
+`research/prospect-queue.yaml` is gitignored, so the image ships with only the
+example. **A freshly deployed job therefore has an empty queue and will do
+nothing** — correctly, but silently. Either bake your queue into the image, or
+put it on the GCS volume and point `intake` at it.
+
+### `RUNS_DIR` is for the entrypoint, not the orchestrator
+
+`entrypoint.sh` reads it to check the mount. The orchestrator does **not** — it
+computes `runs/` from its own location (`/app/orchestrator/src` → `/app/runs`),
+which is why the Dockerfile puts the app at `/app` and the volume at
+`/app/runs`. Changing the mount path alone would not move the orchestrator's
+state; it would only move what the check looks at.
 
 ## Watching it
 

@@ -1,6 +1,6 @@
 // Chunk coalescing, the sync contract, and session resolution.
 import { coalesceChunks, MIN_CHUNK_BYTES } from "../src/coalesce.mjs";
-import { batches, contentHash, MAX_BATCH, pushAll, SyncError } from "../src/sync.mjs";
+import { batches, contentHash, MAX_BATCH, pushAll, SyncError, retryAfterMs } from "../src/sync.mjs";
 import { resolveSession, NotAuthenticatedError } from "../src/session.mjs";
 import { byteLen, HARD_MAX } from "../../cloudflare/src/chunk.js";
 
@@ -74,6 +74,48 @@ ok(batches([]).length === 0, "no rows means no requests");
   try { await pushAll({ apiUrl: "https://x.test", token: "t" }, "wl", "v", [{}], { attempts: 3 }); } catch {}
   globalThis.fetch = realFetch;
   ok(calls === 1, "a 4xx is not retried — repeating a rejected request cannot make it valid");
+}
+
+// ── 429 is the exception, and getting it wrong loses the whole run ──────────
+// local-sync is rate-limited PER USER, so 429 is an ordinary outcome of a large
+// push. Treating it as terminal aborted everything — and since a partial push
+// must never be finalized, every batch that had already landed was wasted.
+{
+  const realFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls++;
+    return calls === 1
+      ? new Response("{}", { status: 429, headers: { "retry-after": "0" } })
+      : Response.json({ ok: true });
+  };
+  const r = await pushAll({ apiUrl: "https://x.test", token: "t" }, "wl", "v", [{ contentHash: "a" }], { attempts: 3 });
+  globalThis.fetch = realFetch;
+  ok(calls === 2, "a 429 IS retried rather than aborting the push");
+  ok(r.sent === 1, "…and the batch lands on the retry");
+}
+{
+  ok(retryAfterMs("2") === 2000, "Retry-After in delta-seconds is honoured");
+  ok(retryAfterMs(null) === null, "no Retry-After means fall back to backoff");
+  const at = new Date(Date.now() + 5000).toUTCString();
+  const ms = retryAfterMs(at);
+  ok(ms > 3000 && ms <= 5000, "Retry-After as an HTTP-date is honoured");
+  ok(retryAfterMs("garbage") === null, "an unparseable Retry-After does not become NaN backoff");
+}
+
+// ── a failed push must name the vector it left behind ──────────────────────
+{
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response("boom", { status: 500 });
+  let msg = "";
+  try {
+    await pushAll({ apiUrl: "https://x.test", token: "t" }, "wl", "vec-123",
+      [{ contentHash: "a" }], { attempts: 1 });
+  } catch (e) { msg = e.message; }
+  globalThis.fetch = realFetch;
+  ok(/vec-123/.test(msg), "the error names the vector `init` already created");
+  ok(/NOT finalized/.test(msg), "…and says it was not finalized");
+  ok(/re-sending what already landed is a no-op/.test(msg), "…and that re-running is safe");
 }
 
 // ── session ─────────────────────────────────────────────────────────────────

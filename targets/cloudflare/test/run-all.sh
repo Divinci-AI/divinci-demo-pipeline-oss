@@ -11,6 +11,7 @@ run "configuration guard (unit)"    node require-env.test.mjs
 run "no account defaults (unit)"    node no-account-defaults.test.mjs
 run "AI-rights gate (unit)"         node ai-rights.test.mjs
 run "directory authority (unit)"    node directory.test.mjs
+run "takedown contract (struct)"    node takedown-contract.test.mjs
 run "chunker (unit)"                node chunk.test.mjs
 run "release body + HMAC (unit)"    node release.test.mjs
 run "crawl budget (unit)"           node crawl-budget.test.mjs

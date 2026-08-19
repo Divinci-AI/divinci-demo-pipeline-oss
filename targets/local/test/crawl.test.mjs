@@ -1,7 +1,7 @@
 // The crawler, and the two bugs that shipped in its first draft. Both were
 // found by pointing it at ONE real site, and both reported success while
 // producing nothing usable — which is why they are pinned here.
-import { extractLinks, htmlToText, parseDisallows, isAllowed, stripNonMarkup, extractTitle } from "../src/crawl.mjs";
+import { extractLinks, htmlToText, parseDisallows, isAllowed, stripNonMarkup, extractTitle, DEFAULT_UA } from "../src/crawl.mjs";
 
 let fail = 0;
 const ok = (c, m) => { if (!c) { console.log("  ❌ " + m); fail++; } else console.log("  ✅ " + m); };
@@ -78,11 +78,30 @@ const ok = (c, m) => { if (!c) { console.log("  ❌ " + m); fail++; } else conso
   ok(isAllowed("/public/x", d), "everything else is allowed");
 }
 {
-  // A group naming us specifically must win over the wildcard.
-  const txt = "User-agent: *\nDisallow: /\n\nUser-agent: divinci-local-pipeline/0.1\nDisallow: /admin";
-  const d = parseDisallows(txt, "divinci-local-pipeline/0.1");
-  ok(isAllowed("/docs", d), "a group naming this crawler overrides the wildcard");
+  // ⚠️ This must be called with the FULL User-Agent, exactly as crawlSite does.
+  //
+  // The first version of this test passed the bare token, so it exercised a
+  // path the real caller never took: `crawlSite` passes DEFAULT_UA — the whole
+  // string, version and contact URL included — while robots.txt groups name a
+  // TOKEN. The lookup therefore never matched and every site silently fell
+  // through to the `*` rules, with the test green throughout.
+  const txt = "User-agent: *\nDisallow: /\n\nUser-agent: divinci-local-pipeline\nDisallow: /admin";
+  const d = parseDisallows(txt, DEFAULT_UA);
+  ok(isAllowed("/docs", d), "a group naming this crawler overrides the wildcard, matched from the FULL UA");
   ok(!isAllowed("/admin", d), "…and its own rules still apply");
+  ok(d.length === 1, "…and the wildcard's Disallow: / is not also applied");
+}
+{
+  // The stricter direction is the one that matters: a site giving us a tighter
+  // group than `*` must have it honoured, not ignored.
+  const txt = "User-agent: *\nDisallow: /public-ok\n\nUser-agent: divinci-local-pipeline\nDisallow: /";
+  const d = parseDisallows(txt, DEFAULT_UA);
+  ok(!isAllowed("/anything", d), "a group STRICTER than the wildcard is honoured, not skipped");
+}
+{
+  // An exact full-string group still wins, for a site that writes it that way.
+  const txt = `User-agent: *\nDisallow: /\n\nUser-agent: ${DEFAULT_UA.toLowerCase()}\nDisallow: /x`;
+  ok(parseDisallows(txt, DEFAULT_UA).join() === "/x", "an exact full-UA group is matched too");
 }
 {
   ok(isAllowed("/anything", parseDisallows("")), "no robots.txt disallows nothing");

@@ -74,9 +74,18 @@ export class SitePipeline extends WorkflowEntrypoint {
    * is as terminal as one we published — leaving it pending means re-asking it
    * on every cron tick forever, which is both wasteful and rude.
    */
-  async retire(host, reason) {
+  async retire(host, reason, extra = {}) {
     try {
-      await this.env.BUCKET.put(DONE + host, JSON.stringify({ reason, at: Date.now() }));
+      // ⚠️ `extra` carries the vectorId and releaseId on a PUBLISH, and it is
+      // not bookkeeping — it is what makes a takedown possible later.
+      //
+      // In shared-directory mode the directory can be asked which release a
+      // host was published as. In own-corpus mode there is no directory, and
+      // nothing else records the pair — `recordPublish` stores only host,
+      // pages, chunks and a timestamp. Without this, an own-corpus deployment
+      // could crawl a site and then have no way to honour "please remove me",
+      // which is not an acceptable property for a crawler to ship with.
+      await this.env.BUCKET.put(DONE + host, JSON.stringify({ reason, at: Date.now(), ...extra }));
       await this.env.BUCKET.delete(PENDING + host);
       await this.env.BUCKET.delete(INFLIGHT + host);
     } catch { /* frontier bookkeeping must never fail a real publish */ }
@@ -674,7 +683,7 @@ export class SitePipeline extends WorkflowEntrypoint {
         pageCount: chunked.urls, totalBytes: chunked.bytes,
       }));
 
-    await this.retire(host, "published");
+    await this.retire(host, "published", { vectorId: reg.vectorId, releaseId: release.releaseId });
 
     // Feed the public status page. Best-effort by construction (recordPublish
     // swallows its own errors) — the site is already live at this point, and a
@@ -1288,23 +1297,37 @@ export default {
       // releaseId comes from the directory, so a caller cannot mis-name one and
       // deprecate an unrelated release.
       //
-      // ⚠️ Withdrawal REQUIRES a directory, so unlike the publish path this has
-      // no own-corpus mode: the whole operation is "look up what this host was
-      // published as, then unpublish exactly that". Guessing a releaseId here
-      // would deprecate an unrelated release, and this path also destroys a
-      // database irreversibly.
+      // Resolve each host to the release it was published as. Never guess: a
+      // wrong releaseId deprecates an unrelated release, and this path also
+      // destroys a database irreversibly.
+      //
+      // OWN-CORPUS mode has no directory to ask, so the publish tombstone is
+      // the record (see `retire`). That is the only source here — a host with
+      // no tombstone is one this deployment never published, and withdrawing
+      // it is not this deployment's business.
+      const byHost = new Map();
       if (!env.DIRECTORY_URL) {
-        return Response.json(
-          { error: "withdrawal needs DIRECTORY_URL — it resolves each host to the release to deprecate" },
-          { status: 501 },
-        );
-      }
+        for (const h of hosts) {
+          const obj = await env.BUCKET.get(DONE + String(h).toLowerCase());
+          if (!obj) continue;
+          const t = await obj.json().catch(() => ({}));
+          if (t.releaseId) byHost.set(String(h).toLowerCase(), { releaseId: t.releaseId, vectorId: t.vectorId });
+        }
+        const unknown = hosts.filter((h) => !byHost.has(String(h).toLowerCase()));
+        if (unknown.length) {
+          return Response.json({
+            error: "no publish record for these hosts — this deployment did not publish them, " +
+                   "or they were published before the tombstone carried a releaseId",
+            unknown,
+          }, { status: 404 });
+        }
+      } else {
       const dirRes = await fetch(env.DIRECTORY_URL, {
         signal: AbortSignal.timeout(40_000),
       });
       if (!dirRes.ok) return Response.json({ error: `directory ${dirRes.status}` }, { status: 502 });
-      const byHost = new Map();
       for (const st of ((await dirRes.json())?.sites ?? [])) if (st.host) byHost.set(st.host, st);
+      }
 
       const results = [];
       for (const host of hosts) {

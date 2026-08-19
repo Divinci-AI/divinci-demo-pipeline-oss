@@ -24,6 +24,29 @@ SA="${SERVICE_ACCOUNT:-${JOB}@${GCP_PROJECT}.iam.gserviceaccount.com}"
 # Secrets the job reads from Secret Manager. Each must already exist.
 SECRETS="${SECRETS:-DIVINCI_TOKEN}"
 
+# ── the one relationship that must hold ─────────────────────────────────────
+#
+# A tick must not still be running when the next one starts: two orchestrator
+# processes on one run directory overwrite each other's state.json, which is how
+# a finished run was once rewritten back to an earlier step. Cloud Run does not
+# enforce this for us (see the note by the job creation below), so the timeout
+# has to be shorter than the interval.
+TASK_TIMEOUT="${TASK_TIMEOUT:-3000s}"
+timeout_secs="${TASK_TIMEOUT%s}"
+# Only simple `M H * * *`-style intervals are checked; anything else is left to
+# the operator rather than half-parsed.
+interval_secs=""
+case "$SCHEDULE" in
+  "0 * * * *"|"*/60 * * * *") interval_secs=3600 ;;
+  "*/"[0-9]*" * * * *") m="${SCHEDULE#*/}"; m="${m%% *}"; interval_secs=$(( m * 60 )) ;;
+esac
+if [ -n "$interval_secs" ] && [ "$timeout_secs" -ge "$interval_secs" ]; then
+  echo "❌ TASK_TIMEOUT (${timeout_secs}s) must be LESS than the schedule interval (${interval_secs}s)." >&2
+  echo "   Otherwise a slow tick is still running when the next fires, and two" >&2
+  echo "   orchestrator processes on one run directory overwrite each other." >&2
+  exit 2
+fi
+
 GO=0; RUN_NOW=0
 for a in "$@"; do
   case "$a" in
@@ -40,6 +63,7 @@ job            $JOB
 image          $IMAGE
 state bucket   gs://$GCS_STATE_BUCKET  → mounted at /app/runs
 schedule       $SCHEDULE
+task timeout   $TASK_TIMEOUT  (must be < the interval — see the note in this script)
 service acct   $SA
 secrets        $SECRETS
 
@@ -82,15 +106,24 @@ for s in $SECRETS; do
 done
 
 # ── build ───────────────────────────────────────────────────────────────────
-run gcloud builds submit --tag "$IMAGE" --project "$GCP_PROJECT" \
-  --gcs-source-staging-dir "gs://$GCS_STATE_BUCKET/_build" .
+# No --gcs-source-staging-dir: the Cloud Build service account would need write
+# access to the state bucket, which is a second permission to grant for no gain,
+# and it mixes build tarballs into the directory holding run state.
+run gcloud builds submit --tag "$IMAGE" --project "$GCP_PROJECT" .
 
 # ── the job ─────────────────────────────────────────────────────────────────
 #
-# --parallelism=1 --tasks=1 is not a performance setting. The orchestrator's run
-# lock is an O_EXCL file, and GCS FUSE does not guarantee that create is atomic
-# across concurrent clients — so single-writer must be enforced HERE, by the job
-# never running two tasks, rather than by the lock. See README.md.
+# --tasks=1 --parallelism=1 bounds concurrency WITHIN one execution.
+#
+# ⚠️ It does NOT stop two EXECUTIONS overlapping — Cloud Run Jobs will happily
+# run a second execution while the first is still going, and Cloud Scheduler
+# fires on the clock regardless of whether the last tick finished. So the thing
+# that actually prevents two writers is TASK_TIMEOUT being shorter than the
+# schedule interval: a tick is killed before the next one starts.
+#
+# The default pair below is 50 minutes against an hourly schedule. If you
+# shorten SCHEDULE, shorten TASK_TIMEOUT with it — the check below enforces the
+# relationship rather than trusting you to remember.
 SECRET_ARGS=()
 for s in $SECRETS; do SECRET_ARGS+=(--set-secrets "$s=$s:latest"); done
 
@@ -103,7 +136,7 @@ run gcloud run jobs "$VERB" "$JOB" \
   --service-account "$SA" \
   --tasks 1 --parallelism 1 \
   --max-retries "${MAX_RETRIES:-0}" \
-  --task-timeout "${TASK_TIMEOUT:-3600s}" \
+  --task-timeout "${TASK_TIMEOUT:-3000s}" \
   --cpu "${CPU:-2}" --memory "${MEMORY:-4Gi}" \
   --add-volume "name=runs,type=cloud-storage,bucket=$GCS_STATE_BUCKET" \
   --add-volume-mount "volume=runs,mount-path=/app/runs" \
@@ -111,6 +144,15 @@ run gcloud run jobs "$VERB" "$JOB" \
   "${SECRET_ARGS[@]}"
 
 # ── the schedule ────────────────────────────────────────────────────────────
+#
+# ⚠️ The scheduler authenticates AS $SA, so $SA must be allowed to invoke the
+# job. Without this the schedule is created successfully, fires on time, and
+# every fire 403s — a pipeline that looks deployed and never runs, with the
+# failure visible only in the scheduler's own logs.
+run gcloud run jobs add-iam-policy-binding "$JOB" \
+  --member "serviceAccount:$SA" --role roles/run.invoker \
+  --region "$REGION" --project "$GCP_PROJECT"
+
 JOB_URI="https://${REGION}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${GCP_PROJECT}/jobs/${JOB}:run"
 SVERB=create
 gcloud scheduler jobs describe "${JOB}-tick" --location "$REGION" --project "$GCP_PROJECT" >/dev/null 2>&1 && SVERB=update
