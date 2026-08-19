@@ -23,6 +23,7 @@
  */
 import { closeSync, openSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { hostname } from "node:os";
 
 export const LOCK_FILE = ".run.lock";
 
@@ -31,6 +32,33 @@ export interface LockHolder {
   at: string;
   /** What the holder is doing — shown on refusal so the operator can judge. */
   argv?: string;
+  /**
+   * WHERE the holder is running. `os.hostname()`, which inside a container is
+   * that container's id — so it changes on every task, execution or pod.
+   *
+   * Recorded because a pid is only meaningful on the machine that wrote it.
+   * Absent on locks written before this field existed, which are treated as
+   * same-host (the previous behaviour).
+   */
+  host?: string;
+}
+
+/**
+ * How long a lock held by a DIFFERENT host may sit before it is assumed
+ * abandoned. Cross-host only — see `isStale`.
+ *
+ * The default is deliberately far longer than any tick: the container targets
+ * bound a tick well under an hour, so a cross-host lock still held after six is
+ * not a running process, it is wreckage. Set `RUN_LOCK_MAX_AGE_MS` to tighten
+ * it, and keep it comfortably ABOVE your longest tick — too short is the one
+ * setting that recreates the corruption this lock exists to prevent.
+ */
+export const DEFAULT_CROSS_HOST_MAX_AGE_MS = 6 * 60 * 60 * 1000;
+
+export function crossHostMaxAgeMs(env: NodeJS.ProcessEnv = process.env): number {
+  const raw = env.RUN_LOCK_MAX_AGE_MS;
+  const n = raw === undefined ? NaN : Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : DEFAULT_CROSS_HOST_MAX_AGE_MS;
 }
 
 /** Is a process with this pid running? */
@@ -50,10 +78,48 @@ export function isAlive(pid: number): boolean {
  * killed, or the machine restarting. An unreadable or malformed file counts as
  * stale too: a lock nobody can parse would otherwise wedge a run permanently,
  * and the failure mode we are preventing is worse when it cannot be cleared.
+ *
+ * ── ⚠️ A PID IS ONLY MEANINGFUL ON THE HOST THAT WROTE IT ───────────────────
+ *
+ * This originally asked `process.kill(pid, 0)` and nothing else, which is
+ * exactly right on one laptop and wrong the moment the run directory is a
+ * shared volume — EFS on Fargate, a GCS mount on Cloud Run. PIDs are namespaced
+ * per container, so a lock left behind by a task that was OOM-killed names a
+ * pid that the NEXT container is quite likely to have too (npm, node and tsx
+ * occupy several low numbers). The new task then reads its own unrelated
+ * process as the lock holder, refuses, and the loop stops doing work — quietly,
+ * permanently, and reporting success on every tick.
+ *
+ * It is also nondeterministic, which is the worst property for this to have: it
+ * depends on how many processes the new container happened to start, so it
+ * passes every test and wedges in production weeks later.
+ *
+ * So pid liveness is consulted ONLY when the lock was written by this same
+ * host. Across hosts the pid says nothing, and age is the only evidence
+ * available — hence `maxAgeMs`, applied cross-host only. A cross-host lock that
+ * is younger than that is respected, because on a shared volume a remote
+ * process genuinely can be alive.
  */
-export function isStale(held: LockHolder | undefined, alive: (pid: number) => boolean = isAlive): boolean {
+export function isStale(
+  held: LockHolder | undefined,
+  alive: (pid: number) => boolean = isAlive,
+  opts: { now?: number; maxAgeMs?: number; host?: string } = {},
+): boolean {
   if (!held || typeof held.pid !== "number" || !Number.isInteger(held.pid) || held.pid <= 0) return true;
-  return !alive(held.pid);
+
+  const self = opts.host ?? hostname();
+  // A lock with no `host` predates the field; treat it as ours, which is the
+  // behaviour it was written under.
+  const sameHost = !held.host || held.host === self;
+  if (sameHost) return !alive(held.pid);
+
+  const at = Date.parse(held.at ?? "");
+  // A cross-host lock with an unreadable timestamp offers no evidence at all.
+  // Refuse rather than take it over: a wedged run is recoverable by hand, two
+  // writers on one state.json is not.
+  if (Number.isNaN(at)) return false;
+  const now = opts.now ?? Date.now();
+  return now - at > (opts.maxAgeMs ?? crossHostMaxAgeMs());
 }
 
 /** Human-readable refusal — it must say WHO holds the lock, not just that it is held. */
@@ -81,7 +147,7 @@ export function acquireRunLock(runDir: string, argv = "", attempt = 1): LockResu
   try {
     const fd = openSync(path, "wx");
     try {
-      writeFileSync(fd, JSON.stringify({ pid: process.pid, at: new Date().toISOString(), argv }));
+      writeFileSync(fd, JSON.stringify({ pid: process.pid, at: new Date().toISOString(), argv, host: hostname() }));
     } finally {
       closeSync(fd);
     }

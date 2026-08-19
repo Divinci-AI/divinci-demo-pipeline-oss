@@ -48,11 +48,22 @@ defaults are 3000s against an hourly schedule, and `deploy.sh` **refuses to
 deploy** if you shorten `SCHEDULE` without shortening `TASK_TIMEOUT` — the
 relationship is enforced rather than left as advice.
 
+The image is [`targets/container`](../container), shared with the AWS target.
+
 The orchestrator's own lock is a real backstop, better than first assumed:
 `openSync(path, "wx")` becomes a GCS create with `ifGenerationMatch=0`, which is
 atomic at the storage layer. But GCS FUSE caches metadata, so a stale negative
 lookup can still let two clients through, and `flock` is not supported at all.
 Treat the lock as defence in depth and the timeout as the control.
+
+⚠️ **And the lock had to be taught about containers.** It recorded a pid and
+asked whether that pid was alive — correct on one laptop, meaningless across
+containers, where pids are namespaced. A task killed mid-tick left a lock naming
+a pid the next container was quite likely to have too, so the new task read its
+own unrelated process as the holder and refused, permanently, while reporting
+success every tick. `run-lock.ts` now trusts pid liveness only within one host
+and falls back to age across hosts; `targets/container` sets
+`RUN_LOCK_MAX_AGE_MS=7200000`. Keep that comfortably above your longest tick.
 
 ## Deploy
 
@@ -60,10 +71,12 @@ Treat the lock as defence in depth and the timeout as the control.
 export GCP_PROJECT=your-project
 export GCS_STATE_BUCKET=your-pipeline-state
 
-# mint a token from a machine where you have logged in:
-#   divinci auth login
-#   … then copy the accessToken out of ~/.config/divinci/credentials.json
-gcloud secrets create DIVINCI_TOKEN --data-file=- --project "$GCP_PROJECT"
+# From a machine where you have logged in (`divinci auth login`), store the
+# WHOLE credentials file — not just the access token. The refresh token is what
+# lets an unattended loop keep working, and the container persists the rotated
+# one back onto the bucket.
+gcloud secrets create DIVINCI_CREDENTIALS_JSON \
+  --data-file="$HOME/.config/divinci/credentials.json" --project "$GCP_PROJECT"
 
 cd targets/gcp
 ./deploy.sh                 # plan — creates nothing
@@ -78,7 +91,7 @@ cd targets/gcp
 | `GCP_REGION` | `us-central1` |
 | `JOB_NAME` | `divinci-demo-pipeline` |
 | `SCHEDULE` | `0 * * * *` |
-| `SECRETS` | `DIVINCI_TOKEN` |
+| `SECRETS` | `DIVINCI_CREDENTIALS_JSON` |
 | `CPU` / `MEMORY` | `2` / `4Gi` |
 | `DIVINCI_CLI_VERSION` | build arg, `latest` — **pin it** |
 

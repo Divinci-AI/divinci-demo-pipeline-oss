@@ -1,0 +1,14 @@
+# Cloud Build recipe for the shared orchestrator image.
+#
+# A committed file rather than a --config built on the fly: gcloud reads
+# --config from a path, and handing it a process substitution (/dev/fd/N) is the
+# kind of thing that works on one shell and not another.
+#
+#   gcloud builds submit --config targets/container/cloudbuild.yaml \
+#     --substitutions _IMAGE=<tag> .
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "-f", "targets/container/Dockerfile", "-t", "${_IMAGE}", "."]
+images: ["${_IMAGE}"]
+options:
+  logging: CLOUD_LOGGING_ONLY

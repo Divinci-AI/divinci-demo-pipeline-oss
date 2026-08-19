@@ -1,4 +1,12 @@
-# The orchestrator as a Cloud Run Job: one invocation = one loop tick.
+# The orchestrator as a container: one invocation = one loop tick.
+#
+# SHARED by targets/gcp (Cloud Run Job) and targets/aws (ECS Fargate). One image
+# definition rather than two, for the same reason targets/local imports the
+# Cloudflare chunker instead of copying it: two copies drift, and the drift is
+# invisible until one platform behaves differently from the other.
+#
+# Build from the REPO ROOT so the whole orchestrator is in context:
+#   docker build -f targets/container/Dockerfile -t <tag> .
 #
 # Node 22 to match `engines` and the version CI tests against. Slim rather than
 # alpine because `tsx` and the toolchain want glibc.
@@ -25,12 +33,12 @@ RUN cd orchestrator && npm ci
 COPY orchestrator ./orchestrator
 COPY policies ./policies
 COPY research ./research
-COPY targets/gcp/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY targets/container/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-# `runs/` is the state directory and MUST be the GCS volume mount, not this
-# path. It is created so a misconfigured job fails on an empty directory rather
-# than on a missing one — and `entrypoint.sh` refuses when the mount is absent.
-RUN mkdir -p /app/runs
+# The volume mounts at /app/state; entrypoint.sh symlinks /app/runs to it and
+# puts the CLI's HOME there too. Created here so the mount has somewhere to land
+# and `entrypoint.sh` can tell a missing mount from an empty one.
+RUN mkdir -p /app/state
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

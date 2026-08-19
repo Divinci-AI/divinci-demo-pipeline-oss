@@ -22,7 +22,7 @@ SCHEDULE="${SCHEDULE:-0 * * * *}"
 SA="${SERVICE_ACCOUNT:-${JOB}@${GCP_PROJECT}.iam.gserviceaccount.com}"
 
 # Secrets the job reads from Secret Manager. Each must already exist.
-SECRETS="${SECRETS:-DIVINCI_TOKEN}"
+SECRETS="${SECRETS:-DIVINCI_CREDENTIALS_JSON}"
 
 # ── the one relationship that must hold ─────────────────────────────────────
 #
@@ -61,7 +61,7 @@ project        $GCP_PROJECT
 region         $REGION
 job            $JOB
 image          $IMAGE
-state bucket   gs://$GCS_STATE_BUCKET  → mounted at /app/runs
+state bucket   gs://$GCS_STATE_BUCKET  → mounted at /app/state
 schedule       $SCHEDULE
 task timeout   $TASK_TIMEOUT  (must be < the interval — see the note in this script)
 service acct   $SA
@@ -109,7 +109,10 @@ done
 # No --gcs-source-staging-dir: the Cloud Build service account would need write
 # access to the state bucket, which is a second permission to grant for no gain,
 # and it mixes build tarballs into the directory holding run state.
-run gcloud builds submit --tag "$IMAGE" --project "$GCP_PROJECT" .
+# The image definition is shared with targets/aws — see targets/container.
+run gcloud builds submit --project "$GCP_PROJECT" \
+  --config targets/container/cloudbuild.yaml \
+  --substitutions "_IMAGE=$IMAGE" .
 
 # ── the job ─────────────────────────────────────────────────────────────────
 #
@@ -138,9 +141,9 @@ run gcloud run jobs "$VERB" "$JOB" \
   --max-retries "${MAX_RETRIES:-0}" \
   --task-timeout "${TASK_TIMEOUT:-3000s}" \
   --cpu "${CPU:-2}" --memory "${MEMORY:-4Gi}" \
-  --add-volume "name=runs,type=cloud-storage,bucket=$GCS_STATE_BUCKET" \
-  --add-volume-mount "volume=runs,mount-path=/app/runs" \
-  --set-env-vars "RUNS_DIR=/app/runs" \
+  --add-volume "name=state,type=cloud-storage,bucket=$GCS_STATE_BUCKET" \
+  --add-volume-mount "volume=state,mount-path=/app/state" \
+  --set-env-vars "STATE_DIR=/app/state,RUN_LOCK_MAX_AGE_MS=${RUN_LOCK_MAX_AGE_MS:-7200000}" \
   "${SECRET_ARGS[@]}"
 
 # ── the schedule ────────────────────────────────────────────────────────────

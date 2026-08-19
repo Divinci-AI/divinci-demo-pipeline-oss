@@ -1,103 +1,146 @@
-# Target: AWS — designed, not built
+# Target: AWS — the orchestrator on Fargate, state on EFS
 
-> **Status: DESIGN ONLY.** There is no code in this directory. Everything below
-> is a concrete mapping worked out against the constraints the built targets
-> exposed, so that whoever builds it starts from those rather than rediscovering
-> them. If you build it, a PR replacing this file with something that runs would
-> be very welcome.
-
-## The shape
-
-The orchestrator is a Node process that runs for minutes, needs a POSIX
-filesystem for state, and shells out to the `divinci` CLI and `git`. On AWS that
-is **ECS Fargate + EventBridge Scheduler + EFS**, not Lambda.
+Runs the **full pipeline** as a scheduled ECS Fargate task, with `runs/` on EFS.
+The AWS counterpart of [the GCP target](../gcp), and the better of the two on
+the point that matters most.
 
 ```
-EventBridge Scheduler ──RunTask──► ECS Fargate task ──► one loop tick
-     rate(1 hour)                        │
-                                         ├── EFS access point → /app/runs
-                                         ├── Secrets Manager → DIVINCI_TOKEN
-                                         └── divinci CLI → api.divinci.app
+EventBridge Scheduler ──RunTask──► Fargate task ──► one loop tick
+     rate(1 hour)                       │
+                                        ├── EFS access point → /app/runs   ← the state
+                                        ├── Secrets Manager → DIVINCI_TOKEN
+                                        └── divinci CLI → api.divinci.app
 ```
 
-| need | service | why this one |
-|---|---|---|
-| run a container on a schedule | EventBridge Scheduler → ECS `RunTask` | Scheduler targets ECS directly; no Lambda in the path |
-| the container | ECS Fargate, 2 vCPU / 4 GB | no capacity to manage; a tick is minutes |
-| **run state** | **EFS**, via an access point at `/app/runs` | the only AWS store with real POSIX semantics — see below |
-| secrets | Secrets Manager → task definition `secrets` | injected as env, never baked into the image |
-| image | ECR | |
-| logs | CloudWatch Logs via `awslogs` | |
+| need | service |
+|---|---|
+| run a container on a schedule | EventBridge Scheduler → ECS `RunTask` |
+| the container | ECS Fargate, 2 vCPU / 4 GB |
+| **run state** | **EFS**, via an access point at `/app/runs` |
+| secrets | Secrets Manager, injected as env |
+| image | ECR |
+| logs | CloudWatch Logs |
 
-## Why Lambda is the wrong answer
+The container image is [`targets/container`](../container), shared with the GCP
+target — one image definition rather than two that drift.
 
-Every instinct says "scheduled job → Lambda". It does not fit, for four
-independent reasons, any one of which is disqualifying:
+## Why EFS, and why that makes this the strongest target
 
-1. **15-minute hard timeout.** A tick that crawls a site and runs QA exceeds it.
-2. **`/tmp` is ephemeral and 512 MB–10 GB.** State would vanish between ticks —
-   the same failure the GCP target refuses to boot into.
-3. **The orchestrator shells out** to `divinci` and `git`. Possible in a Lambda
-   container image, awkward, and buys nothing.
-4. **Concurrency is the wrong default.** Lambda wants to scale out; this
-   workload must never have two writers.
+The orchestrator does ordinary filesystem work: `openSync(path, "wx")` for its
+run lock, in-place `state.json` rewrites, directory listings. S3 is an object
+store with none of those semantics, and mounting it does not supply them.
 
-Fargate has none of these.
+EFS is NFSv4, so **exclusive create is atomic** and the orchestrator's own run
+lock genuinely works here. The GCS-mount target cannot say that — there,
+single-writer has to be enforced by keeping the task timeout under the schedule
+interval, because gcsfuse metadata caching can defeat the lock.
 
-## Why EFS rather than S3
+The cost is a VPC, subnets and a security group, so this target has more
+infrastructure than the others. That is the trade: more setup, stronger
+guarantee.
 
-S3 is the reflexive choice and it is wrong here. The orchestrator does ordinary
-filesystem work — `openSync(path, "wx")` for its lock, in-place `state.json`
-rewrites, directory listings — and S3 is an object store with none of those
-semantics. Using it would mean either mounting it through something like
-Mountpoint for S3 (which does not support random writes or the exclusive-create
-the lock depends on) or rewriting the orchestrator's persistence layer.
+### ⚠️ Fargate has no task timeout
 
-EFS gives real POSIX semantics **including working `flock` and atomic
-`O_EXCL`** — which makes AWS the only one of these targets where the
-orchestrator's own run lock is genuinely load-bearing. That is a real advantage
-over the GCP target, where single-writer has to be enforced by job
-configuration because GCS FUSE cannot guarantee it.
+Unlike Cloud Run Jobs, ECS has nothing that kills a task at N seconds. So the
+GCP target's "timeout < interval" control does not exist here, and the run lock
+is doing the real work — which is fine, because on EFS it actually can.
 
-The cost is that EFS needs a VPC with subnets and a security group, so this
-target has meaningfully more infrastructure than the others. That is the trade:
-more setup, stronger correctness guarantee.
+Two things follow:
 
-## Single-writer
+- **A wedged tick must be stopped by hand.** `aws ecs list-tasks --cluster
+  divinci-demo-pipeline` then `stop-task`.
+- **`RUN_LOCK_MAX_AGE_MS` is the backstop** (default 2h, set by the container).
+  A lock written by a *different* container is assumed abandoned after that.
+  Keep it comfortably above your longest tick — too short recreates the
+  two-writer corruption the lock exists to prevent.
 
-Belt and braces, since the failure is silent and expensive:
+That cross-host rule is not incidental. A pid is only meaningful on the machine
+that wrote it, and pids are namespaced per container: a task killed mid-tick
+leaves a lock naming a pid the *next* task is quite likely to have too, so a
+naive reader sees its own unrelated process as the lock holder and refuses
+forever, reporting success on every tick. The orchestrator therefore consults
+pid liveness only for locks written by the same host.
 
-- EventBridge Scheduler with a **`FlexibleTimeWindow` of `OFF`** and one target,
-- the ECS service using `RunTask` with `count=1` (not a service with a desired
-  count, which would replace a healthy task),
-- and the orchestrator's own lock, which on EFS actually works.
+## Deploy
 
-Schedule interval must exceed the tick duration; `rate(1 hour)` against
-~20-minute ticks is comfortable.
+```sh
+export AWS_REGION=us-east-1
 
-## What still needs deciding
+# From a machine where you have logged in (`divinci auth login`), store the
+# WHOLE credentials file — not just the access token. The refresh token is what
+# lets an unattended loop keep working, and the container persists the rotated
+# one back onto EFS.
+aws secretsmanager create-secret --name divinci-credentials \
+  --secret-string "file://$HOME/.config/divinci/credentials.json"
+export DIVINCI_CREDENTIALS_SECRET_ARN=arn:aws:secretsmanager:...
 
-1. **Fargate needs a VPC with egress.** A NAT Gateway is ~$32/month, which is
-   more than every other line in this design combined. Public subnets with
-   `assignPublicIp=ENABLED` avoid it and are the right call for a job that only
-   makes outbound calls.
-2. **Token rotation.** Same weak point as GCP: this authenticates as a *user*
-   via a captured OAuth session. Secrets Manager has native rotation via Lambda,
-   which is a better fit than anything GCP offers — but the rotation function
-   would need to perform an OAuth refresh, and that is unbuilt.
-3. **CDK, Terraform, or a shell script?** The other targets ship a readable
-   `deploy.sh`. AWS's resource count (VPC, subnets, SG, EFS, access point, ECR,
-   task definition, role, schedule) is where that stops being readable, and CDK
-   is probably right.
+cd targets/aws
+./deploy.sh                 # plan + offline template validation, creates nothing
+./deploy.sh --go            # build, push, deploy the stack
+./deploy.sh --go --run-now  # …and run one tick
+```
 
-## Estimated cost
+| variable | default |
+|---|---|
+| `AWS_REGION` | **required** |
+| `DIVINCI_CREDENTIALS_SECRET_ARN` | **required** |
+| `VPC_ID` / `SUBNET_IDS` | discovered from the default VPC |
+| `STACK_NAME` | `divinci-demo-pipeline` |
+| `SCHEDULE` | `rate(1 hour)` |
+| `RUN_LOCK_MAX_AGE_MS` | `7200000` (2h) |
+
+Networking is **discovered, not created**: the template takes a VPC and two
+subnets so this runs in the network you already have. It uses **public subnets
+with a public IP** rather than private subnets behind NAT — the task only makes
+outbound calls, and a NAT Gateway (~$32/month) would cost more than everything
+else here combined.
+
+Two subnets in **different availability zones**, because EFS wants one mount
+target per AZ and two in the same AZ is an error rather than redundancy.
+
+## Tests
+
+```sh
+python3 test/validate-template.py     # no network, no credentials, no account
+```
+
+This is **not** a substitute for `aws cloudformation validate-template`, which
+needs credentials. It is the half that can be checked offline, aimed at the
+mistakes a template makes *silently*: a `!Ref` naming nothing, an IAM policy
+widened to `"*"`, the task and the mount targets landing in different subnets,
+and above all **the scheduler lacking `iam:PassRole`** — the classic AWS failure
+where the schedule is created successfully and every single fire is denied while
+the console shows a healthy schedule.
+
+`deploy.sh` runs it before touching the account.
+
+## Cost
 
 | | |
 |---|---|
-| Fargate, 2 vCPU / 4 GB, 20 min/hour | ~$25/month |
-| EFS, a few GB, infrequent access | ~$1/month |
+| Fargate, 2 vCPU / 4 GB, ~20 min/hour | ~$25/month |
+| EFS, a few GB with IA transition | ~$1/month |
 | EventBridge Scheduler | free at this volume |
-| ECR, CloudWatch | ~$1/month |
-| NAT Gateway, **if** you use private subnets | +$32/month — avoid it |
+| ECR, CloudWatch Logs | ~$1/month |
+| NAT Gateway | **$0 — not used, deliberately** |
 
 Crawling and model spend dominate all of this and are billed elsewhere.
+
+## Authentication is the weak point of every hosted target
+
+The pipeline authenticates as a **user** via the CLI's OAuth session, captured
+into Secrets Manager. There is no service-account equivalent: workspace creation
+only the OAuth session can perform, and `DIVINCI_API_KEY` is explicitly not a
+substitute.
+
+AWS is the best-placed of the hosted targets to fix this — Secrets Manager has
+native rotation via a Lambda — but the rotation function would have to perform
+an OAuth refresh, and that is unbuilt. For now, budget for re-minting the secret
+and watch for **exit code 30**, which means only an interactive login can help.
+
+## Not verified against a live account
+
+The template passes offline validation and `deploy.sh`'s plan path is exercised,
+but no stack has been created on a real AWS account by the authors — there was
+no AWS CLI or credentials on the machine this was written on. Treat the first
+`--go` as the real test, and please report what breaks.
