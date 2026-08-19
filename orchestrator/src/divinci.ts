@@ -92,7 +92,7 @@ function* jsonLooking(text: string): Generator<string> {
  * `res.raw` is the trap: raw is `stdout + "\n" + stderr`, so any spinner line
  * or warning on stderr lands AFTER the closing bracket and JSON.parse dies with
  * "Unexpected non-whitespace character after JSON at position …". That is not
- * hypothetical — it is why EvoNexus generated its QA suite with no corpus brief,
+ * hypothetical — it is why Acme Incubator generated its QA suite with no corpus brief,
  * and (much worse) why ragFileCount reported 0.
  */
 export function parseJsonArray(res: CliResult): unknown[] | undefined {

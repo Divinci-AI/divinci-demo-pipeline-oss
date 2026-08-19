@@ -202,13 +202,13 @@ describe("measureUntilStable", () => {
 
 // Step 4 of closing the bios mismatch (2026-08-09): the one preflight check
 // that asks whether content is RIGHT, not whether it rendered. Every existing
-// check called EvoNexus's French page healthy while six of its eight bio cards
+// check called Acme Incubator's French page healthy while six of its eight bio cards
 // showed an English role among fluent French.
 describe("incompleteTranslationDefects", () => {
   it("flags cards that have a role in English and none in the translation", () => {
     const d = incompleteTranslationDefects({
-      default: ["Co-Founder", "EvoNexus Team", "Team", "Team"],
-      localized: ["Co-fondateur", "Équipe EvoNexus", "", ""],
+      default: ["Co-Founder", "Acme Incubator Team", "Team", "Team"],
+      localized: ["Co-fondateur", "Équipe Acme Incubator", "", ""],
       lang: "fr",
     });
     expect(d).toHaveLength(1);

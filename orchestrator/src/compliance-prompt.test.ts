@@ -11,14 +11,14 @@ import { describe, it, expect } from "vitest";
 import { complianceSystemPrompt, STRICT_TIERS } from "./compliance-prompt.js";
 
 const NOTES =
-  "Applied BioCode is an IVD manufacturer. Education-only; no diagnosis; every clinical path ends in a handoff.";
+  "Acme Bio is an IVD manufacturer. Education-only; no diagnosis; every clinical path ends in a handoff.";
 
 describe("complianceSystemPrompt", () => {
-  it("gives clinic-high the hard rule set — the apbiocode regression", () => {
+  it("gives clinic-high the hard rule set — the acmebio regression", () => {
     // Live failures this set exists to stop: recommending a diagnostic panel
     // for a described patient, interpreting a C. difficile result and naming
     // antibiotics, and comparative claims against a named competitor.
-    const p = complianceSystemPrompt("Applied BioCode", "clinic-high", NOTES).join("\n").toLowerCase();
+    const p = complianceSystemPrompt("Acme Bio", "clinic-high", NOTES).join("\n").toLowerCase();
     expect(p).toContain("never recommend");
     expect(p).toContain("never interpret a result");
     expect(p).toContain("never make comparative claims");
@@ -51,13 +51,13 @@ describe("complianceSystemPrompt", () => {
 
   it("carries the manifest's own complianceNotes verbatim", () => {
     // The reviewer's specific concern has to bind the model, not just the card.
-    const p = complianceSystemPrompt("Applied BioCode", "clinic-high", NOTES);
+    const p = complianceSystemPrompt("Acme Bio", "clinic-high", NOTES);
     expect(p.some((line) => line.includes(NOTES))).toBe(true);
   });
 
   it("names the organization in the opening instruction", () => {
-    const p = complianceSystemPrompt("Applied BioCode", "clinic-high", "");
-    expect(p[0]).toContain("Applied BioCode");
+    const p = complianceSystemPrompt("Acme Bio", "clinic-high", "");
+    expect(p[0]).toContain("Acme Bio");
   });
 
   it("never returns an empty prompt, even with no tier and no notes", () => {
@@ -84,12 +84,12 @@ describe("complianceSystemPrompt", () => {
   });
 });
 
-describe("clinic-high additions (2026-08-05, after the Stone Clinic QA failures)", () => {
-  const rules = complianceSystemPrompt("The Stone Clinic", "clinic-high", "").join("\n");
+describe("clinic-high additions (2026-08-05, after the Acme Clinic QA failures)", () => {
+  const rules = complianceSystemPrompt("The Acme Clinic", "clinic-high", "").join("\n");
 
   it("sends a patient treated ELSEWHERE back to their own clinician", () => {
     // The 0%-correctness failure: asked about recovery from surgery performed
-    // elsewhere, it offered a Stone Clinic consultation instead. The prompt
+    // elsewhere, it offered a Acme Clinic consultation instead. The prompt
     // previously said only "route to the contact/consultation page", which
     // actively encouraged that.
     expect(rules).toMatch(/OUTRANKS THIS ORGANIZATION/);

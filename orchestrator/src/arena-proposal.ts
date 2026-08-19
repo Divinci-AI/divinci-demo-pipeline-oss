@@ -9,7 +9,7 @@
  * =========================
  * Two measurements from 2026-08-15 set every constant here.
  *
- * 1. **The noise floor.** BioRenew arm A, config UNCHANGED, scored 79 / 87 /
+ * 1. **The noise floor.** Acme Renew arm A, config UNCHANGED, scored 79 / 87 /
  *    87 — σ ≈ 3.8pp. Across the whole back-catalogue the between-prospect sd
  *    is 8.7pp. So:
  *      - arms MUST be compared within ONE prospect (paired). Comparing across
@@ -108,7 +108,7 @@ function armsForAxis(axis: ArmAxis, baseline: RagStackDescriptor | null): ArmSpe
             "Re-crawl to full sitemap coverage, drop redirect stubs and duplicate URLs, strip boilerplate present on ≥60% of pages. Index and embedding unchanged.",
           ingestions: 1,
           risk:
-            "The only change measured to move the score (+31pp on BioRenew). Run it FIRST — a better index over a corpus missing two thirds of the site still cannot answer about the missing pages.",
+            "The only change measured to move the score (+31pp on Acme Renew). Run it FIRST — a better index over a corpus missing two thirds of the site still cannot answer about the missing pages.",
         },
       ];
     case "index_embedding":
@@ -120,7 +120,7 @@ function armsForAxis(axis: ArmAxis, baseline: RagStackDescriptor | null): ArmSpe
           change: `Rebuild on a different vector index and embedding (from ${idx} / ${emb}). Corpus held constant.`,
           ingestions: 1,
           risk:
-            "This exact swap measured 84.3% → 84.0% on BioRenew — no gain. Worth an arm only because one negative result is not a law, and it is cheap once the corpus is fixed.",
+            "This exact swap measured 84.3% → 84.0% on Acme Renew — no gain. Worth an arm only because one negative result is not a law, and it is cheap once the corpus is fixed.",
         },
       ];
     case "agentic_search":
@@ -201,7 +201,7 @@ export function proposeArena(input: ProposalInput): ArenaProposal | null {
     arms,
     totals: { ingestions, qaRuns },
     preconditions: [
-      "Every arm must prove a NON-EMPTY index before it is scored. BioRenew arm B1 never produced a usable one; scored blind it would have read as 'that stack is worse' rather than 'that arm did not run'.",
+      "Every arm must prove a NON-EMPTY index before it is scored. Acme Renew arm B1 never produced a usable one; scored blind it would have read as 'that stack is worse' rather than 'that arm did not run'.",
       "All arms run against the SAME prospect. Between-prospect sd is 8.7pp — comparing arms across sites measures site difficulty, not retrieval.",
       "Suite, judge and answering model held constant across arms, except on the base_model arm where the model is the variable.",
     ],

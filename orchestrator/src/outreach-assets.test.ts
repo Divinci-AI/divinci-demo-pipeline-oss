@@ -13,7 +13,7 @@ import type { Manifest } from "./types.js";
 
 const manifest = {
   prospect: "acmeclinic",
-  prospectName: "The Stone Clinic",
+  prospectName: "The Acme Clinic",
   complianceTier: "clinic-high",
   complianceNotes: "Operating clinic — education only.",
   anchorCustomer: "attio:deals/x",

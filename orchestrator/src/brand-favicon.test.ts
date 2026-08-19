@@ -37,35 +37,35 @@ describe("ensureBrandFavicon", () => {
   it("replaces the Acme placeholder EVEN WHEN a logo was extracted", () => {
     // The exact regression: logoFile is set, which used to short-circuit.
     ensureBrandFavicon(dir, {
-      siteName: "BioRenew Integrative Medicine",
+      siteName: "Acme Renew Integrative Medicine",
       palette: { dark: "#af812e", primary: "#d6ad62" },
     });
     const svg = favicon();
     expect(svg).not.toContain("Acme Expert");
-    expect(svg).toContain("BioRenew Integrative Medicine");
-    expect(svg).toContain(">BI<");
+    expect(svg).toContain("Acme Renew Integrative Medicine");
+    expect(svg).toContain(">AR<");
   });
 
   it("uses the brand's own colour, not the template's slate", () => {
-    ensureBrandFavicon(dir, { siteName: "BioRenew", palette: { dark: "#af812e" } });
+    ensureBrandFavicon(dir, { siteName: "Acme Renew", palette: { dark: "#af812e" } });
     expect(favicon()).toContain("#af812e");
     expect(favicon()).not.toContain("#2d3748");
   });
 
   it("ignores `accent`, which is often the raw link blue off the page", () => {
-    // BioRenew's extracted accent is #0000ee — a browser default, not a brand.
-    ensureBrandFavicon(dir, { siteName: "BioRenew", palette: { dark: "#af812e", accent: "#0000ee" } });
+    // Acme Renew's extracted accent is #0000ee — a browser default, not a brand.
+    ensureBrandFavicon(dir, { siteName: "Acme Renew", palette: { dark: "#af812e", accent: "#0000ee" } });
     expect(favicon()).not.toContain("#0000ee");
   });
 
   it("does NOT overwrite a real favicon dropped in by hand", () => {
     writeFileSync(join(brandDir(), "favicon.svg"), "<svg>the customer's own mark</svg>");
-    ensureBrandFavicon(dir, { siteName: "BioRenew" });
+    ensureBrandFavicon(dir, { siteName: "Acme Renew" });
     expect(favicon()).toContain("the customer's own mark");
   });
 
   it("does NOT overwrite an extracted favicon file", () => {
-    ensureBrandFavicon(dir, { siteName: "BioRenew", faviconFile: "favicon.ico" });
+    ensureBrandFavicon(dir, { siteName: "Acme Renew", faviconFile: "favicon.ico" });
     expect(favicon()).toContain("Acme Expert"); // untouched — the real one is elsewhere
   });
 

@@ -3,12 +3,12 @@ import { isFurnitureChunk, summariseCorpus, needsRecrawl, RECRAWL_THRESHOLD } fr
 
 /**
  * Pins the measurement that found 16 demo corpora worth re-crawling — led by
- * primumlaw at 100% and ansirsd at 63% — after the live Ansir assistant said it
+ * primumlaw at 100% and acmesecurity at 63% — after the live Acme Security assistant said it
  * had "no specific details on the types of spaces available" about a page that
  * describes them in 743 words.
  */
 const REAL_FURNITURE = `**Type**: WebPage
-**@graph > name**: About - Ansir Cowork
+**@graph > name**: About - Acme Security Cowork
 **@graph > datePublished**: 2022-07-19T14:27:06+00:00
 **@graph > dateModified**: 2026-05-27T03:48:07+00:00
 **@graph > inLanguage**: en-US
@@ -51,7 +51,7 @@ describe("isFurnitureChunk", () => {
 describe("summariseCorpus", () => {
   it("reports chunk share AND text share separately", () => {
     // Furniture chunks are often LONGER than prose ones, so the share of
-    // corpus TEXT wasted can exceed the share of chunks — Ansir was 82% of
+    // corpus TEXT wasted can exceed the share of chunks — Acme Security was 82% of
     // chunks but 84% of text. Reporting only one hides that.
     const s = summariseCorpus("x", [REAL_FURNITURE, REAL_PROSE]);
     expect(s.chunks).toBe(2);
@@ -79,7 +79,7 @@ describe("needsRecrawl", () => {
   });
 
   it("flags the measured offenders", () => {
-    for (const [p, rate] of [["primumlaw", 1.0], ["ansirsd", 0.63], ["apbiocode", 0.51]] as const) {
+    for (const [p, rate] of [["primumlaw", 1.0], ["acmesecurity", 0.63], ["acmebio", 0.51]] as const) {
       expect(needsRecrawl({ prospect: p, chunks: 120, furniture: Math.round(120 * rate), furnitureRate: rate, textRate: rate }), p).toBe(true);
     }
   });

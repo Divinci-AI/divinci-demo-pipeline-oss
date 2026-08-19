@@ -92,7 +92,7 @@ const DISCOVER_MIN_HOURS = Number(process.env.LOOP_DISCOVER_MIN_HOURS ?? 3);
 /**
  * How many identical consecutive failures before a run is quarantined.
  *
- * Stone Clinic failed at `ingest` on 8 consecutive ticks, re-running a 30-minute
+ * Acme Clinic failed at `ingest` on 8 consecutive ticks, re-running a 30-minute
  * crawl each time to no effect. One alert was raised (correctly de-duplicated)
  * and then it burned crawl and embedding spend hourly, silently, for 7 hours.
  * Retrying is right; retrying forever is not.
@@ -378,7 +378,7 @@ export interface FailureRecord {
    * The loop already HAD this — `advanceRun` captures a tail and the review board
    * alert quotes it — but the file an operator opens after an overnight run,
    * `.loop-failures.json`, recorded only `step` and `count`. On 2026-08-06
-   * evonexus was quarantined after three nights of a one-line npm error, and
+   * acmeincubator was quarantined after three nights of a one-line npm error, and
    * recovering that line meant re-running a landing deploy by hand.
    *
    * A quarantine is precisely the moment the cause stops being reproducible on

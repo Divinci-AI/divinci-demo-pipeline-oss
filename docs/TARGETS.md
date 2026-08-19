@@ -14,7 +14,7 @@ pipeline**. Read the second column first.
 | [**cloudflare**](../targets/cloudflare) | crawl + chunk + embed + publish, entirely on the edge | **built, tested** |
 | [**gcp**](../targets/gcp) | the whole orchestrator, on a schedule, with durable state | **built**, unverified against a live project |
 | [**aws**](../targets/aws) | same as GCP, on Fargate + EFS | **built**, unverified against a live account |
-| [**vercel**](../targets/vercel) | the demo's landing page, not the pipeline | **design only**, and it explains why |
+| [**vercel**](../targets/vercel) | the demo's landing page, not the pipeline | adapter **built**; blocked on the landing template |
 
 ## Choosing
 
@@ -41,8 +41,11 @@ NFSv4 — which is more than the GCS mount can offer. It is the strongest of the
 hosted targets on correctness, at the cost of a VPC and a security group.
 
 **On Vercel?** [Read that one before you start.](../targets/vercel) Three of the
-platform's hard limits are individually disqualifying for the orchestrator. The
-part that *does* fit is hosting each finished demo's landing page.
+platform's hard limits are individually disqualifying for the *orchestrator*.
+The part that fits is hosting each finished demo's **landing page**, and that
+adapter is built — `LANDING_HOST=vercel`. It refuses to deploy until the landing
+template ships middleware that can sign chat calls, because a landing page is
+not the static site it looks like.
 
 ## The two axes
 
@@ -86,11 +89,15 @@ and point crawls at a Cloudflare deployment you own.
 
 ## Contributing a target
 
-The gap worth closing first is not another cloud. It is the **landing-page
-host**: `orchestrator/src/landing.ts` assumes Cloudflare Workers + KV, and
-making that pluggable — the way `review-board.ts` made the human gates
-pluggable — would unblock Vercel, Netlify, S3, Pages and GitHub Pages at once.
-The [Vercel design](../targets/vercel/README.md) sketches the interface.
+The landing-page host is now a seam —
+[`LandingHost`](../orchestrator/src/landing-host.ts), six functions, the way
+`review-board.ts` made the human gates pluggable. Adding Netlify, S3+CloudFront
+or GitHub Pages is implementing that interface.
+
+⚠️ Before you do: those three cannot hold a **request-time secret**, and the
+landing page needs one to sign its chat calls. They hit the same wall Vercel
+does, and the honest answer for a purely static host is that it cannot serve a
+demo whose release requires signed chat.
 
 For a new compute target, three things will bite you, and all three are written
 down rather than left to be rediscovered:

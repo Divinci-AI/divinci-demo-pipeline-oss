@@ -239,7 +239,7 @@ export async function createProject(
  *
  * Exact match first. Failing that, a UNIQUE prefix match: the board's projects
  * were named by hand and carry qualifiers the pipeline does not generate —
- * "Demo — The Stone Clinic (Dr. Kevin R. Stone)" versus the "Demo — The Stone
+ * "Demo — The Acme Clinic (Dr. Kevin R. Stone)" versus the "Demo — The Stone
  * Clinic" built from the queue. Exact-only matching created a second Stone
  * Clinic project on the first production tick, and in a nightly loop that
  * quietly forks the board: half a prospect's history under one project, half

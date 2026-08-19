@@ -35,8 +35,8 @@ export interface CopyGenInput {
    * writing about whoever the research foregrounds. `brand.config.bios` and
    * `en.ts bios.{roles,bodies}` are joined by array index at render time, and
    * until now the generator never saw the names — so the two lists described
-   * different people in different orders. EvoNexus published Rory Moore's
-   * biography under Gene Dantsker's name and photograph.
+   * different people in different orders. Acme Incubator published Casey Brook's
+   * biography under Sam Torres's name and photograph.
    */
   bios?: Array<{ name: string; title: string }>;
 }

@@ -5,7 +5,7 @@
  * ===============
  * The obvious response to a failing gate is to rebuild the demo several ways
  * and keep the best. On 2026-08-15 we ran exactly that experiment on
- * biorenewim.com, and it is the reason this module leads with arithmetic
+ * acmerenew.com, and it is the reason this module leads with arithmetic
  * instead of arms:
  *
  *   - Arm A, an UNCHANGED config, scored 79, 87, 87 across three replicates
@@ -413,7 +413,7 @@ function diagnose(input: TriageInput, evidence: string[], band: NoiseBand | null
   // ── 4. No retrieval metrics: the instrument is the unknown ────────────────
   // Corpus checks passed and there are no gold labels, so we cannot tell a bad
   // demo from a suite aimed at content the site does not publish. That
-  // ambiguity is exactly what hid a 31-point improvement on BioRenew.
+  // ambiguity is exactly what hid a 31-point improvement on Acme Renew.
   // Scorer split, when there are no retrieval metrics.
   //
   // ⚠️ READ THE SCORER BEFORE INFERRING FROM IT. An earlier version of this

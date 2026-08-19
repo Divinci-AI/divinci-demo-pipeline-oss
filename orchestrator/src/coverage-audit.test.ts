@@ -9,47 +9,47 @@ import {
   parseSitemapUrls,
 } from "./coverage-audit.js";
 
-/** The shipped biorenewim.com corpus, as measured 2026-08-15. */
+/** The shipped acmerenew.com corpus, as measured 2026-08-15. */
 const BIORENEW_INGESTED_TITLES = [
-  "URL: https://biorenewim.com/ 2026-8-14 12:55",
-  "URL: https://biorenewim.com/about 2026-8-14 12:58",
-  "URL: https://biorenewim.com/about-kimberly-pierson 2026-8-14 12:58",
-  "URL: https://biorenewim.com/contact-us 2026-8-14 12:56",
-  "URL: https://biorenewim.com/contact-us 2026-8-14 12:57",
-  "URL: https://biorenewim.com/contact-us 2026-8-14 12:58",
-  "URL: https://biorenewim.com/contact-us 2026-8-14 12:59",
-  "URL: https://biorenewim.com/privacy-terms 2026-8-14 12:56",
-  "URL: https://biorenewim.com/privacy-terms 2026-8-14 12:57",
-  "URL: https://biorenewim.com/privacy-terms 2026-8-14 12:58",
-  "URL: https://biorenewim.com/privacy-terms 2026-8-14 12:59",
-  "URL: https://biorenewim.com/services/hormone-optimization-therapy 2026-8-14 12:57",
-  "URL: https://biorenewim.com/services/pain-regenerative-medicine/what-is-regenerative-medicine/what-is-regenerative-medicine 2026-8-14 12:57",
-  "URL: https://biorenewim.com/symptoms/fatigue-low-energy 2026-8-14 12:58",
+  "URL: https://acmerenew.com/ 2026-8-14 12:55",
+  "URL: https://acmerenew.com/about 2026-8-14 12:58",
+  "URL: https://acmerenew.com/about-kimberly-pierson 2026-8-14 12:58",
+  "URL: https://acmerenew.com/contact-us 2026-8-14 12:56",
+  "URL: https://acmerenew.com/contact-us 2026-8-14 12:57",
+  "URL: https://acmerenew.com/contact-us 2026-8-14 12:58",
+  "URL: https://acmerenew.com/contact-us 2026-8-14 12:59",
+  "URL: https://acmerenew.com/privacy-terms 2026-8-14 12:56",
+  "URL: https://acmerenew.com/privacy-terms 2026-8-14 12:57",
+  "URL: https://acmerenew.com/privacy-terms 2026-8-14 12:58",
+  "URL: https://acmerenew.com/privacy-terms 2026-8-14 12:59",
+  "URL: https://acmerenew.com/services/hormone-optimization-therapy 2026-8-14 12:57",
+  "URL: https://acmerenew.com/services/pain-regenerative-medicine/what-is-regenerative-medicine/what-is-regenerative-medicine 2026-8-14 12:57",
+  "URL: https://acmerenew.com/symptoms/fatigue-low-energy 2026-8-14 12:58",
 ];
 
 const BIORENEW_SITEMAP = [
-  "https://biorenewim.com",
-  "https://biorenewim.com/about",
-  "https://biorenewim.com/about-kimberly-pierson",
-  "https://biorenewim.com/contact-us",
-  "https://biorenewim.com/privacy-terms",
-  "https://biorenewim.com/services/hormone-optimization-therapy",
-  "https://biorenewim.com/services/iv-therapy-vitamin-injections",
-  "https://biorenewim.com/services/medical-weight-loss",
-  "https://biorenewim.com/services/pain-regenerative-medicine/a2m",
-  "https://biorenewim.com/services/pain-regenerative-medicine/nerve-hydrodissection",
-  "https://biorenewim.com/services/pain-regenerative-medicine/orthobiologics",
-  "https://biorenewim.com/services/pain-regenerative-medicine/stellate-ganglion-block",
-  "https://biorenewim.com/services/pain-regenerative-medicine/what-is-regenerative-medicine/what-is-regenerative-medicine",
-  "https://biorenewim.com/services/peptide-therapy",
-  "https://biorenewim.com/services/sexual-wellness",
-  "https://biorenewim.com/services/skin-aesthetics",
-  "https://biorenewim.com/symptoms/anxiety",
-  "https://biorenewim.com/symptoms/depression",
-  "https://biorenewim.com/symptoms/fatigue-low-energy",
-  "https://biorenewim.com/symptoms/joint-pain",
-  "https://biorenewim.com/symptoms/low-testosterone",
-  "https://biorenewim.com/symptoms/ptsd",
+  "https://acmerenew.com",
+  "https://acmerenew.com/about",
+  "https://acmerenew.com/about-kimberly-pierson",
+  "https://acmerenew.com/contact-us",
+  "https://acmerenew.com/privacy-terms",
+  "https://acmerenew.com/services/hormone-optimization-therapy",
+  "https://acmerenew.com/services/iv-therapy-vitamin-injections",
+  "https://acmerenew.com/services/medical-weight-loss",
+  "https://acmerenew.com/services/pain-regenerative-medicine/a2m",
+  "https://acmerenew.com/services/pain-regenerative-medicine/nerve-hydrodissection",
+  "https://acmerenew.com/services/pain-regenerative-medicine/orthobiologics",
+  "https://acmerenew.com/services/pain-regenerative-medicine/stellate-ganglion-block",
+  "https://acmerenew.com/services/pain-regenerative-medicine/what-is-regenerative-medicine/what-is-regenerative-medicine",
+  "https://acmerenew.com/services/peptide-therapy",
+  "https://acmerenew.com/services/sexual-wellness",
+  "https://acmerenew.com/services/skin-aesthetics",
+  "https://acmerenew.com/symptoms/anxiety",
+  "https://acmerenew.com/symptoms/depression",
+  "https://acmerenew.com/symptoms/fatigue-low-energy",
+  "https://acmerenew.com/symptoms/joint-pain",
+  "https://acmerenew.com/symptoms/low-testosterone",
+  "https://acmerenew.com/symptoms/ptsd",
 ];
 
 describe("URL normalisation", () => {
@@ -73,8 +73,8 @@ describe("URL normalisation", () => {
 
 describe("RAG file titles", () => {
   it("stops at the URL and does not swallow the trailing timestamp", () => {
-    expect(extractUrlFromTitle("URL: https://biorenewim.com/about 2026-8-14 12:58"))
-      .toBe("https://biorenewim.com/about");
+    expect(extractUrlFromTitle("URL: https://acmerenew.com/about 2026-8-14 12:58"))
+      .toBe("https://acmerenew.com/about");
   });
 
   it("falls back to a bare URL in the title", () => {
@@ -98,7 +98,7 @@ describe("sitemaps", () => {
   });
 
   it("follows one level of index nesting", async () => {
-    // biorenewim.com's shape exactly: sitemap.xml is an index whose single
+    // acmerenew.com's shape exactly: sitemap.xml is an index whose single
     // child holds the pages.
     const pages: Record<string, string> = {
       "https://x.com/sitemap.xml":
@@ -182,7 +182,7 @@ describe("robots.txt sitemap discovery", () => {
 });
 
 describe("auditCoverage", () => {
-  it("catches the BioRenew corpus: 8 of 22 pages, four-way duplicates", () => {
+  it("catches the Acme Renew corpus: 8 of 22 pages, four-way duplicates", () => {
     const a = auditCoverage({
       sitemapUrls: BIORENEW_SITEMAP,
       fileTitles: BIORENEW_INGESTED_TITLES,
@@ -191,8 +191,8 @@ describe("auditCoverage", () => {
     expect(a.ingestedUrls).toHaveLength(8);
     expect(a.fileCount).toBe(14);
     // The pages whose absence produced "A2M, or Anti-Aging and Wellness".
-    expect(a.missing).toContain("https://biorenewim.com/services/pain-regenerative-medicine/a2m");
-    expect(a.missing).toContain("https://biorenewim.com/services/medical-weight-loss");
+    expect(a.missing).toContain("https://acmerenew.com/services/pain-regenerative-medicine/a2m");
+    expect(a.missing).toContain("https://acmerenew.com/services/medical-weight-loss");
     expect(a.coverage).toBeLessThan(0.4);
   });
 
@@ -201,8 +201,8 @@ describe("auditCoverage", () => {
     expect(a.duplicates[0].count).toBe(4);
     expect(a.duplicates.map((d) => d.url)).toEqual(
       expect.arrayContaining([
-        "https://biorenewim.com/contact-us",
-        "https://biorenewim.com/privacy-terms",
+        "https://acmerenew.com/contact-us",
+        "https://acmerenew.com/privacy-terms",
       ]),
     );
   });

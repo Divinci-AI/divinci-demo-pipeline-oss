@@ -13,7 +13,7 @@ const draft: LandingBrandDraft = {
   releaseId: "6a293367c50b252c45c6ca47",
   apiBase: "https://api.stage.divinci.app",
   whitelabelId: "6a293367c50b252c45c6ca44",
-  bios: [{ name: "Dr. Frank Kuwamura", title: "About", blurbKey: "bios.bodies.0" }],
+  bios: [{ name: "Dr. Alex Rivera", title: "About", blurbKey: "bios.bodies.0" }],
   corpusFraming: "Built on our published knowledge base",
   corpusStats: [{ value: "99", label: "sources" }],
   fallbackWelcome: "Hi, I'm the MD Spine Care AI.",
@@ -178,18 +178,18 @@ describe("brand media: never claim an asset we do not have", () => {
 // from the team scraper) and en.ts bios.bodies (WHAT IS SAID, from the copy
 // generator) are produced by different processes and joined BY INDEX at render
 // time. Nothing bound body[i] to person[i] — run.ts asserted it in a comment.
-// EvoNexus published Rory Moore's biography under Gene Dantsker's name, face
+// Acme Incubator published Casey Brook's biography under Sam Torres's name, face
 // and, once translation worked, in fluent French.
 describe("misattributedBioBodies", () => {
   const team = [
-    { name: "Dr. Gene Dantsker" },
+    { name: "Dr. Sam Torres" },
     { name: "Dr. Michael Hill" },
-    { name: "Dr. Dong-Su Kim" },
+    { name: "Dr. Dong-Min Park" },
   ];
 
   it("flags the body that describes somebody else", () => {
     const bodies = [
-      "Rory Moore speaks publicly about EvoNexus and its portfolio.",
+      "Casey Brook speaks publicly about Acme Incubator and its portfolio.",
       "Michael Hill publishes the portfolio announcements.",
       "",
     ];
@@ -197,7 +197,7 @@ describe("misattributedBioBodies", () => {
   });
 
   it("keeps a body that names its own person", () => {
-    expect(misattributedBioBodies(team, ["Gene Dantsker advises the fund."])).toEqual([]);
+    expect(misattributedBioBodies(team, ["Sam Torres advises the fund."])).toEqual([]);
   });
 
   it("leaves a SINGLE-bio demo alone — there is nobody to confuse it with", () => {
@@ -213,12 +213,12 @@ describe("misattributedBioBodies", () => {
   });
 
   it("ignores bodies beyond the end of the team", () => {
-    expect(misattributedBioBodies(team.slice(0, 1).concat(team[1]), ["Gene Dantsker leads.", "Michael Hill leads.", "orphan body"]))
+    expect(misattributedBioBodies(team.slice(0, 1).concat(team[1]), ["Sam Torres leads.", "Michael Hill leads.", "orphan body"]))
       .toEqual([]);
   });
 
   it("matches on surname, so an honorific or credential does not defeat it", () => {
-    expect(misattributedBioBodies(team, ["Dantsker, Ph.D., advises the fund."])).toEqual([]);
+    expect(misattributedBioBodies(team, ["Torres, Ph.D., advises the fund."])).toEqual([]);
   });
 });
 

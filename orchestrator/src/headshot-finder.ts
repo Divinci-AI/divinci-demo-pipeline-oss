@@ -36,7 +36,7 @@ export interface TeamMember { name: string; title: string; imageUrl?: string; im
  * who they are — the same category of error as calling an EVP a physician.
  */
 // ND — Doctor of Naturopathic Medicine — earns the "Dr." prefix, and the pages
-// that use it say so themselves ("Dr. Cara Fuhrman specializes in…").
+// that use it say so themselves ("Dr. Cara Morgan specializes in…").
 const DOCTORATE = /\b(m\.?d\.?|d\.?o\.?|n\.?d\.?|ph\.?d\.?|dds|dmd|dpm|dvm|dc)\b/i;
 
 /** Non-clinical letters after a name. Not credentials in the medical sense,
@@ -59,7 +59,7 @@ const INSTITUTION = new Set(["university", "hospital", "college", "school", "ins
 /**
  * A person's role, taken from the page rather than assumed.
  *
- * The heading is typically "Gene Dantsker, Ph.D., MBA EvoNexus Executive
+ * The heading is typically "Sam Torres, Ph.D., MBA Acme Incubator Executive
  * Advisor" — name, then credentials, then the actual job. We want the job. Bare
  * credentials ("Ph.D.", "MD, FACS") are NOT a role; they describe schooling, and
  * rendering them as a job title reads as a mistake.
@@ -73,7 +73,7 @@ const INSTITUTION = new Set(["university", "hospital", "college", "school", "ins
  *   - `/\b(MD|DO|...)\b/i` — the `i` flag makes `DO` match the ordinary word
  *     "do", so essentially every page on the web reads as clinical. That was my
  *     own first attempt at fixing this.
- *   - A single clinician on a page of thirty. evonexus.org/people/ lists one
+ *   - A single clinician on a page of thirty. acmeincubator.org/people/ lists one
  *     "John 'Rick' LeMoine, MD" among venture partners and executives; any
  *     any-match rule captions all of them "Physician".
  *
@@ -91,10 +91,10 @@ export function inferFallbackRole(headings: string[]): string {
 /**
  * The job title, taken from the card text by subtracting the person's name.
  *
- * The heading alone is usually just "Gene Dantsker, Ph.D., MBA" — the title
+ * The heading alone is usually just "Sam Torres, Ph.D., MBA" — the title
  * lives in a sibling container the collector never read, which is why every
  * non-clinical team fell back to an invented role. The card text reads
- * "Gene Dantsker, Ph.D., MBA EvoNexus Executive Advisor, Former Sr. Director…",
+ * "Sam Torres, Ph.D., MBA Acme Incubator Executive Advisor, Former Sr. Director…",
  * so removing the heading leaves the job.
  */
 export function roleFromCard(card: string | undefined, heading: string): string | undefined {
@@ -116,7 +116,7 @@ export function roleFromCard(card: string | undefined, heading: string): string 
   // period is not a sentence boundary, so mask the common ones first.
   // A wide gap SEPARATES two fields — but only between two complete clauses.
   // Straight after a separator it is just a typo inside one title, and the
-  // split then leaves a dangling connector: drlongevityrx.com writes
+  // split then leaves a dangling connector: acmelongevity.com writes
   // "Co-Founder ·  Women's Health Specialist" with two spaces, and the card
   // came back as the meaningless "Co-Founder ·".
   rest = rest.replace(/([·•|—–-])\s{2,}/g, "$1 ");
@@ -139,7 +139,7 @@ export function roleFromHeading(heading: string): string | undefined {
   let rest = heading.slice(heading.indexOf(",") + 1).trim();
   // Strip leading credential tokens ("Ph.D., MBA " / "MD, FACS "). Note this
   // must cover NON-clinical letters too — the first version stopped at "MBA"
-  // and returned "MBA EvoNexus Executive Advisor" as the job title.
+  // and returned "MBA Acme Incubator Executive Advisor" as the job title.
   for (;;) {
     const m = rest.match(/^([A-Za-z.]+)[,\s]+/);
     if (!m || !(CREDENTIAL.test(m[1]) || POST_NOMINAL.test(m[1]))) break;
@@ -161,7 +161,7 @@ export function roleFromHeading(heading: string): string | undefined {
  * ⚠️ It is deliberately NOT medical. This read
  * `/surgeon/i.test(...) ? "Spine Surgeon" : "Physician"` — two options, both
  * clinical, because the module was written for clinics and never generalised.
- * EvoNexus is a startup incubator; its demo shipped eight venture and
+ * Acme Incubator is a startup incubator; its demo shipped eight venture and
  * technology executives, real named people, each captioned "Physician". Their
  * actual titles ("Corporate EVP, LG Technology Ventures") were on the page and
  * were discarded. Prefer the page's own words; when there are none, say
@@ -172,7 +172,7 @@ export function parseTeam(
   defaultRole = "Team",
 ): TeamMember[] {
   // Collect candidates, then dedup by SURNAME keeping the most complete name
-  // (so "Dr. Kuwamura" merges into "Dr. Frank Kuwamura").
+  // (so "Dr. Rivera" merges into "Dr. Alex Rivera").
   const bySurname = new Map<string, TeamMember & { words: number; top: number; left: number }>();
   for (const h of raw.headings) {
     const s = (h.text || "").trim();
@@ -187,8 +187,8 @@ export function parseTeam(
     const afterComma = s.includes(",") ? s.slice(s.indexOf(",") + 1).trim() : "";
     const credInTitle = CREDENTIAL.test(afterComma.split(/[\s,]/)[0] || "");
     // …or as the LAST WORD OF THE NAME, with no comma and no "Dr." prefix:
-    // "Joel Fuhrman MD", "Jennifer Cornell ND". A very common convention, and
-    // the gate above rejected every one of it — drlongevityrx.com/doctors/
+    // "Pat Morgan MD", "Jennifer Cornell ND". A very common convention, and
+    // the gate above rejected every one of it — acmelongevity.com/doctors/
     // returned ZERO members off a page carrying three names in <h3> and three
     // 300x300 portraits, all correctly collected and then all discarded here.
     //
@@ -201,7 +201,7 @@ export function parseTeam(
     if (!credInTitle && !credTrailing && !isDr) continue;
     const surname = nameWords[nameWords.length - 1].toLowerCase();
     // Only call someone "Dr." if the PAGE did. This used to prefix every name
-    // unconditionally, so a venture partner became "Dr. Rory Moore".
+    // unconditionally, so a venture partner became "Dr. Casey Brook".
     const member: TeamMember & { words: number; top: number; left: number } = {
       name: `${isDr || DOCTORATE.test(afterComma.split(/[\s,]/)[0] || "") || (credTrailing && DOCTORATE.test(trailing)) ? "Dr. " : ""}${nameWords.join(" ")}`,
       // Card text first — it is where the real title lives. The heading form
@@ -214,9 +214,9 @@ export function parseTeam(
     };
     // Keyed on FIRST + LAST, not surname alone. Surname-only dedup silently
     // deletes a colleague who shares a family name — LongevityRx is co-founded
-    // by Joel Fuhrman and Cara Fuhrman, and only one of them would survive. It
-    // still merges the case the dedup exists for, "Frank Kuwamura" vs
-    // "Frank J. Kuwamura", since those agree on both ends.
+    // by Pat Morgan and Cara Morgan, and only one of them would survive. It
+    // still merges the case the dedup exists for, "Alex Rivera" vs
+    // "Alex Rivera", since those agree on both ends.
     const key = `${nameWords[0].toLowerCase()} ${surname}`;
     const existing = bySurname.get(key);
     if (!existing || member.words > existing.words) bySurname.set(key, member);
@@ -228,7 +228,7 @@ export function parseTeam(
   //
   // Each member used to pick its own nearest portrait with no record of what
   // anyone else had taken, so a page with few detected portraits gave the same
-  // face to everybody. EvoNexus shipped eight cards carrying two distinct
+  // face to everybody. Acme Incubator shipped eight cards carrying two distinct
   // photographs — six real, named people wearing a colleague's face.
   //
   // Matched globally, closest pair first, each portrait claimed at most once. A
@@ -241,7 +241,7 @@ export function parseTeam(
       if (dy >= 700) return; // different section entirely
       // HORIZONTAL distance matters as much as vertical. A team grid puts three
       // people on ONE row, so they share an identical `top` and vertical
-      // distance cannot tell them apart at all — evonexus.org/people/ returns
+      // distance cannot tell them apart at all — acmeincubator.org/people/ returns
       // three headings at top=1290, three at 1832, three at 2374. Matching on
       // `top` alone assigned faces essentially at random within each row.
       const dx = Math.abs((p.left ?? 0) - m.left);
@@ -260,7 +260,7 @@ export function parseTeam(
 }
 
 const TEAM_PATH_RE = /team|about|provider|physician|doctor|surgeon|staff|meet|our-|people|leadership|founder/i;
-// "/people" was missing, and evonexus.org keeps its entire team there — so
+// "/people" was missing, and acmeincubator.org keeps its entire team there — so
 // both the headshot finder and the claims check looked everywhere except the
 // page that had the people on it. TEAM_PATH_RE already matched "people"; this
 // list, which supplies the guessed paths when no link is found, did not.
@@ -473,7 +473,7 @@ const TEAM_COLLECT = `(() => {
       sib = sib.nextElementSibling; guard++;
     }
     // The job title is almost never a sibling of the name. Page builders wrap
-    // each field in its own container (Elementor on evonexus.org puts the name
+    // each field in its own container (Elementor on acmeincubator.org puts the name
     // alone in a DIV, with the title two hops up inside the card's <a>), so walk
     // up to the nearest ancestor holding MORE than the name and let parseTeam
     // subtract the name from it.
@@ -517,7 +517,7 @@ export async function findTeam(
         // Fallback role, used only where the page states none. Inferred from
         // what the page actually says rather than assumed clinical — the old
         // form was `/surgeon/i ? "Spine Surgeon" : "Physician"`, whose ELSE
-        // branch captioned every venture executive on evonexus.org "Physician".
+        // branch captioned every venture executive on acmeincubator.org "Physician".
         const role = inferFallbackRole(raw.headings.map((h) => h.text));
         for (const m of parseTeam(raw, role)) {
           const key = m.name.toLowerCase().replace(/[^a-z]/g, "");

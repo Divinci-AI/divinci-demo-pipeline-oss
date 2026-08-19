@@ -122,8 +122,8 @@ async function submit(url: string, token: string): Promise<{ ok: boolean; reason
     // `already-fresh` means the page is IN the corpus and current — the goal of
     // this backfill, met by someone else. The server returns accepted:false for
     // it, so a bare `accepted !== false` records a success as a failure: 18 of
-    // the first 21 "failures" were this, concentrated on thorne.com,
-    // drlongevityrx.com and aurapathai.com, which the crawler fleet had already
+    // the first 21 "failures" were this, concentrated on acmesupply.com,
+    // acmelongevity.com and aurapathai.com, which the crawler fleet had already
     // covered. www-rag.ts has always counted it as submitted; this now agrees.
     if (body.status === "already-fresh") return { ok: true, reason: "already-fresh" };
     return { ok: body.accepted !== false, reason: body.status };

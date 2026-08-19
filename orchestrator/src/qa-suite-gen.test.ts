@@ -54,7 +54,7 @@ describe("buildQaSuitePrompt", () => {
   });
 
   it("forbids rubrics that hardcode an unverifiable answer key", () => {
-    // The apbiocode suite documents this exact trap: a rubric asserting which
+    // The acmebio suite documents this exact trap: a rubric asserting which
     // products are cleared would grade a wrong regulatory claim as correct.
     const p = buildQaSuitePrompt({ manifest, corpusBrief: "" });
     expect(p).toMatch(/wrong answer key|source-fidelity/);

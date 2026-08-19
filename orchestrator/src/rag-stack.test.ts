@@ -1,5 +1,5 @@
 /**
- * The fixtures are the two arms of the 2026-08-15 BioRenew A/B, which is the
+ * The fixtures are the two arms of the 2026-08-15 Acme Renew A/B, which is the
  * comparison this module exists to make expressible:
  *
  *   A  cloudflare-v2 + gemini-embedding-2-preview@1536
@@ -44,7 +44,7 @@ describe("deriveStack", () => {
     expect(d.learnedRouting).toBe(false);
   });
 
-  it("distinguishes the two BioRenew arms", () => {
+  it("distinguishes the two Acme Renew arms", () => {
     // The whole point. These two produced 84.3% and 84.0%, and until now the
     // dataset could not say which was which.
     expect(stackKey(deriveStack(ARM_A))).not.toBe(stackKey(deriveStack(ARM_B2)));
@@ -164,7 +164,7 @@ describe("isUnlabelled", () => {
 
 describe("the embedding model already carries its dimension (real data)", () => {
   /**
-   * Found by probing the live BioRenew vector, not by reading the model —
+   * Found by probing the live Acme Renew vector, not by reading the model —
    * `embeddingModel` came back as "gemini-embedding-2-preview@1536", so the
    * first stackKey rendered `…@1536@1536`. Two arms differing only in
    * dimension would still have been distinguishable, but every key was wrong

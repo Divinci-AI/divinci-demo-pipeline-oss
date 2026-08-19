@@ -4,7 +4,7 @@
  * `jsonLdToMarkdown()` appended the entire flattened JSON-LD to every scraped
  * page under "## Structured Data". On a Yoast WordPress site that block is
  * larger than the page's prose, so the chunker made it the bulk of the corpus.
- * Ansir measured 82% of chunks / 84% of chunk TEXT, and its /about/ page — 743
+ * Acme Security measured 82% of chunks / 84% of chunk TEXT, and its /about/ page — 743
  * words on the actual space — contributed no prose at all. The live assistant
  * answered "I don't have specific details on the types of spaces available".
  *

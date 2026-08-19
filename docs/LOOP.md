@@ -235,7 +235,7 @@ one.
 
 ⚠️ **Project names must match, or the board forks.** Projects are matched by
 exact name, then by a *unique* prefix. The first production tick created a
-second "Demo — The Stone Clinic" alongside the hand-named "Demo — The Stone
+second "Demo — The Acme Clinic" alongside the hand-named "Demo — The Stone
 Clinic (Dr. Kevin R. Stone)" — half a prospect's history under each. Prefix
 matching now reuses the qualified one, and refuses when a prefix is ambiguous
 ("Demo — Dr. William" must not adopt "Demo — Dr. William Li"). If a board name
@@ -283,7 +283,7 @@ one.
 | `unreachable` | Landing worker 5xx/404/no response |
 
 A torn-down demo is reported `ok`: teardown succeeding is not an outage.
-Baseline at 2026-08-05: **18 checked, 17 ok, 1 open** (apbiocode, deliberately).
+Baseline at 2026-08-05: **18 checked, 17 ok, 1 open** (acmebio, deliberately).
 
 Alerts are de-duplicated per demo and persisted, so a demo that stays dark opens
 one review-board task rather than 24 a day, and becomes alertable again on recovery.
@@ -453,7 +453,7 @@ unattended — a check that cries wolf is the thing this exists to remove:
   does not exist in the browser. **Keep the evaluate bodies free of named inner
   functions.**
 - Lazy images below the fold have `naturalWidth === 0` — indistinguishable from
-  broken. It reported six of evonexus's team photos as broken on MOBILE only,
+  broken. It reported six of acmeincubator's team photos as broken on MOBILE only,
   where the taller layout pushes them down; all six served 200 with real bytes.
   It now scrolls the page first, as a visitor would.
 - Cloudflare takes a moment to serve a new build everywhere, so a preflight run
@@ -468,7 +468,7 @@ Every run now carries QA evidence:
 - No hand-authored `qa-suite.yaml`? One is **generated** — adversarial and
   shaped by the compliance tier's hazards, plus two regression guards (a suite
   made only of refusal tests is aced by an assistant that refuses everything).
-  A hand-authored suite is still better; `runs/apbiocode/.../qa-suite.yaml` is
+  A hand-authored suite is still better; `runs/acmebio/.../qa-suite.yaml` is
   the standard to beat.
 - Suites are validated before import, because the importer **silently
   discards** tests whose `purpose` is outside its enum — a suite that imports

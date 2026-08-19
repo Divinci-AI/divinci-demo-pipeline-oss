@@ -8,7 +8,7 @@ import {
 
 /**
  * These pin the two defects the vision-model review passed as "0 critical,
- * 0 major" on the Ansir demo: a 1.12:1 logo contrast (white wordmark on light
+ * 0 major" on the Acme Security demo: a 1.12:1 logo contrast (white wordmark on light
  * tan — invisible) and a 3.5px vertical offset on the AI mark.
  */
 const m = (o: Partial<HeroLockupMeasurement>): HeroLockupMeasurement => ({
@@ -16,7 +16,7 @@ const m = (o: Partial<HeroLockupMeasurement>): HeroLockupMeasurement => ({
 });
 
 describe("contrast", () => {
-  it("flags the real Ansir measurement as CRITICAL", () => {
+  it("flags the real Acme Security measurement as CRITICAL", () => {
     const f = gradeLockup(m({ contrast: 1.12 }));
     expect(f).toHaveLength(1);
     expect(f[0]!.kind).toBe("contrast");
@@ -44,7 +44,7 @@ describe("contrast", () => {
 });
 
 describe("alignment", () => {
-  it("flags the real Ansir offset and says which way it is off", () => {
+  it("flags the real Acme Security offset and says which way it is off", () => {
     const f = gradeLockup(m({ deltaPx: 3.5 }));
     expect(f).toHaveLength(1);
     expect(f[0]!.kind).toBe("alignment");
@@ -109,7 +109,7 @@ describe("the in-page probe", () => {
   it("does NOT give up when the lockup has no logo image", () => {
     // A brand whose logo is a MARK renders its name as styled text, so there
     // is no <img>. The probe used to answer "no in-viewport logo image" and
-    // grade nothing — a silent pass. BioRenew shipped with a visibly
+    // grade nothing — a silent pass. Acme Renew shipped with a visibly
     // off-centre AI mark while all four scopes reported NOT MEASURED.
     expect(HERO_PROBE).toContain("measureTextLockup");
     expect(HERO_PROBE).not.toMatch(/return \{ error: "no in-viewport logo image"/);
@@ -118,7 +118,7 @@ describe("the in-page probe", () => {
   it("MEASURES the baseline rather than deriving it from font metrics", () => {
     // ⚠️ This test previously asserted the opposite, and the thing it asserted
     // was wrong. Deriving the baseline from line-height + fontBoundingBox
-    // reported -5.6px for a BioRenew lockup the browser had aligned PERFECTLY.
+    // reported -5.6px for a Acme Renew lockup the browser had aligned PERFECTLY.
     // A 5.6px "correction" was applied on that number, pushing "AI" visibly
     // below the wordmark — and the same metric then reported +0.0px, i.e. it
     // validated its own error. Measured truth: baseline delta 0.00px before
@@ -135,7 +135,7 @@ describe("the in-page probe", () => {
 
   it("compares the two lockup baselines directly", () => {
     // For two texts at the same size, BASELINE alignment IS correct alignment;
-    // the residual optical difference on BioRenew is ~0.43px (cap ascents
+    // the residual optical difference on Acme Renew is ~0.43px (cap ascents
     // 36.33 vs 34.92), far below anything worth nudging.
     expect(HERO_PROBE).toMatch(/baselineOf\(ai\.e\) - baselineOf\(w\.e\)/);
   });
@@ -166,7 +166,7 @@ describe("the in-page probe", () => {
 
 /**
  * alignAiMark's selector went stale and the failure was a console.warn nobody
- * read. Observed on ansirsd and leadwithimpact.
+ * read. Observed on acmesecurity and leadwithimpact.
  */
 describe("alignAiMark keeps up with the template", () => {
   const landing = readFileSync(new URL("./landing.ts", import.meta.url), "utf8");
@@ -225,7 +225,7 @@ describe("the probe measures what the visitor sees", () => {
 
 /**
  * The HEADER lockup had the same defect as the hero and was never patched —
- * alignAiMark only ever touched HeroSection.astro. Measured on Ansir: 6.0px
+ * alignAiMark only ever touched HeroSection.astro. Measured on Acme Security: 6.0px
  * offset with `translate: none`, i.e. nothing had ever run on it.
  */
 describe("the header lockup is patched and measured too", () => {
@@ -239,7 +239,7 @@ describe("the header lockup is patched and measured too", () => {
 
   it("takes a SEPARATE nudge from the hero's", () => {
     // The header renders the same logo at 24px against the hero's 56px, and
-    // Ansir needs 6px here against 10.5px there — 0.25 vs 0.1875, so not
+    // Acme Security needs 6px here against 10.5px there — 0.25 vs 0.1875, so not
     // proportional. One shared constant would be wrong for both.
     expect(landing).toMatch(/headerAiMarkNudgePx/);
   });
@@ -288,7 +288,7 @@ describe("the AI nudge follows the lockup TYPE, not the brand", () => {
     expect(isTextLockup({ logoIsMark: false, logoFile: "logo.svg" })).toBe(false);
   });
 
-  it("pins the measured BioRenew numbers this default came from", () => {
+  it("pins the measured Acme Renew numbers this default came from", () => {
     // Deployed hero, 48px Georgia both sides:
     //   with the 5px nudge → AI 7.96px above the wordmark's optical centre
     //   nudge removed      → AI 2.96px above

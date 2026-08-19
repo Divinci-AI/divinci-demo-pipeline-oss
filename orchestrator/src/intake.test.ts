@@ -31,7 +31,7 @@ afterEach(() => {
 const QUEUE = `
 prospects:
   - slug: acmeclinic
-    name: The Stone Clinic
+    name: The Acme Clinic
     url: https://acmeclinic.com
     anchorCustomer: "attio:deals/x"
     complianceTier: clinic-high
@@ -310,7 +310,7 @@ describe("recon helpers", () => {
 
 const prospect: QueuedProspect = {
   slug: "acmeclinic",
-  name: "The Stone Clinic",
+  name: "The Acme Clinic",
   url: "https://acmeclinic.com",
   anchorCustomer: "attio:deals/x",
   complianceTier: "clinic-high",

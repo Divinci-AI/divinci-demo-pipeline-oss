@@ -411,12 +411,12 @@ export function summarizePaths(urls: string[], limit = 12): Array<{ prefix: stri
  * `likelySpa` tells the manifest author to put
  * `"scraper": "@cloudflare/browser-rendering"` on EVERY source, which is
  * slower and, in practice, flakier ("Crawl service temporarily unavailable"
- * during the BioRenew rescrape). Deciding that from the homepage alone gets it
+ * during the Acme Renew rescrape). Deciding that from the homepage alone gets it
  * wrong in both directions, and the false POSITIVE is the common one: a
  * marketing landing page is exactly where a site puts its animation, hero
  * canvas or terminal effect, while its actual content renders server-side.
  *
- * dodcyberconsulting.com is the case in point — an animated terminal homepage
+ * acmecyber.com is the case in point — an animated terminal homepage
  * with 98 static words, and CMMC pages carrying 763-1142.
  *
  * So: sample a content page too, and only call the SITE an SPA when BOTH look

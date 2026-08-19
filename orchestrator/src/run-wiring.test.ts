@@ -25,7 +25,7 @@ describe("pipeline step order", () => {
     // linking it to an unpublished draft 500s — so with qa first, EVERY fresh
     // run reached qa with no releaseId, skipped scoring, and produced a demo
     // with no quality evidence at all. It is why 17 of the first 19 runs carry
-    // qaScore=null, apbiocode's hand-written suite included.
+    // qaScore=null, acmebio's hand-written suite included.
     const order = stepOrder();
     expect(order.indexOf("release")).toBeGreaterThan(-1);
     expect(order.indexOf("qa")).toBeGreaterThan(order.indexOf("release"));
@@ -124,7 +124,7 @@ describe("compliance prompt is a FLOOR, not a default", () => {
     // This was `manifest.chat?.threadPrefix ?? complianceSystemPrompt(...)`.
     // Intake generates a threadPrefix for EVERY run, so from the moment intake
     // was automated no generated demo carried its tier's compliance floor —
-    // Stone Clinic (clinic-high) shipped with only the LLM's own prose in the
+    // Acme Clinic (clinic-high) shipped with only the LLM's own prose in the
     // system slot and scored 0% correctness for inventing a rehab protocol.
     const block = returnedChatCopy();
     expect(block).toContain("complianceSystemPrompt(");
@@ -134,7 +134,7 @@ describe("compliance prompt is a FLOOR, not a default", () => {
   });
 
   it("puts the compliance floor LAST, so it cannot be contradicted by recency", () => {
-    // Presence was not enough. With the floor FIRST, Stone Clinic's generated
+    // Presence was not enough. With the floor FIRST, Acme Clinic's generated
     // prefix ended "hand off to the clinic's team", contradicting the floor's
     // "send them BACK to their own surgeon" — and the later instruction won.
     const block = returnedChatCopy();
@@ -162,7 +162,7 @@ describe("no module constant may sit in the temporal dead zone", () => {
    *
    * This is invisible to everything else: it type-checks, it passes the
    * dry-run smoke test (which does not reach every branch), and it fails only
-   * on a real run, in one step. Stone Clinic's landing step died on
+   * on a real run, in one step. Acme Clinic's landing step died on
    * QA_PUBLISH_MIN and would have died on TIER_HAZARD_SUMMARY four lines
    * later — both had been placed beside the function that used them, which is
    * ordinarily correct and is wrong in this file.

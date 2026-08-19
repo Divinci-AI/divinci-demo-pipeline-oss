@@ -1,5 +1,5 @@
 /**
- * The cases here are the BioRenew A/B (2026-08-15), replayed. That experiment
+ * The cases here are the Acme Renew A/B (2026-08-15), replayed. That experiment
  * is the only end-to-end evidence we have about what a failing gate means, and
  * every threshold in qa-triage.ts is answerable to it:
  *
@@ -75,7 +75,7 @@ describe("triage — noise is checked before anything else", () => {
 describe("triage — corpus outranks the stack", () => {
   const belowBand = { qaScore: 0.4, threshold: 0.85, history: BIORENEW_A };
 
-  it("names corpus coverage on the real BioRenew numbers", () => {
+  it("names corpus coverage on the real Acme Renew numbers", () => {
     const t = triage({
       ...belowBand,
       coverage: { sitemapUrlCount: 29, ingestedUrlCount: 8, duplicateCount: 4 },
@@ -143,7 +143,7 @@ describe("triage — retrieval vs generation, once the corpus is clean", () => {
   });
 
   it("suspects the SUITE when the corpus is clean and nothing is labelled", () => {
-    // The BioRenew blind spot: the standing suite could not see a 79%->98%
+    // The Acme Renew blind spot: the standing suite could not see a 79%->98%
     // improvement. With no gold labels there is no way to tell a weak demo
     // from a suite asking about content the site does not publish.
     const t = triage(clean);

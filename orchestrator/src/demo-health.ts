@@ -20,7 +20,7 @@
  *      chat is dead.
  *
  * Runs record the environment they were built against (state.apiUrl), and they
- * are NOT all on the same one — apbiocode and everything from 2026-08-05 are
+ * are NOT all on the same one — acmebio and everything from 2026-08-05 are
  * production, the 17 earlier runs staging. A run with that field is checked
  * against its own environment; older ones are probed against both. A release
  * served by neither is dark.

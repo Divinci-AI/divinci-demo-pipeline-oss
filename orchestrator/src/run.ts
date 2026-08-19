@@ -255,7 +255,7 @@ if (args["demo-approved-by"]) state.demoApprovedBy = args["demo-approved-by"];
  * one step, on the machine, having type-checked and passed every unit test.
  *
  * Both of these were declared beside the function that uses them, which is
- * ordinarily the right place and is wrong in this file. Stone Clinic's landing
+ * ordinarily the right place and is wrong in this file. Acme Clinic's landing
  * step died on QA_PUBLISH_MIN and would have died on TIER_HAZARD_SUMMARY four
  * lines later. `run-wiring.test.ts` now fails if a new one appears below.
  */
@@ -304,7 +304,7 @@ const steps: Array<[string, () => Promise<void>]> = [
   //
   // While qa sat before release, a fresh run reached qa with no releaseId,
   // logged "skipping ScoredQA" and produced no score — for EVERY new run. That
-  // is the real reason 17 of 19 runs carry qaScore=null, including apbiocode,
+  // is the real reason 17 of 19 runs carry qaScore=null, including acmebio,
   // which HAS a hand-authored qa-suite.yaml. The missing-suite theory only ever
   // explained the other 16.
   //
@@ -942,7 +942,7 @@ async function ingest(): Promise<void> {
       // The relative test alone (`gained > 0`) cannot terminate on retry: the
       // CLI's --wait gives up after 30 min while the SERVER KEEPS CRAWLING, so
       // the pages land after `after` is measured and are already inside
-      // `before` on the next attempt — gain 0, rethrow, forever. Stone Clinic
+      // `before` on the next attempt — gain 0, rethrow, forever. Acme Clinic
       // sat in exactly that loop for 7 hours and 8 ticks with 157 pages
       // already indexed, re-running a 30-minute crawl every hour to no effect.
       const usable = Math.max(10, Math.floor(limit * 0.25));
@@ -1058,7 +1058,7 @@ async function wwwRagSubmit(): Promise<void> {
  * Every RAG file title in the workspace, INCLUDING repeats of the same URL.
  *
  * Deliberately not `crawledUrlsForHost`, which returns a Set: the duplicate
- * ingests are the signal here (biorenewim.com had `contact-us` four times), and
+ * ingests are the signal here (acmerenew.com had `contact-us` four times), and
  * a Set erases exactly that.
  */
 function ragFileTitles(): string[] {
@@ -1286,7 +1286,7 @@ function priorQaScores(prospectSlug: string, currentRun: string): number[] {
  * is no reason to defer it, and every reason to fail while the corpus is still
  * the cheapest thing in the run.
  *
- * Measured shipping demos before this moved: BioRenew 28%, Greystone 18.8%.
+ * Measured shipping demos before this moved: Acme Renew 28%, Greystone 18.8%.
  * Two of two audited. `pagesCrawled` read healthy for both because it counts
  * pages VISITED, and Greystone's 81 duplicate ingests padded the total.
  *
@@ -1317,7 +1317,7 @@ async function auditCorpusCoverage(): Promise<void> {
       log(`qa: ${audit.summary}`);
       if (audit.verdict === "under-crawled") {
         // A warning, not a fail: the demo is still shippable and a human should
-        // decide. Silence is what let BioRenew through, so it names the pages.
+        // decide. Silence is what let Acme Renew through, so it names the pages.
         log(
           `qa: ⚠️ UNDER-CRAWLED — ${audit.missing.length} sitemap page(s) never reached the vector, ` +
             `e.g. ${audit.missing.slice(0, 5).join(", ")}`,
@@ -1364,7 +1364,7 @@ async function qaEval(): Promise<void> {
   // vector. No model call, no judge, no spend — so it must not sit behind a
   // spend gate, and it tells us whether a QA run is even worth paying for.
   //
-  // Added 2026-08-15. biorenewim.com shipped holding 8 of its 29 pages, with
+  // Added 2026-08-15. acmerenew.com shipped holding 8 of its 29 pages, with
   // `contact-us` ingested 4× and `privacy-terms` 4×, and NOTHING noticed:
   // `pagesCrawled` was 28 (it counts pages VISITED, not distinct URLs that
   // landed), corpus-audit.ts measures furniture rather than completeness, and
@@ -1409,7 +1409,7 @@ async function qaEval(): Promise<void> {
   //    back-catalogue: 72 scored runs spread over 71 prospects, i.e. almost
   //    every release has been scored exactly ONCE — so the dataset contains no
   //    replicates at all and nothing can tell a real regression from a bad
-  //    draw. The only replicate measurement in existence (BioRenew, arm A
+  //    draw. The only replicate measurement in existence (Acme Renew, arm A
   //    UNCHANGED) came out 79 / 87 / 87.
   //
   //    An 8-point spread on an unchanged config means a single draw decides
@@ -1484,7 +1484,7 @@ async function qaEval(): Promise<void> {
 
   // ⚠️ passedCount is NOT a safety signal. Both of the first two production
   // runs reported "10/10 passed" while containing a test scored 0% on
-  // CORRECTNESS — Stone Clinic's was a fabricated week-by-week post-op rehab
+  // CORRECTNESS — Acme Clinic's was a fabricated week-by-week post-op rehab
   // protocol given to a patient operated on elsewhere. Surface the parts that
   // actually carry the risk.
   if (rel.scoreAverages)
@@ -1501,7 +1501,7 @@ async function qaEval(): Promise<void> {
   // Costs nothing: pure arithmetic over measurements already on disk. It runs
   // automatically because the expensive mistake is not "we failed to
   // diagnose", it is "we rebuilt the demo five ways and learned nothing" —
-  // which is what the 2026-08-15 BioRenew A/B actually did (whole-stack swap:
+  // which is what the 2026-08-15 Acme Renew A/B actually did (whole-stack swap:
   // 84.3% -> 84.0%, while the real defect was 8 of 29 pages ingested).
   //
   // Deliberately does NOT run an arena, and often concludes that no arena is
@@ -1700,7 +1700,7 @@ async function gate2(): Promise<void> {
   //
   // Threshold agreed 2026-08-15 at 60%. It is a HALT, not a failure: the run
   // stops at the gate it was already going to stop at, with the reason and
-  // the missing pages on the card. BioRenew shipped at 28% and the reviewer
+  // the missing pages on the card. Acme Renew shipped at 28% and the reviewer
   // had nothing in front of them saying so.
   //
   // Two deliberate exemptions:
@@ -1988,7 +1988,7 @@ function releaseChatCopy(): {
     // described it as titling conversations — that put a caption in the
     // assistant's instruction slot and left the compliance rules nowhere.
     //
-    // Consequence, measured on apbiocode (clinic-high, IVD manufacturer): the
+    // Consequence, measured on acmebio (clinic-high, IVD manufacturer): the
     // demo recommended a diagnostic panel for a described patient, interpreted
     // a C. difficile result and named antibiotics, and made comparative claims
     // against a competitor device — none of which is in the corpus; all of it
@@ -2001,7 +2001,7 @@ function releaseChatCopy(): {
     // so any manifest that supplied its own prefix REPLACED the tier's rules
     // outright — and intake generates a threadPrefix for every run, so from the
     // moment intake was automated no generated demo carried its tier's
-    // compliance floor at all. Stone Clinic (clinic-high) shipped with only the
+    // compliance floor at all. Acme Clinic (clinic-high) shipped with only the
     // LLM's own prose in the system slot, and its QA run scored 0% on
     // correctness for inventing a post-operative rehab protocol.
     //
@@ -2017,7 +2017,7 @@ function releaseChatCopy(): {
     // clinic's team to schedule a consultation", which is the exact opposite
     // of the floor's "send them BACK to their own surgeon" — and being last,
     // it won. Measured: the re-run still routed a patient operated on
-    // elsewhere to a Stone Clinic consultation.
+    // elsewhere to a Acme Clinic consultation.
     //
     // The manifest's copy is context and voice; the floor is the constraint,
     // and it now has the final word (and says so explicitly).
@@ -2094,7 +2094,7 @@ function qaEvidenceForLanding(): LandingBrandDraft["qa"] {
   // Key the CLAIM on correctness, not the blended score.
   //
   // Relevance scores 98-100% on nearly everything, because a fabricated answer
-  // is still on-topic. Stone Clinic's run was 83% overall — above the publish
+  // is still on-topic. Acme Clinic's run was 83% overall — above the publish
   // threshold — while containing a 0%-correctness test that invented a post-op
   // rehab protocol. Publishing "83% adversarially tested" on that page would
   // have been the single most misleading thing this pipeline could do.
@@ -2123,7 +2123,7 @@ function draftLandingBrand(extracted?: ExtractedBrand, indexedCount?: number, br
   // `demo-` prefix namespaces demo workers so a prospect slug can never collide
   // with (and clobber) a real production worker on `wrangler deploy`.
   const workerName = `demo-${manifest.prospect}-landing`;
-  // Split "MD Spine Care (Dr. Frank Kuwamura)" → org (brand identity / chat name)
+  // Split "MD Spine Care (Dr. Alex Rivera)" → org (brand identity / chat name)
   // + person (bio + headshot match). Keeps the doctor out of the AI's name so
   // it reads "MD Spine Care AI", not "… (Dr. …) AI", and doesn't repeat 3×.
   const m = manifest.prospectName.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
@@ -2612,7 +2612,7 @@ async function landing(): Promise<void> {
 
       // DETERMINISTIC lockup check, before the vision review.
       //
-      // The vision model passed the Ansir demo "0 critical, 0 major" while its
+      // The vision model passed the Acme Security demo "0 critical, 0 major" while its
       // hero logo rendered at 1.12:1 contrast (white wordmark on light tan —
       // invisible) and its AI mark sat 3.5px low. Both are arithmetic, so they
       // are measured rather than judged. This runs first because a measured
@@ -2788,16 +2788,16 @@ async function outreach(): Promise<void> {
         //
         // The first version fetched only the homepage, and a team page is
         // exactly where a team is not. It reported eleven real, verified people
-        // across evonexus and apbiocode as "does not appear anywhere on the
+        // across acmeincubator and acmebio as "does not appear anywhere on the
         // prospect's own site" — a confident wrong answer produced by looking in
         // the wrong place, which is the failure this check exists to catch.
-        // evonexus.org/ has 0 mentions of its own people; /people/ has 8.
+        // acmeincubator.org/ has 0 mentions of its own people; /people/ has 8.
         let siteText = "";
         if (manifest.sources?.[0]?.url) {
           const origin = new URL(manifest.sources[0].url).origin;
           const host = new URL(manifest.sources[0].url).hostname;
           // ALL of them, concurrently. A `.slice(0, 8)` here cut the list at
-          // index 7 and apbiocode keeps its team on /leadership — the LAST
+          // index 7 and acmebio keeps its team on /leadership — the LAST
           // entry — so the check reported five real people as nonexistent for
           // the second time, having been fixed once already. Truncating a
           // search and then reporting "not found" is the same lie as not

@@ -9,7 +9,7 @@ import { likelySpaFromSample, pickContentSample } from "./intake.js";
  * page is exactly where a site puts its animation or hero canvas, while the
  * content renders server-side.
  *
- * dodcyberconsulting.com: an animated terminal homepage with 98 static words,
+ * acmecyber.com: an animated terminal homepage with 98 static words,
  * and CMMC pages carrying 763-1142.
  */
 
@@ -46,7 +46,7 @@ describe("pickContentSample", () => {
 
 describe("likelySpaFromSample", () => {
   it("does NOT call the site an SPA when the CONTENT page renders", async () => {
-    // The dodcyberconsulting shape: animated homepage, server-rendered content.
+    // The acmecyber shape: animated homepage, server-rendered content.
     const fetchPage = vi.fn().mockResolvedValue(RICH);
     expect(await likelySpaFromSample(SHELL, ["https://x.test/", "https://x.test/cmmc-level-2"], fetchPage))
       .toBe(false);

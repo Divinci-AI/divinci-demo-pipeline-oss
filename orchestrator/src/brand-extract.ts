@@ -66,7 +66,7 @@ export interface RawColors {
   /**
    * The BODY's own background — the only sound test for a dark design.
    *
-   * Not the largest background by area: drlongevityrx.com is a cream site
+   * Not the largest background by area: acmelongevity.com is a cream site
    * whose single biggest painted region is a dark-green hero band (2.25M px²
    * against cream's 2.16M), so area alone calls a light page dark and inverts
    * a design that was already right. Absent on drafts extracted before this
@@ -94,7 +94,7 @@ const GENERIC_FONTS = new Set(["sans-serif", "serif", "monospace", "system-ui", 
  * TLS + round trip to fail, on every page load, and fills the console with
  * errors that make a demo look broken to anyone who opens devtools.
  *
- * BioRenew extracted `Times` for body and `Georgia` for display — both web-safe
+ * Acme Renew extracted `Times` for body and `Georgia` for display — both web-safe
  * since the 1990s, neither hosted by Google — and shipped two 403s.
  *
  * These need no loading at all: the family is already on the visitor's machine.
@@ -137,7 +137,7 @@ export function loadedGoogleFamilies(links: string[] | undefined): string[] {
 /**
  * Correct a SYSTEM-font reading against what the site actually loads.
  *
- * BioRenew's demo shipped in Times/Georgia while biorenewim.com is set in
+ * Acme Renew's demo shipped in Times/Georgia while acmerenew.com is set in
  * **Inter** — its CSS drives everything off `--headlinefont: 'Inter'` and
  * `--contentfont: 'Inter'`, and the page loads Inter + Montserrat from Google.
  * The extractor sampled an element carrying one of the theme's four
@@ -242,7 +242,7 @@ export function googleFontsCandidates(family?: string, opts: { italic?: boolean;
  * existing wordmark assumption rather than guessing from a failed parse.
  *
  * ⚠️ The format is SNIFFED from the bytes, never taken from the extension.
- * BioRenew's logo URL ended `.png` and an image-optimising CDN served WebP; the
+ * Acme Renew's logo URL ended `.png` and an image-optimising CDN served WebP; the
  * file landed on disk as `logo.png`, `pngDimensions` found no IHDR, this
  * returned undefined, and the hero rendered their circular clinic icon beside
  * "AI" with the brand name nowhere on the page. An extension is a claim about
@@ -447,7 +447,7 @@ const withL = (hex: string, l: number) => { const [h, s] = rgbToHsl(...hexToRgb(
  * is evidence of the ABSENCE of a brand color, so treating one as a brand
  * color is strictly worse than having no candidate at all — the fallback is at
  * least neutral, whereas #0000ee is a loud blue that appears nowhere on the
- * site. drlongevityrx.com styles its footer links not at all; that single
+ * site. acmelongevity.com styles its footer links not at all; that single
  * element became the demo's accent, and every citation chip and assistant
  * bubble on a green-and-gold clinic site rendered purple.
  */
@@ -501,7 +501,7 @@ export function buildPalette(raw: RawColors): ExtractedBrand["palette"] {
   // Every token below assumed the page is light: `cream` is defined as the
   // lightest background and `text` as the darkest ink. On a site that has no
   // light background and no dark ink, BOTH fall through to their fallbacks and
-  // the result inverts the brand. dodcyberconsulting.com — body #04090e,
+  // the result inverts the brand. acmecyber.com — body #04090e,
   // panels #091219, cyan #00d4ff, ink #ddeeff — came back as a WHITE page
   // whose text color was #04090e, i.e. the site's own background used as ink.
   //
@@ -767,7 +767,7 @@ export async function extractBrand(url: string, outDir: string): Promise<Extract
         if (resp.ok()) {
           const buf = await resp.body();
           // Name the file after what it IS, not what the URL or the
-          // Content-Type claims. BioRenew's logo URL ended `.png` and the CDN
+          // Content-Type claims. Acme Renew's logo URL ended `.png` and the CDN
           // served WebP; naming it `logo.png` made the dimension read fail
           // silently, so the square clinic mark was rendered as if it were a
           // wordmark. Browsers sniff, so the extension only ever misleads US.
@@ -792,7 +792,7 @@ export async function extractBrand(url: string, outDir: string): Promise<Extract
      * header is dark, their logo is probably light". A reasonable proxy that
      * defaults to FALSE when headerBg is missing, i.e. assumes a dark logo.
      *
-     * Ansir's extraction ran against /about/ (its homepage was excluded for
+     * Acme Security's extraction ran against /about/ (its homepage was excluded for
      * spam), found no headerBg, and fell to that default for a WHITE wordmark.
      * The template then placed it on the page's cream background at a contrast
      * ratio of 1.12:1 — invisible — and the vision review passed the page.
@@ -833,7 +833,7 @@ export async function extractBrand(url: string, outDir: string): Promise<Extract
     }
     const disp = raw.display;
     // Same correction as the body face: a system-font reading on a page that
-    // loads a webfont is a mis-sample. BioRenew's heading face read "Georgia"
+    // loads a webfont is a mis-sample. Acme Renew's heading face read "Georgia"
     // against a site whose --headlinefont is 'Inter'.
     const displayFontFamily = withGenericFallback(preferLoadedWebfont(disp?.family, raw.fontLinks));
 

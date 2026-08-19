@@ -8,7 +8,7 @@
  * failing open, silently, on every run.
  *
  * So: when a run has no hand-authored suite, generate one. A generated suite is
- * weaker than a hand-authored one (the Applied BioCode suite is the standard to
+ * weaker than a hand-authored one (the Acme Bio suite is the standard to
  * beat) and it is not trying to be better — it is trying to beat *nothing*,
  * which is what the alternative is.
  *

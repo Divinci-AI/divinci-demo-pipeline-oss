@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { isSystemFont, googleFontsUrl, googleFontsCandidates } from "./brand-extract.js";
 
 /**
- * The BioRenew demo shipped two 403s on every page load:
+ * The Acme Renew demo shipped two 403s on every page load:
  *
  *   GET https://fonts.googleapis.com/css2?family=Georgia:wght@400;600;700  403
  *   GET https://fonts.googleapis.com/css2?family=Times:wght@400;600;700    403
@@ -68,8 +68,8 @@ describe("googleFontsCandidates", () => {
   });
 });
 
-describe("BioRenew's real extracted stacks", () => {
-  // Verbatim from runs/biorenewim/2026-08-14-001/landing/brand-draft.json.
+describe("Acme Renew's real extracted stacks", () => {
+  // Verbatim from runs/acmerenew/2026-08-14-001/landing/brand-draft.json.
   const BODY = "Times, ui-sans-serif, system-ui, sans-serif";
   const DISPLAY = "Georgia, serif";
 
@@ -81,7 +81,7 @@ describe("BioRenew's real extracted stacks", () => {
 });
 
 describe("pruneDeadFontLinks", () => {
-  it("drops BioRenew's two 403 links and keeps the real one", async () => {
+  it("drops Acme Renew's two 403 links and keeps the real one", async () => {
     const { pruneDeadFontLinks } = await import("./landing.js");
     // Verbatim from the draft.
     const links = [
@@ -112,7 +112,7 @@ describe("pruneDeadFontLinks", () => {
 });
 
 /**
- * The BioRenew demo shipped in Times/Georgia while biorenewim.com is set in
+ * The Acme Renew demo shipped in Times/Georgia while acmerenew.com is set in
  * Inter — its CSS drives everything off `--headlinefont: 'Inter'` and
  * `--contentfont: 'Inter'`, and it loads Inter + Montserrat from Google. The
  * extractor sampled an element carrying one of the theme's four
@@ -124,7 +124,7 @@ describe("preferLoadedWebfont", () => {
     "https://fonts.googleapis.com/css?family=Inter:100,400,700%7CMontserrat:100,400,700&display=swap",
   ];
 
-  it("corrects BioRenew's mis-sampled system fonts to Inter", async () => {
+  it("corrects Acme Renew's mis-sampled system fonts to Inter", async () => {
     const { preferLoadedWebfont } = await import("./brand-extract.js");
     expect(preferLoadedWebfont("Times, ui-sans-serif, system-ui, sans-serif", BIO_LINKS)).toBe("Inter");
     expect(preferLoadedWebfont("Georgia, serif", BIO_LINKS)).toBe("Inter");

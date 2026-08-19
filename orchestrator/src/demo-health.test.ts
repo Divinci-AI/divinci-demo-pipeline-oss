@@ -60,7 +60,7 @@ describe("checkDemo", () => {
   });
 
   it("reports an ungated 200 as OPEN, not failed", async () => {
-    // apbiocode is deliberately open while it is handed to the customer.
+    // acmebio is deliberately open while it is handed to the customer.
     const r = await checkDemo(demo(state()), probe({ status: 200, servedBy: PROD }));
     expect(r.verdict).toBe("open");
     expect(r.detail).toMatch(/NO auth challenge/);
@@ -84,7 +84,7 @@ describe("checkDemo", () => {
   });
 
   it("finds a release on EITHER environment — runs are not all on one", async () => {
-    // apbiocode is production, the rest staging, and state.json does not record
+    // acmebio is production, the rest staging, and state.json does not record
     // which. Probing only staging would report production demos as dark.
     const r = await checkDemo(demo(state()), probe({ status: 401, servedBy: PROD }));
     expect(r.verdict).toBe("ok");

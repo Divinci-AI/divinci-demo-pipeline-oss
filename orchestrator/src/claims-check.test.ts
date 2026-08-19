@@ -7,17 +7,17 @@ import { checkClaims, claimedPageCount } from "./claims-check.js";
 // "did we actually fetch the site?" floor — so the name check SKIPPED and the
 // test read as a failure of the code. It was a failure of the fixture.
 const EVONEXUS_SITE = (
-  "People Mentors & Selection Committee Rory Moore EvoNexus CEO & Co-Founder " +
-  "Gene Dantsker, Ph.D., MBA EvoNexus Executive Advisor Dong-Su Kim, Ph.D. " +
-  "Corporate EVP, LG Technology Ventures Kelly Ko, PhD VP Technology Ventures " +
-  "& Innovation, Banner Health Jacob Woodruff, Ph.D. Head of Technology " +
-  "Scouting & Partnerships, EMD Electronics Dr. Michael Hill EvoNexus Team "
+  "People Mentors & Selection Committee Casey Brook Acme Incubator CEO & Co-Founder " +
+  "Sam Torres, Ph.D., MBA Acme Incubator Executive Advisor Dong-Min Park, Ph.D. " +
+  "Corporate EVP, LG Technology Ventures Jamie Fox, PhD VP Technology Ventures " +
+  "& Innovation, Northgate Health Jordan Lee, Ph.D. Head of Technology " +
+  "Scouting & Partnerships, EMD Electronics Dr. Michael Hill Acme Incubator Team "
 ).repeat(4);
 
 describe("checkClaims — people must be real", () => {
   it("flags a name that appears nowhere on the prospect's own site", () => {
     const d = checkClaims(
-      { bios: [{ name: "Dr. Someone Invented" }, { name: "Dr. Gene Dantsker" }] },
+      { bios: [{ name: "Dr. Someone Invented" }, { name: "Dr. Sam Torres" }] },
       EVONEXUS_SITE,
     );
     expect(d).toHaveLength(1);
@@ -25,9 +25,9 @@ describe("checkClaims — people must be real", () => {
     expect(d[0].what).toContain("Someone Invented");
   });
 
-  it("accepts the real EvoNexus people", () => {
+  it("accepts the real Acme Incubator people", () => {
     const d = checkClaims(
-      { bios: [{ name: "Dr. Gene Dantsker" }, { name: "Dr. Dong-Su Kim" }, { name: "Dr. Kelly Ko" }] },
+      { bios: [{ name: "Dr. Sam Torres" }, { name: "Dr. Dong-Min Park" }, { name: "Dr. Jamie Fox" }] },
       EVONEXUS_SITE,
     );
     expect(d).toEqual([]);
@@ -41,7 +41,7 @@ describe("checkClaims — people must be real", () => {
   });
 
   it("matches on surname, so honorifics and credentials do not defeat it", () => {
-    expect(checkClaims({ bios: [{ name: "Dantsker, Ph.D." }] }, EVONEXUS_SITE)).toEqual([]);
+    expect(checkClaims({ bios: [{ name: "Torres, Ph.D." }] }, EVONEXUS_SITE)).toEqual([]);
   });
 });
 
@@ -49,8 +49,8 @@ describe("checkClaims — nobody wears somebody else's face", () => {
   it("flags two cards sharing one photograph", () => {
     const d = checkClaims({
       bios: [
-        { name: "Dr. Gene Dantsker", image: "https://r2/evonexus/team-0.webp" },
-        { name: "Dr. Michael Hill", image: "https://r2/evonexus/team-0.webp" },
+        { name: "Dr. Sam Torres", image: "https://r2/acmeincubator/team-0.webp" },
+        { name: "Dr. Michael Hill", image: "https://r2/acmeincubator/team-0.webp" },
       ],
     }, EVONEXUS_SITE);
     expect(d.some((x) => x.severity === "blocking" && /SAME photograph/.test(x.what))).toBe(true);
@@ -59,8 +59,8 @@ describe("checkClaims — nobody wears somebody else's face", () => {
   it("accepts distinct photographs", () => {
     const d = checkClaims({
       bios: [
-        { name: "Dr. Gene Dantsker", image: "https://r2/evonexus/team-0.webp" },
-        { name: "Dr. Michael Hill", image: "https://r2/evonexus/team-1.webp" },
+        { name: "Dr. Sam Torres", image: "https://r2/acmeincubator/team-0.webp" },
+        { name: "Dr. Michael Hill", image: "https://r2/acmeincubator/team-1.webp" },
       ],
     }, EVONEXUS_SITE);
     expect(d).toEqual([]);
@@ -69,7 +69,7 @@ describe("checkClaims — nobody wears somebody else's face", () => {
   it("does not treat two cards with NO photo as sharing one", () => {
     // Missing photos render initials avatars — that is the designed fallback.
     const d = checkClaims(
-      { bios: [{ name: "Dr. Gene Dantsker" }, { name: "Dr. Kelly Ko" }] },
+      { bios: [{ name: "Dr. Sam Torres" }, { name: "Dr. Jamie Fox" }] },
       EVONEXUS_SITE,
     );
     expect(d).toEqual([]);
@@ -100,8 +100,8 @@ describe("checkClaims — numbers we can stand behind", () => {
 
 describe("checkClaims — placeholder roles", () => {
   it("warns when every card carries the same placeholder role", () => {
-    // The state evonexus is in right now: correct, and uninformative.
-    const bios = ["Dantsker", "Kim", "Ko"].map((n) => ({ name: n, role: "Team" }));
+    // The state acmeincubator is in right now: correct, and uninformative.
+    const bios = ["Torres", "Park", "Fox"].map((n) => ({ name: n, role: "Team" }));
     const d = checkClaims({ bios }, EVONEXUS_SITE);
     expect(d).toHaveLength(1);
     expect(d[0].severity).toBe("warning");
@@ -110,8 +110,8 @@ describe("checkClaims — placeholder roles", () => {
   it("does not warn when the roles are real", () => {
     const d = checkClaims({
       bios: [
-        { name: "Dantsker", role: "EvoNexus Executive Advisor" },
-        { name: "Kim", role: "Corporate EVP, LG Technology Ventures" },
+        { name: "Torres", role: "Acme Incubator Executive Advisor" },
+        { name: "Park", role: "Corporate EVP, LG Technology Ventures" },
       ],
     }, EVONEXUS_SITE);
     expect(d).toEqual([]);
@@ -119,7 +119,7 @@ describe("checkClaims — placeholder roles", () => {
 
   it("does not warn about a SINGLE card whose role is generic", () => {
     // One "About" card is the normal shape for most of the fleet.
-    expect(checkClaims({ bios: [{ name: "Dantsker", role: "About" }] }, EVONEXUS_SITE)).toEqual([]);
+    expect(checkClaims({ bios: [{ name: "Torres", role: "About" }] }, EVONEXUS_SITE)).toEqual([]);
   });
 });
 

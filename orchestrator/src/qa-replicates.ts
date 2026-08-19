@@ -7,7 +7,7 @@
  * spread over 71 prospects. Almost every release has been scored exactly once,
  * so the dataset contains no replicates and nothing can distinguish a real
  * regression from an unlucky draw. The one replicate measurement that exists —
- * BioRenew arm A, UNCHANGED — came out 79 / 87 / 87.
+ * Acme Renew arm A, UNCHANGED — came out 79 / 87 / 87.
  *
  * An 8-point spread on an unchanged config means a single draw decides whether
  * a demo publishes. It also means every downstream comparison (triage's noise

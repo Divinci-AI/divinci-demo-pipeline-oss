@@ -22,8 +22,8 @@ function shouldPlan(url: string, present: Set<string>, failed: Record<string, st
 
 describe("hostOf", () => {
   it("normalises away www so a host is counted once", () => {
-    expect(hostOf("https://www.thorne.com/x")).toBe("thorne.com");
-    expect(hostOf("https://thorne.com/y")).toBe("thorne.com");
+    expect(hostOf("https://www.acmesupply.com/x")).toBe("acmesupply.com");
+    expect(hostOf("https://acmesupply.com/y")).toBe("acmesupply.com");
   });
 
   it("returns empty for junk rather than throwing", () => {

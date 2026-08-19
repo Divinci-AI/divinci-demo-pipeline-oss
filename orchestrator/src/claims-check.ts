@@ -8,9 +8,9 @@
  * the customer, and that is precisely where every serious defect has landed:
  *
  *   published                            truth
- *   "Dr. Gene Dantsker — Physician"      EvoNexus Executive Advisor
+ *   "Dr. Sam Torres — Physician"      Acme Incubator Executive Advisor
  *   six bio photographs                  one colleague's photo, repeated
- *   Rory Moore's biography               under Gene Dantsker's name
+ *   Casey Brook's biography               under Sam Torres's name
  *   a 24x24 "plus" icon as the logo      a decorative UI glyph
  *   "We indexed 740 pages"               never checked against anything
  *
@@ -92,7 +92,7 @@ export function checkClaims(claims: DemoClaims, siteText: string): ClaimDefect[]
   // 2. No two people may share a photograph.
   //
   // Compares the rendered image URLs. That is weaker than comparing the images
-  // themselves — evonexus once served EIGHT distinct URLs holding TWO distinct
+  // themselves — acmeincubator once served EIGHT distinct URLs holding TWO distinct
   // pictures — but the upload path now derives one key per card, so identical
   // URLs are the failure mode that remains reachable from here. Byte-level
   // comparison belongs in the uploader, where the bytes are in hand.
