@@ -187,22 +187,34 @@ describe("a landing page is not a static site", () => {
     await expect(new VercelLandingHost().deploy(d, CFG)).rejects.toThrow(/cannot hold/);
   });
 
-  it("accepts a template that ships middleware", () => {
+  it("accepts a template whose middleware reads the signing key", () => {
     const d = siteDir();
-    writeFileSync(join(d, "middleware.ts"), "export default () => {};");
+    writeFileSync(join(d, "middleware.ts"), "const k = process.env.LANDING_PAGE_HMAC_KEY;");
     expect(vercelSigningReadiness(d).ready).toBe(true);
   });
 
   it("accepts middleware under src/ or an api route", () => {
     const a = siteDir();
     mkdirSync(join(a, "src"));
-    writeFileSync(join(a, "src", "middleware.ts"), "");
+    writeFileSync(join(a, "src", "middleware.ts"), "LANDING_PAGE_HMAC_KEY");
     expect(vercelSigningReadiness(a).ready).toBe(true);
 
     const b = siteDir();
     mkdirSync(join(b, "api"));
-    writeFileSync(join(b, "api", "chat.ts"), "");
+    writeFileSync(join(b, "api", "chat.ts"), "LANDING_PAGE_HMAC_KEY");
     expect(vercelSigningReadiness(b).ready).toBe(true);
+  });
+
+  it("REFUSES a middleware that exists but does not sign", () => {
+    // A file check alone is satisfied by a middleware added for redirects or
+    // analytics — and that would deploy a page whose every chat message is
+    // refused, which is the exact failure this guard exists to prevent.
+    const d = siteDir();
+    writeFileSync(join(d, "middleware.ts"), "export default () => Response.redirect('/');");
+    const r = vercelSigningReadiness(d);
+    expect(r.ready).toBe(false);
+    expect(r.reason).toMatch(/never reads LANDING_PAGE_HMAC_KEY/);
+    expect(r.reason, "must point at the fix").toMatch(/VERCEL\.md/);
   });
 
   it("the override exists and is named for what it means", () => {

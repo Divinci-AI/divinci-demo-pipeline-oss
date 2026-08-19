@@ -51,6 +51,14 @@ describe("the synthetic fixture cannot run against a live API", () => {
    * It must exit non-zero BEFORE the auth preflight, so it also holds for
    * someone with a live session, which is exactly who got burned.
    */
+  // ⚠️ An explicit timeout, because this test SPAWNS `npx tsx src/run.ts`.
+  // Vitest's default is 5s; a cold tsx start under full-suite load measured
+  // 5.8s, so the test failed roughly one run in three while the guard it
+  // checks was working perfectly. The subprocess has its own 30s cap below —
+  // this one only has to be longer than that, or a genuine hang would be
+  // reported as a timeout here rather than as the subprocess giving up.
+  //
+  // A flaky guard is worse than a missing one: people learn to re-run it.
   it("run.ts exits non-zero on a live __smoke__ invocation, without calling out", () => {
     let code = 0;
     let output = "";
@@ -87,7 +95,7 @@ describe("the synthetic fixture cannot run against a live API", () => {
     expect(output).toContain("refusing to run the synthetic");
     // If it got as far as authenticating, the guard is in the wrong place.
     expect(output).not.toContain("auth: ok");
-  });
+  }, 60_000);
 
   it("npm run smoke exists and forces DRY_RUN itself", () => {
     const pkg = JSON.parse(

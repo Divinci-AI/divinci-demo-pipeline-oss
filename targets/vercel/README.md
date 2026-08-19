@@ -1,10 +1,11 @@
 # Target: Vercel — the demo's landing page
 
-> **Status: the adapter is BUILT; the template is not ready.** The orchestrator
-> can deploy a finished demo's landing page to Vercel, provision its secrets and
-> tear it down — see [`orchestrator/src/landing-host.ts`](../../orchestrator/src/landing-host.ts).
-> It **refuses to deploy** until the landing template ships Vercel middleware,
-> for a reason worth understanding before you reach for `LANDING_ALLOW_UNSIGNED=1`.
+> **Status: BUILT on both sides.** The orchestrator deploys a finished demo's
+> landing page to Vercel, provisions its secrets and tears it down
+> ([`landing-host.ts`](../../orchestrator/src/landing-host.ts)), and the landing
+> template ships the Edge Middleware that signs chat calls at request time
+> ([`middleware.ts`](https://github.com/Divinci-AI/divinci-landing-template/blob/main/middleware.ts)
+> + [`VERCEL.md`](https://github.com/Divinci-AI/divinci-landing-template/blob/main/VERCEL.md)).
 >
 > The pipeline itself does **not** run on Vercel and should not; that half of
 > this page is unchanged.
@@ -20,6 +21,10 @@ LANDING_HOST=vercel VERCEL_TOKEN=... npm run demo -- --prospect acme --run 2026-
 | `VERCEL_ORG_ID` | optional — deploy into a team rather than a personal account |
 | `LANDING_ALLOW_UNSIGNED` | deploy without signing. Read the next section first. |
 
+The Vercel project also needs **Vercel KV** and the landing variables — see
+`VERCEL.md` in the template. The middleware fails closed without either, rather
+than serving a page that looks right and refuses every message.
+
 ## ⚠️ Why it refuses
 
 `LANDING_PAGE_HMAC_KEY` is a secret the deployed site reads **at request time**
@@ -28,22 +33,29 @@ to sign its anonymous-chat calls. Paired with
 is what stops anyone who extracts the public release id from calling the chat
 API directly and bypassing the per-email quota. It is a security control.
 
-On Cloudflare the Worker does that signing. On Vercel it has to be Edge
-Middleware or a Function, and
+On Cloudflare the Worker does that signing. On Vercel it is Edge Middleware,
+and
 [`divinci-landing-template`](https://github.com/Divinci-AI/divinci-landing-template)
-— a separate repository, cloned at run time — currently ships only the Worker.
+now ships one — it **delegates to the same handlers** the Worker uses rather
+than reimplementing them, so the two hosts cannot drift. Its signature is pinned
+against a golden vector produced by the *server's own signer*, not by the
+template's code.
 
 So `VercelLandingHost.deploy` checks for `middleware.ts` (or `src/middleware.ts`,
-or an `api/` route) and **throws** if there is none. The alternative is worse
-than an error: the page would deploy, look perfect, and have **every chat
-message refused by the API**, with nothing at deploy time to indicate it.
+or an `api/` route) **and that it actually reads `LANDING_PAGE_HMAC_KEY`** — a
+middleware added for redirects or analytics would satisfy a file check and still
+deploy a page whose every chat message is refused. The alternative is worse than
+an error: the page would look perfect and fail totally, with nothing at deploy
+time to indicate it.
 
 `LANDING_ALLOW_UNSIGNED=1` overrides the check. It is only meaningful for a demo
 whose release does **not** require signed chat.
 
-**To finish this target**, add a `middleware.ts` to the landing template that
-signs the way its Worker does. That is the whole remaining gap, and it lives in
-the template repository rather than here.
+**What remains** is operational, not structural: neither side has been run
+against a real Vercel project or Upstash instance. The KV layer is exercised
+against an in-memory Redis with the exact `SET…NX` / `INCR` semantics it depends
+on, and the signature against the server's own signer — so the first real deploy
+is the test of the plumbing, not of the logic.
 
 ## The seam
 
