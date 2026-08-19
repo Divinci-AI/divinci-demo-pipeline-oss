@@ -1,11 +1,11 @@
 # Divinci SDK Landing-Page Template — design
 
-A subprocess of the demo factory that turns the **drfuhrman.ai** implementation
+A subprocess of the demo factory that turns the **acmenutrition.ai** implementation
 into a reusable, open-source foundation, then re-skins it per prospect from
 their own brand. The branded landing page becomes the demo artifact we send.
 
 > **Decisions locked (Mike, 2026-06-12):**
-> 1. **Fork + parameterize** drfuhrman → `divinci-landing-template` (keep the
+> 1. **Fork + parameterize** acmenutrition → `divinci-landing-template` (keep the
 >    battle-tested infra; centralize brand into `brand.config.ts`).
 > 2. **The branded landing IS the demo link** sent to prospects (wraps the
 >    release); extend `injectDemoLink` + `teardown` to cover the landing Worker.
@@ -25,7 +25,7 @@ generic chat box). New stage sits after `release`, feeding `outreach`:
 … → release → landing → outreach (demo link now points at the landing) → …
 ```
 
-## Source analysis (drfuhrman.ai)
+## Source analysis (acmenutrition.ai)
 
 Astro + React islands + a Cloudflare Worker (`worker.ts`) + a Durable Object
 (`EmailQuotaCoordinator`). The **foundation** (reusable as-is) is the entire
@@ -107,7 +107,7 @@ Generate a `brand.config.ts` draft from the prospect's website, for human review
 ## Step 4 — Open-source + docs
 
 - Publish `divinci-landing-template` as a public repo under `Divinci-AI`
-  (strip all drfuhrman specifics; ship a neutral "Acme Expert" example brand
+  (strip all acmenutrition specifics; ship a neutral "Acme Expert" example brand
   config so it builds out-of-the-box).
 - Add a "Landing-page starter" section to **sdk.divinci.ai** docs: quickstart
   (clone → fill brand.config → deploy), the foundation feature list, the
@@ -123,10 +123,10 @@ config centralization is the foundation everything else needs), shipping it
 open-source (Step 4), then automating extraction (Step 2) and per-customer
 build (Step 3). This is multi-session — Step 1 alone is a meaningful chunk.
 
-## Appendix — brand surface inventory (from drfuhrman.ai)
+## Appendix — brand surface inventory (from acmenutrition.ai)
 
 colors `src/styles/global.css` L3–11 (+ dup `scripts/build-og.mjs` L17–22) ·
-logo `public/drfuhrman-logo.svg` · favicon `public/favicon.svg` · hero
+logo `public/acmenutrition-logo.svg` · favicon `public/favicon.svg` · hero
 `HeroSection.astro` L26 (R2 URL) · corpus video `CorpusSection.astro` L34 ·
 domain `astro.config.mjs` L17 + `Landing.astro` L38,L65 · nav link
 `Header.astro` L18 · bios `BiosSection.astro` L27–29 + i18n · footer

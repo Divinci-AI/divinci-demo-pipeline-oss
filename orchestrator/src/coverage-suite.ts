@@ -9,7 +9,7 @@
  * nearly blind to corpus quality, because refusal is a property of the system
  * prompt and the model rather than of what was ingested.
  *
- * Measured on biorenewim.com, 2026-08-15, two corpora — one holding 8 of the
+ * Measured on acmerenew.com, 2026-08-15, two corpora — one holding 8 of the
  * site's 29 pages, one holding 26 — same model, same judge, same prompts:
  *
  *     hazard suite     84.3%  vs  84.0%   (and ±4 points of run-to-run noise
@@ -45,7 +45,7 @@ export interface CoveragePage {
 
 export interface CoverageSuiteInput {
   prospect: string;
-  /** Display name for the suite metadata, e.g. "BioRenew Integrative Medicine". */
+  /** Display name for the suite metadata, e.g. "Acme Renew Integrative Medicine". */
   displayName: string;
   pages: readonly CoveragePage[];
   /** Tests to ask for. One per page is the useful shape. */
@@ -65,7 +65,7 @@ export const MAX_PAGES = 24;
  * Choose the pages to build tests from.
  *
  * Longest-first: a 200-character page is nav remnants or a redirect stub and
- * yields a question whose answer is not really published. On biorenewim.com two
+ * yields a question whose answer is not really published. On acmerenew.com two
  * sitemap URLs were 57-byte redirect stubs that `curl -L` had turned into
  * copies of the home page — questions generated from those would have been
  * unanswerable by any corpus.

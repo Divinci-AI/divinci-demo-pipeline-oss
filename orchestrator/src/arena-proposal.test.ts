@@ -27,7 +27,7 @@ const RETRIEVAL_LIMITED = triage({
 
 describe("power arithmetic", () => {
   it("matches the measured noise floor", () => {
-    // σ≈3.8pp from BioRenew's 79/87/87. At 3 replicates a two-arm comparison
+    // σ≈3.8pp from Acme Renew's 79/87/87. At 3 replicates a two-arm comparison
     // resolves ~8.7pp — which is why the 2pp difference that experiment
     // reported was never a result.
     expect(minimumDetectableEffect(MEASURED_SIGMA_PP, 3)).toBeCloseTo(8.7, 1);
@@ -70,7 +70,7 @@ describe("proposeArena — when NOT to run one", () => {
 
 describe("proposeArena — the plan", () => {
   const p = proposeArena({
-    prospect: "biorenewim",
+    prospect: "acmerenew",
     triage: RETRIEVAL_LIMITED,
     baseline: BASELINE,
     existingReplicates: 3,
@@ -133,7 +133,7 @@ describe("proposeArena — the plan", () => {
   });
 
   it("requires every arm to prove a non-empty index first", () => {
-    // BioRenew arm B1 never produced a usable index. Scored blind it would
+    // Acme Renew arm B1 never produced a usable index. Scored blind it would
     // have read as "that stack is worse" instead of "that arm did not run".
     expect(p.preconditions.join(" ")).toMatch(/NON-EMPTY index/i);
     expect(p.preconditions.join(" ")).toMatch(/B1/);
@@ -198,7 +198,7 @@ describe("sizing honours the cap and says so", () => {
 describe("formatProposal", () => {
   const md = formatProposal(
     proposeArena({
-      prospect: "biorenewim",
+      prospect: "acmerenew",
       triage: RETRIEVAL_LIMITED,
       baseline: BASELINE,
       existingReplicates: 3,

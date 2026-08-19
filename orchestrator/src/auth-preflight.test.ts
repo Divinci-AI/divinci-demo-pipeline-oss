@@ -68,7 +68,7 @@ describe("readCredentials", () => {
 
 describe("checkAuth", () => {
   it("REFUSES a cross-environment run WITHOUT probing", async () => {
-    // The apbiocode shape: session on prod, run targeting staging. The probe
+    // The acmebio shape: session on prod, run targeting staging. The probe
     // would SUCCEED here, which is exactly why the check must come first — a
     // green probe against the wrong environment is the failure mode.
     let probed = false;

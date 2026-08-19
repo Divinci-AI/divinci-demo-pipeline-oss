@@ -1,7 +1,7 @@
 /**
  * coverage-audit.ts — did we actually ingest the prospect's site?
  *
- * WHY THIS EXISTS. On 2026-08-15 an A/B on biorenewim.com found the shipped
+ * WHY THIS EXISTS. On 2026-08-15 an A/B on acmerenew.com found the shipped
  * demo corpus held **14 files covering 8 distinct URLs**, while the site's own
  * sitemap listed **29 pages**. `contact-us` had been ingested four times and
  * `privacy-terms` four times; the A2M page, the weight-loss program and eight
@@ -19,7 +19,7 @@
  *
  * This audit is the cheap half of the fix: no model call, no judge, no tokens —
  * set arithmetic between the sitemap and the URLs actually in the vector. It
- * would have caught BioRenew the day it shipped. The expensive half is
+ * would have caught Acme Renew the day it shipped. The expensive half is
  * `coverage-suite.ts`, which asks whether what IS ingested can be recalled.
  *
  * ⚠️ A missing sitemap is NOT under-crawling. Report `no-sitemap` and let a
@@ -57,7 +57,7 @@ export const DEFAULT_COVERAGE_THRESHOLD = 0.8;
  *
  * Deliberately lower than DEFAULT_COVERAGE_THRESHOLD: 80% is "tell me", 60% is
  * "stop". Agreed 2026-08-15 with no distribution to calibrate against — the
- * only datapoints are BioRenew at 28% (shipped, and wrong in the ways this was
+ * only datapoints are Acme Renew at 28% (shipped, and wrong in the ways this was
  * built to catch) and a rebuild at 100%. Revisit once a handful of real runs
  * have produced a spread; do not defend this number on the grounds that it is
  * written down.
@@ -121,7 +121,7 @@ export interface CoverageAuditInput {
  * Compare what the site advertises against what reached the vector.
  *
  * Deliberately set arithmetic on URLs, not counts. A count comparison
- * ("28 crawled, 14 files — looks fine") is exactly what let BioRenew through:
+ * ("28 crawled, 14 files — looks fine") is exactly what let Acme Renew through:
  * the duplicates made the total plausible while two thirds of the site was
  * absent.
  */

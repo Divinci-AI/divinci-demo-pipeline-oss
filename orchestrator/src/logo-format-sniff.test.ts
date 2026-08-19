@@ -3,7 +3,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { sniffImageFormat, imageDimensions, logoIsMark } from "./brand-extract.js";
 
 /**
- * BioRenew's hero rendered their circular clinic icon beside "AI", with the
+ * Acme Renew's hero rendered their circular clinic icon beside "AI", with the
  * brand name nowhere on the page — the exact failure `logoIsMark` exists to
  * prevent, on a logo that is 1:1 and could not be more obviously a mark.
  *
@@ -109,8 +109,8 @@ describe("logoIsMark", () => {
   });
 });
 
-describe("the actual BioRenew asset", () => {
-  const REAL = "runs/biorenewim/2026-08-14-001/landing/brand/logo.png";
+describe("the actual Acme Renew asset", () => {
+  const REAL = "runs/acmerenew/2026-08-14-001/landing/brand/logo.png";
   it.skipIf(!existsSync(`../${REAL}`))("is a WebP misnamed .png, and is now read correctly", () => {
     const buf = readFileSync(`../${REAL}`);
 

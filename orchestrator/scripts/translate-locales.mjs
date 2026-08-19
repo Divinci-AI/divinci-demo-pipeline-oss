@@ -1,6 +1,6 @@
 /**
  * translate-locales — generate src/i18n/ui/<code>.ts for every non-English
- * locale by translating the demo's en.ts via Gemini, drfuhrman-style. Preserves
+ * locale by translating the demo's en.ts via Gemini, acmenutrition-style. Preserves
  * structure, keys, inline tokens ({br}, {kbd}…{/kbd}, {0}), brand names, numbers
  * and URLs; translates only the English prose values.
  *

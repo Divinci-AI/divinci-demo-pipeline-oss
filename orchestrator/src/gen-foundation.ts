@@ -39,7 +39,7 @@ export interface FoundationKit {
   corpusVideo?: { videoUrl: string; posterUrl?: string };
   /** Abstract ambient art (Imagen) for a faint full-bleed hero background. */
   heroImageUrl?: string;
-  /** Optional drfuhrman-style feature videos (Imagen→Veo→R2). When present, the
+  /** Optional acmenutrition-style feature videos (Imagen→Veo→R2). When present, the
    *  page adds a "What's coming" section: native mobile app w/ photo recognition
    *  (multimodal) + on-device/offline. */
   featureVideos?: {

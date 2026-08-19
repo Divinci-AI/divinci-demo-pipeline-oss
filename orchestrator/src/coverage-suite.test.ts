@@ -15,7 +15,7 @@ const page = (url: string, len = 900, seed = "a") => ({
 
 describe("selectPages", () => {
   it("drops pages too thin to hold a checkable fact", () => {
-    // biorenewim.com had two 57-byte redirect stubs in its sitemap. A question
+    // acmerenew.com had two 57-byte redirect stubs in its sitemap. A question
     // generated from one is unanswerable by ANY corpus, so it would score every
     // arm down equally and hide a real difference.
     const got = selectPages([page("https://x.com/a"), { url: "https://x.com/stub", text: "hi" }]);

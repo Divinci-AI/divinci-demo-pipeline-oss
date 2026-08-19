@@ -23,7 +23,7 @@ beyond the default, two of them built and tested:
 | [**local**](targets/local) | crawl + chunk + embed **on your own machine** with Ollama; only the vectors sync up. Embedding costs nothing and the page text never leaves. |
 | [**cloudflare**](targets/cloudflare) | the whole crawl→publish path on the edge — Browser Rendering, Workers AI, Turso, R2 — with no laptop in the loop. ~$0.0007 to crawl a host. |
 | [**gcp**](targets/gcp) · [**aws**](targets/aws) | the full orchestrator on a schedule — a Cloud Run Job with state on GCS, or a Fargate task with state on EFS. |
-| [vercel](targets/vercel) | designed, not built — including why the landing page is not the static site it looks like. |
+| [vercel](targets/vercel) | hosts a finished demo's landing page (`LANDING_HOST=vercel`) — the pipeline itself does not fit, and the page is not the static site it looks like. |
 
 **Using an AI coding agent?** [`AGENTS.md`](AGENTS.md) carries the rules that
 are load-bearing here, and the repo ships agent skills that take an agent from

@@ -47,7 +47,7 @@ describe("logoIsMark", () => {
   it("reads the BYTES, not the claimed extension", () => {
     // This case previously asserted `undefined` — a PNG labelled "webp" was
     // unreadable because the format came from the label. That assertion
-    // encoded the bug: BioRenew's logo was a WebP served at a `.png` URL, so
+    // encoded the bug: Acme Renew's logo was a WebP served at a `.png` URL, so
     // its dimensions never parsed and their square-ish mark was rendered as
     // though it were a wordmark. The label is now ignored entirely.
     expect(logoIsMark(png(100, 100), "webp")).toBe(true);
@@ -174,7 +174,7 @@ describe("buildPalette", () => {
     for (const v of Object.values(p)) expect(v).toMatch(/^#[0-9a-f]{6}$/i);
   });
 
-  // Measured off https://www.drlongevityrx.com/ 2026-08-15. A dark-green and
+  // Measured off https://www.acmelongevity.com/ 2026-08-15. A dark-green and
   // gold clinic came back as gold-and-purple: `primary` took the gold CTA and
   // `accent` fell through to the UA's unstyled-link blue.
   const DRLONGEVITYRX: RawColors = {
@@ -225,7 +225,7 @@ describe("buildPalette", () => {
     expect(buildPalette(DRLONGEVITYRX).text).toBe("#2c2c2c");
   });
 
-  // Measured off https://dodcyberconsulting.com/ 2026-08-16 — a genuinely dark
+  // Measured off https://acmecyber.com/ 2026-08-16 — a genuinely dark
   // site (body #04090e, panels #091219, cyan #00d4ff, ink #ddeeff) whose demo
   // came back as a WHITE page whose text color was the site's own background.
   const DODCYBER: RawColors = {
@@ -263,7 +263,7 @@ describe("buildPalette", () => {
   });
 
   it("judges darkness by the BODY background, not the largest one", () => {
-    // drlongevityrx.com is a CREAM site whose single largest painted region is
+    // acmelongevity.com is a CREAM site whose single largest painted region is
     // a dark-green hero band (2.25M px² vs cream's 2.16M). Area alone calls it
     // dark and inverts a design that was already correct.
     const p = buildPalette(DRLONGEVITYRX_WITH_BODY);

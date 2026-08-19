@@ -247,7 +247,7 @@ export async function measureDemo(
       //
       // Images below the fold are `loading="lazy"`, so their naturalWidth is 0
       // until they enter the viewport — indistinguishable from broken. The
-      // first real run of this check reported six of evonexus's team photos as
+      // first real run of this check reported six of acmeincubator's team photos as
       // "never loaded" on MOBILE only, where the taller layout pushes them
       // further down; every one of them served 200 with real bytes from R2.
       //

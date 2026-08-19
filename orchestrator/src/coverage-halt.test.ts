@@ -6,7 +6,7 @@ import { COVERAGE_HALT_THRESHOLD, DEFAULT_COVERAGE_THRESHOLD, auditCoverage } fr
  * The Gate 2 coverage halt.
  *
  * A demo built on a fraction of the prospect's site does not reach them without
- * a human saying so. BioRenew shipped at 28% coverage and the Gate 2 reviewer
+ * a human saying so. Acme Renew shipped at 28% coverage and the Gate 2 reviewer
  * had nothing in front of them saying so.
  *
  * The halt itself lives in run.ts, where it is entangled with review-board polling
@@ -27,7 +27,7 @@ describe("halt threshold", () => {
     expect(COVERAGE_HALT_THRESHOLD).toBeLessThan(DEFAULT_COVERAGE_THRESHOLD);
   });
 
-  it("would have halted BioRenew at 8 of 29 pages", () => {
+  it("would have halted Acme Renew at 8 of 29 pages", () => {
     const a = auditCoverage({
       sitemapUrls: Array.from({ length: 29 }, (_, i) => `https://b.com/p${i}`),
       fileTitles: Array.from({ length: 8 }, (_, i) => `URL: https://b.com/p${i} 2026-1-1`),

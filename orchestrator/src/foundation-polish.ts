@@ -88,7 +88,7 @@ const LOCALES: { code: string; flag: string; autonym: string }[] = [
 /**
  * Animated hero: turn the static hero illustration into a slowly ORBITING full
  * circle (the half-arch illustration + a 180°-rotated copy complete the ring),
- * and add a page-wide cursor-tracked "globe" glow (drfuhrman-style). Replaces the
+ * and add a page-wide cursor-tracked "globe" glow (acmenutrition-style). Replaces the
  * generated static hero <img> in place; appends scoped CSS + a pointermove script.
  */
 function injectHeroAnimation(html: string, heroImageUrl: string, p: PolishOpts["palette"]): string {
@@ -306,7 +306,7 @@ var span=el.querySelector('span')||el;span.style.color=P;
 
 /** Apply all deterministic polish passes to a generated foundation document. */
 /**
- * Fixed "Ask" bar (drfuhrman.ai-style) + embed iframe auto-resize.
+ * Fixed "Ask" bar (acmenutrition.ai-style) + embed iframe auto-resize.
  *
  * The hero chat is an iframed /embed/. A fixed iframe height yields an unwanted
  * inner scrollbar, and the embed's own (in-iframe) sticky bar can't pin to the
@@ -423,7 +423,7 @@ var C=${JSON.stringify(LOCALES.map(l=>l.autonym))},P=${JSON.stringify(p.primary)
 var r=document.querySelector('.ls-r'),b=r.querySelector('.ls-b'),d=r.querySelector('.ls-d');
 /* relocate the globe into the header nav (before the Ask-the-AI CTA) so it never overlaps it */
 try{var hnav=document.querySelector('header nav')||document.querySelector('header');if(hnav){var ask=Array.prototype.find.call(hnav.querySelectorAll('a,button'),function(x){return /ask\\s+the\\s+ai/i.test((x.textContent||'').trim());});if(ask&&ask.parentNode===hnav){hnav.insertBefore(r,ask);}else{hnav.appendChild(r);}}}catch(e){}
-/* globe→glyph carousel on hover (drfuhrman parity): cycle scripts to signal "switch language" */
+/* globe→glyph carousel on hover (acmenutrition parity): cycle scripts to signal "switch language" */
 var gx=b.querySelector('.ls-gl'),GL=['あ','中','ع','文','ñ'],gi=0,gt=null;
 if(gx){b.addEventListener('mouseenter',function(){if(gt)return;gx.textContent=GL[gi%GL.length];gt=setInterval(function(){gi++;gx.textContent=GL[gi%GL.length];},900);});b.addEventListener('mouseleave',function(){if(gt){clearInterval(gt);gt=null;}gx.textContent='';});}
 b.addEventListener('click',function(e){e.stopPropagation();r.classList.toggle('open');b.setAttribute('aria-expanded',r.classList.contains('open'));});
@@ -456,7 +456,7 @@ function injectLanguageSwitcher(html: string, p: PolishOpts["palette"]): string 
 
 // ── Example Cards — REMOVED ──
 // The example-cards row was a non-interactive duplicate of the in-chat
-// "Try asking" starters (which are release-specific + functional). drfuhrman has
+// "Try asking" starters (which are release-specific + functional). acmenutrition has
 // no such row, so we strip both the marker and any previously-injected .ec-row.
 
 function stripExampleCards(html: string): string {
@@ -549,7 +549,7 @@ function upgradeHeaderLogo(html: string, logoIsLight: boolean | undefined): stri
 }
 
 /**
- * Hero starter type-ahead (drfuhrman-style): hovering a conversation starter in
+ * Hero starter type-ahead (acmenutrition-style): hovering a conversation starter in
  * the hero chat types it into the chat input (clears on mouse-out). The starters
  * live in the same-origin /embed/ iframe, so this wires from the parent into the
  * embed via the native value setter + input event (so React state follows).
@@ -603,11 +603,11 @@ export function polishFoundation(html: string, opts: PolishOpts): string {
   out = injectFooterLegal(out, opts.links);
   out = injectAskBar(out, opts.palette, opts.productName);
   out = injectHeroTypeahead(out);
-  // New sections (drfuhrman.ai parity)
+  // New sections (acmenutrition.ai parity)
   out = injectLanguageSwitcher(out, opts.palette);
   out = injectLanguagePills(out, opts.palette);
   // Example-cards row intentionally NOT injected: it duplicates the in-chat
-  // "Try asking" starters and drfuhrman has no such row. Strip the marker (and
+  // "Try asking" starters and acmenutrition has no such row. Strip the marker (and
   // any previously-injected .ec-row) so neither renders.
   out = stripExampleCards(out);
   out = injectQaResults(out, opts);

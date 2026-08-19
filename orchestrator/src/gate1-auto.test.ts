@@ -203,7 +203,7 @@ describe("against the example queue", () => {
 describe("the robots check must actually reach the site", () => {
   it("passes a HOSTNAME to the same-site guard, not a URL", () => {
     // `sameSiteAs` is a hostname. Passing the full URL made every fetch fail
-    // the guard — "www.thorne.com is not https://www.thorne.com" — so the
+    // the guard — "www.acmesupply.com is not https://www.acmesupply.com" — so the
     // check returned "no robots.txt" for sites it had never reached and
     // recorded that as evidence on the approval. A check that reports a clean
     // result it never performed is the failure this codebase keeps producing.

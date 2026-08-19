@@ -6,7 +6,7 @@ import {
   worstTestScore,
 } from "./qa-replicates.js";
 
-/** BioRenew arm A, unchanged config, three replicates. */
+/** Acme Renew arm A, unchanged config, three replicates. */
 const ARM_A = [0.79, 0.87, 0.87];
 
 describe("summariseReplicates", () => {

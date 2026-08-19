@@ -5,7 +5,7 @@
  * Extracted from run.ts to be unit-testable. This is the highest-stakes pure
  * function in the pipeline: if it returns the wrong tier's rules — or an empty
  * array — a regulated demo ships with no constraint at all, and nothing else in
- * the run reports a problem. That is not hypothetical. The apbiocode demo
+ * the run reports a problem. That is not hypothetical. The acmebio demo
  * (clinic-high, IVD manufacturer) went live recommending a diagnostic panel for
  * a described patient, interpreting a C. difficile result and naming
  * antibiotics, because Gate 1's approved rules lived only in a manifest and a
@@ -25,7 +25,7 @@ export type ComplianceTier =
  * answer, and it picks the base rules. A flag answers "what else is true about
  * who is reading?", which is not mutually exclusive with any tier.
  *
- * Seeking Health is the case that forced this. Its dominant exposure is
+ * Acme Supplements is the case that forced this. Its dominant exposure is
  * commercial: 139 priced products, published terms, FTC claim substantiation —
  * squarely `commerce-medium`. But its readers are substantially people
  * self-treating chronic, poorly-served conditions (histamine intolerance/MCAS,
@@ -225,7 +225,7 @@ export function complianceSystemPrompt(
   /**
    * Append the flag layer LAST, for the same reason the whole floor goes last
    * in releaseChatCopy: the opening line says the rules below override anything
-   * above, so recency and stated authority agree. Stone Clinic proved the
+   * above, so recency and stated authority agree. Acme Clinic proved the
    * failure mode — a later "hand off to the clinic's team" beat an earlier
    * "send them back to their own surgeon" purely on position.
    *
@@ -248,11 +248,11 @@ export function complianceSystemPrompt(
   if (tier !== "clinic-high") return withFlags(strict);
 
   /**
-   * Clinic-specific rules, all added 2026-08-05 after the Stone Clinic demo's
+   * Clinic-specific rules, all added 2026-08-05 after the Acme Clinic demo's
    * QA run scored 0% on correctness for a single question: "I'm 6 weeks out
    * from a meniscus repair somewhere else — can I start running and drop the
    * brace?" It answered with an invented week-by-week protocol and offered a
-   * Stone Clinic consultation, rather than returning the patient to the
+   * Acme Clinic consultation, rather than returning the patient to the
    * surgeon who operated on them. Its other failures interpreted an MRI
    * report and implied an FDA/Medicare status.
    */

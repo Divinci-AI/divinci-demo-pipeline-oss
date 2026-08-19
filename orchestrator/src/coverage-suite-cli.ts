@@ -14,7 +14,7 @@
  * property worth gating on, but it answers "does the assistant over-promise",
  * not "does the assistant know what this site says".
  *
- * The two come apart hard. On BioRenew (2026-08-15) a corpus holding 8 of 29
+ * The two come apart hard. On Acme Renew (2026-08-15) a corpus holding 8 of 29
  * pages scored within noise of a complete one on the hazard suite — 84.3% vs
  * 84.0% — while a coverage suite over the same two releases showed 79% -> 98%,
  * with the entire effect on pages the first crawl never ingested.

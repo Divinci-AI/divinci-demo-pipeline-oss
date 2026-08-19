@@ -9,7 +9,8 @@
  *
  * The template is cloned once into runs/<prospect>/<run>/landing/site/ (an
  * isolated working copy, never mutating the shared template), then per-run
- * brand.config.ts + wrangler.toml are written before build + `wrangler deploy`.
+ * brand.config.ts is written before the build; the host's own config and the
+ * deploy itself live behind LandingHost (see landing-host.ts).
  *
  * Brand extraction note: a full Playwright palette/logo/copy extractor from the
  * prospect's site is the planned upgrade (it would author brand.config.ts
@@ -26,12 +27,13 @@ import { explainEnTsMismatch } from "./copy-gen.js";
 import { personSurnames } from "./headshot-finder.js";
 import { isSystemFont } from "./brand-extract.js";
 import { lazyEnv } from "./require-env.js";
+import { resolveLandingHost, WORKERS_SUBDOMAIN as HOST_SUBDOMAIN } from "./landing-host.js";
 
 const execFileP = promisify(execFile);
 
 /**
  * Translate the demo's per-customer en.ts into every advertised locale so the
- * Astro build emits in-language /<code>/ pages (drfuhrman model). Best-effort
+ * Astro build emits in-language /<code>/ pages (acmenutrition model). Best-effort
  * and key-gated: with no Gemini key the locales simply fall back to English
  * (the prior behaviour), so demo generation never breaks on translation.
  */
@@ -100,7 +102,7 @@ async function applyLocales(landingDir: string, siteDir: string): Promise<void> 
     // This restored the committed translations whenever any existed, without
     // ever asking what they were translated FROM. So regenerating en.ts — the
     // whole point of feeding the team into copy generation — left the locale
-    // files describing the PREVIOUS copy. EvoNexus ended with 8 English roles
+    // files describing the PREVIOUS copy. Acme Incubator ended with 8 English roles
     // and a French dictionary holding 2, and six cards on every non-English
     // page had no role at all.
     //
@@ -208,17 +210,9 @@ async function spliceBespokeLocales(landingDir: string, siteDir: string, english
 }
 
 const TEMPLATE_REPO = "https://github.com/Divinci-AI/divinci-landing-template";
-export const WORKERS_SUBDOMAIN = lazyEnv(
-  "CF_WORKERS_SUBDOMAIN",
-  "your account's workers.dev subdomain, e.g. acme.workers.dev",
-);
-
-/** Strip the CF API token (per cloud-kill-switch CLAUDE.md) so wrangler uses
- *  the OAuth session that has the needed permissions. */
-const CF_ENV = { ...process.env };
-delete CF_ENV.CLOUDFLARE_API_TOKEN;
-delete CF_ENV.CLOUDFLARE_EMAIL;
-delete CF_ENV.CLOUDFLARE_ACCOUNT_ID;
+// Both moved to landing-host.ts along with everything else that knows about
+// Cloudflare. Re-exported because callers outside this module import it.
+export { WORKERS_SUBDOMAIN } from "./landing-host.js";
 
 export interface LandingBrandDraft {
   /**
@@ -233,7 +227,7 @@ export interface LandingBrandDraft {
   /**
    * Short name for the `[name] AI` lockup in the header and hero, when the
    * legal name is too long to sit on one line beside the "AI" glyphs.
-   * "BioRenew Integrative Medicine AI" wrapped to two lines and left "AI"
+   * "Acme Renew Integrative Medicine AI" wrapped to two lines and left "AI"
    * stranded at the upper right. Defaults to siteName — a shortening rule
    * good enough to apply automatically does not exist ("Integrative Medicine"
    * is droppable, "Group"/"Associates"/"Clinic" often are not), so this is set
@@ -276,7 +270,7 @@ export interface LandingBrandDraft {
   /** Per-prospect optical nudge for the AI mark, px. See alignAiMark. */
   aiMarkNudgePx?: { base: number; md: number };
   /** Same, for the HEADER lockup — a different logo size, so a different
-   *  offset. Ansir: hero 10.5px at a 56px logo, header 6px at 24px. */
+   *  offset. Acme Security: hero 10.5px at a 56px logo, header 6px at 24px. */
   headerAiMarkNudgePx?: { base: number; md: number };
   /** True when the logo is a square MARK, so the hero must render the name. */
   logoIsMark?: boolean;
@@ -350,7 +344,7 @@ export function brandObjectLiteral(d: LandingBrandDraft): string {
     // (logo.svg / favicon.svg ARE shipped, so those defaults stay.)
     media: { logo: d.logoFile ? `/brand/${d.logoFile}` : "/brand/logo.svg", favicon: "/brand/favicon.svg", ...(d.heroImageUrl ? { heroImage: d.heroImageUrl } : {}), ...(d.corpusVideoUrl ? { corpusVideo: d.corpusVideoUrl } : {}), logoIsLight: d.logoIsLight ?? false, logoIsMark: d.logoIsMark ?? false, logoIsTextWordmark: !d.logoFile, ...(typeof d.logoBaselineDrop === "number" ? { logoBaselineDrop: d.logoBaselineDrop } : {}), ogTagline: d.ogTagline, ogSubtitle: d.ogSubtitle },
     referral: { source: d.referralSource },
-    deploy: { workerName: d.workerName, demoHost: `${d.workerName}.${WORKERS_SUBDOMAIN()}` },
+    deploy: { workerName: d.workerName, demoHost: `${d.workerName}.${HOST_SUBDOMAIN()}` },
     // Hide aspirational sections in demos — we don't generate native-app /
     // offline media, so they'd render as empty wells. (Template default shows
     // them; demos opt out.)
@@ -561,7 +555,7 @@ async function ensureSiteClone(landingDir: string): Promise<string> {
  *
  * Every run gets its OWN clone under runs/<prospect>/<run>/landing/site, so every
  * run also gets its own full install — ~470MB, of which two copies of the 107MB
- * workerd binary. Nothing reads it after `wrangler deploy`: the deployed artifact
+ * workerd binary. Nothing reads it after the deploy: the deployed artifact
  * is the worker, and what the run needs to stay reproducible is brand.config.ts,
  * en.ts, wrangler.toml and dist. Measured 2026-08-10: 52 clones held 24GB, or 98%
  * of runs/ — the run outputs themselves were 487MB.
@@ -756,9 +750,9 @@ export function stripPlaceholderBios(enPath: string): number {
  * (what is said — from the copy generator) are produced by different processes
  * and joined BY ARRAY INDEX at render time. Nothing binds body[i] to person[i];
  * run.ts merely asserts in a comment that "the generated lead bio belongs to
- * the first member". On evonexus.org that assumption was false: the scraper
- * returned Gene Dantsker first, the generator wrote about Rory Moore, and the
- * demo published Rory Moore's biography under Gene Dantsker's name and face.
+ * the first member". On acmeincubator.org that assumption was false: the scraper
+ * returned Sam Torres first, the generator wrote about Casey Brook, and the
+ * demo published Casey Brook's biography under Sam Torres's name and face.
  * Once locale translation started working it published that in fluent French,
  * which made the false attribution more convincing rather than less.
  *
@@ -848,7 +842,7 @@ export function looksLikeOrganisation(name: string): boolean {
   );
 }
 
-/** Initials for the favicon: "Applied BioCode" → "AB", "Divinci" → "D". */
+/** Initials for the favicon: "Acme Bio" → "AB", "Divinci" → "D". */
 export function brandInitials(siteName: string): string {
   const words = siteName.split(/[\s\-—]+/).filter((w)=>(/[A-Za-z0-9]/.test(w)));
   const letters = words.map((w)=>(w.replace(/[^A-Za-z0-9]/g, "")[0] ?? "")).filter(Boolean);
@@ -877,7 +871,7 @@ const HELVETICA_BOLD_ADVANCE: Record<string, number> = {
 /**
  * Width of `text` at `fontSize` in Helvetica Bold, including letter-spacing.
  *
- * The first version guessed a flat 18.6px per character. For "Applied BioCode"
+ * The first version guessed a flat 18.6px per character. For "Acme Bio"
  * that produced a 279-unit viewBox around 228 units of glyphs — 51 units of
  * trailing whitespace inside the <img>, which at the hero's rendered height
  * shoved the adjacent "AI" mark ~68px to the right of the wordmark. A logo box
@@ -896,9 +890,9 @@ export function wordmarkTextWidth(text: string, fontSize: number, letterSpacing 
  * The template ships a neutral placeholder wordmark reading "Acme Expert" so
  * it builds standalone. `brand-extract` only overwrites it when it manages to
  * scrape a logo from the prospect's site; when it doesn't, nothing errors and
- * nothing warns — the placeholder is simply served. Applied BioCode's demo
+ * nothing warns — the placeholder is simply served. Acme Bio's demo
  * went out with "Acme Expert" as its headline for exactly this reason, and the
- * page was otherwise correct (title, copy and chat all said Applied BioCode),
+ * page was otherwise correct (title, copy and chat all said Acme Bio),
  * which is what made it survive review.
  *
  * A generated wordmark is not as good as the real logo. It is strictly better
@@ -976,7 +970,7 @@ export function ensureBrandFavicon(
   const name = draft.siteName.trim();
   const initials = brandInitials(name);
   // Brand colours, not the template's slate. `accent` is unreliable — it is
-  // often the raw link blue lifted off the page (#0000ee on BioRenew) — so
+  // often the raw link blue lifted off the page (#0000ee on Acme Renew) — so
   // prefer the palette's own dark/primary.
   const bg = draft.palette?.dark ?? draft.palette?.primary ?? "#2d3748";
   const fg = readableOn(bg);
@@ -1026,7 +1020,7 @@ export function readableOn(bg: string): string {
  * space below the glyphs, while "AI" is live text with its own metrics. The
  * boxes line up and the LETTERS do not.
  *
- * Measured in the browser on the Applied BioCode demo: the AI's ink centre sat
+ * Measured in the browser on the Acme Bio demo: the AI's ink centre sat
  * 5.0px BELOW the wordmark's at the md breakpoint (48px "AI" against a 56px
  * logo). A -5px nudge takes the residual to -0.01px. The base breakpoint is
  * proportionally smaller (36px text / 40px logo), hence 3.75px there.
@@ -1042,12 +1036,12 @@ export function readableOn(bg: string): string {
  * change — an inline-flex box exposes a baseline that broke the wrapper), and
  * this kept looking for the old string. It printed
  * `alignAiMark: hero AI wrapper not found — template changed?` and returned
- * false, and the run carried on. Observed on ansirsd and leadwithimpact; how
+ * false, and the run carried on. Observed on acmesecurity and leadwithimpact; how
  * many runs shipped un-nudged is unknown, because a warning nobody greps for is
  * not a signal.
  *
  * The nudge is also NOT a constant. It was calibrated at 5px against Applied
- * BioCode's 48px "AI" on a 56px logo; the deployed Ansir page measured 3.5px on
+ * Acme Bio's 48px "AI" on a 56px logo; the deployed Acme Security page measured 3.5px on
  * desktop and 4.0px on mobile. A fixed px value is right for exactly one logo
  * size. Treat this as a first approximation and rely on the deterministic
  * hero-lockup check (hero-lockup-check.ts) for the truth — it measures the ink
@@ -1063,7 +1057,7 @@ export function readableOn(bg: string): string {
  * Drop Google Fonts links for families Google does not host.
  *
  * Generation is fixed upstream (googleFontsUrl skips system fonts), but every
- * draft written before that fix still carries the bad links — BioRenew's has
+ * draft written before that fix still carries the bad links — Acme Renew's has
  * `family=Times` and `family=Georgia`, and each is a **403** on every page
  * load, from a render-blocking <link> in <head>. Sanitising here means a
  * redeploy cleans an existing demo without re-running extraction.
@@ -1105,7 +1099,7 @@ export function isTextLockup(draft: { logoIsMark?: boolean; logoFile?: string })
  * the font's descender gap. A text lockup has no such gap: both sides are the
  * same face at the same size, so the browser already aligns them.
  *
- * Measured on the deployed BioRenew hero (48px Georgia, both sides):
+ * Measured on the deployed Acme Renew hero (48px Georgia, both sides):
  *   with the 5px nudge      AI sits 7.96px above the wordmark's optical centre
  *   with the nudge removed  AI sits 2.96px above
  *
@@ -1195,11 +1189,11 @@ export function alignAiMark(
  *
  * alignAiMark only ever touched HeroSection.astro, so the header's "AI" sat
  * uncorrected on every demo ever built — measured 6px below the wordmark's ink
- * centre on Ansir, with `translate: none` confirming nothing had run.
+ * centre on Acme Security, with `translate: none` confirming nothing had run.
  *
  * A separate function rather than a loop over both files because the OFFSET IS
  * DIFFERENT: the header renders the same logo at 24px against the hero's 56px,
- * and Ansir needs 6px here against 10.5px there. Not proportional (0.25 vs
+ * and Acme Security needs 6px here against 10.5px there. Not proportional (0.25 vs
  * 0.1875) — it depends on where the ink sits at each rendered size — so the
  * value has to be measured per surface, which is what the deterministic
  * hero-lockup check reports.
@@ -1232,7 +1226,7 @@ export function alignHeaderAiMark(
 /**
  * Stop the CTA headline stranding its last word on a line of its own.
  *
- * "Ready to ask the Applied BioCode AI a question?" wrapped as
+ * "Ready to ask the Acme Bio AI a question?" wrapped as
  * "… AI a" / "question?" — the orphan reads as a mistake.
  *
  * `text-wrap: pretty` is the browser's own orphan-avoidance pass and it
@@ -1241,7 +1235,7 @@ export function alignHeaderAiMark(
  * headline is GENERATED PER PROSPECT and translated into 36 locales — binding
  * "a question?" by hand fixes one string in one language, and every other
  * locale keeps the orphan. `balance` was tried first and is wrong here: it
- * split the company name ("Applied" / "BioCode AI a question?").
+ * split the company name ("Acme" / "Bio AI a question?").
  *
  * Browsers without support fall back to today's wrapping, so this cannot
  * regress anything.
@@ -1278,7 +1272,7 @@ export function preventHeadlineOrphans(siteDir: string): boolean {
  * a direct-handoff demo built with LANDING_NO_EMAIL_GATE=1 had its worker
  * configured for 500 sends while its CLIENT still carried
  * `FREE_MESSAGE_QUOTA = 1` — after a single question the composer was replaced
- * by the sign-up CTA. apbiocode, the demo going to a customer, shipped that way:
+ * by the sign-up CTA. acmebio, the demo going to a customer, shipped that way:
  * one message, then "sign up". Nothing failed, so nothing said so.
  *
  * Editing the two constants expresses the whole intent in one place, cannot be
@@ -1500,6 +1494,8 @@ export function ensureSocialMeta(
 export interface DeployResult {
   url: string;
   workerName: string;
+  /** Which LandingHost served this deploy — recorded so teardown can find it. */
+  host?: string;
   /** true if the LANDING_PAGE_HMAC_KEY worker secret was set during deploy. */
   hmacSet: boolean;
   /** true if the BASIC_AUTH_PASSWORD preview-gate secret was set during deploy. */
@@ -1509,7 +1505,8 @@ export interface DeployResult {
 /**
  * Build + deploy the branded landing worker. Writes the brand config + assets
  * (caller drops real logo/hero into <landingDir>/brand/ first; falls back to the
- * template's neutral placeholders), wires wrangler, and `wrangler deploy`s.
+ * template's neutral placeholders), then hands the built site to the
+ * configured LandingHost. Everything above that hand-off is host-agnostic.
  */
 export async function buildAndDeployLanding(
   landingDir: string,
@@ -1619,59 +1616,20 @@ export async function buildAndDeployLanding(
   alignHeaderAiMark(siteDir, draft.headerAiMarkNudgePx ?? defaultHeaderAiNudge(textLockup, draft.logoBaselineDrop));
   preventHeadlineOrphans(siteDir);
 
-  // wrangler.toml — name + KV + release vars.
-  const wranglerPath = join(siteDir, "wrangler.toml");
-  let wrangler = readFileSync(wranglerPath, "utf8");
-  wrangler = wrangler
-    .replace(/^name = ".*"/m, `name = "${draft.workerName}"`)
-    .replace(/id = "REPLACE_WITH_KV_NAMESPACE_ID"/, `id = "${kvNamespaceId}"`)
-    .replace(/DIVINCI_API_BASE = ".*"/, `DIVINCI_API_BASE = "${draft.apiBase}"`)
-    .replace(/DIVINCI_RELEASE_ID = ".*"/, `DIVINCI_RELEASE_ID = "${draft.releaseId}"`);
-
-  // The no-email-gate demo needs its WORKER told too, not just its UI.
-  //
-  // configureChatGate only edits the client; the worker validates the address
-  // independently AND keys its free-message quota on it. With the field gone,
-  // the quota falls back to the visitor's IP — so the budget must be a
-  // company-wide one, not a per-person one: a customer reviewing the demo from
-  // one office NAT shares a single counter that never resets.
-  //
-  // These were added by hand on the first such demo, which meant a rebuild
-  // would silently drop them and the worker would start refusing every message
-  // again.
+  // Hand the host its configuration. Everything above this line is
+  // host-agnostic — the clone, the brand, the copy, the bios, the build — and
+  // everything a specific host needs to know lives behind this interface.
   const { noEmailGate, demoQuota, freeBeforeEmail, clientBeforeEmail, clientQuota } =
     resolveChatGate(process.env);
-  if (noEmailGate) {
-    wrangler = /^NO_EMAIL_GATE = /m.test(wrangler)
-      ? wrangler
-          .replace(/^NO_EMAIL_GATE = ".*"/m, `NO_EMAIL_GATE = "1"`)
-          .replace(/^DEMO_QUOTA_LIMIT = ".*"/m, `DEMO_QUOTA_LIMIT = "${demoQuota}"`)
-      : wrangler.replace(
-          /^(DIVINCI_RELEASE_ID = ".*")$/m,
-          `$1\nNO_EMAIL_GATE = "1"\nDEMO_QUOTA_LIMIT = "${demoQuota}"`,
-        );
-    console.log(`[landing] worker gate OFF, per-visitor budget ${demoQuota}`);
-  }
-
-  // Keep the WORKER's grace window and the CLIENT's constant in agreement.
-  // They are enforced independently — the worker bounds the endpoint, the
-  // client decides when to ask — so a drift between them is either a UI that
-  // asks too early or one that asks too late and sends into a refusal.
-  //
-  // Written as 0 for a no-email-gate demo: the worker short-circuits on
-  // NO_EMAIL_GATE and never consults the grace window there, so any other
-  // value would sit in the config looking authoritative while being inert —
-  // and would contradict the client's constant, which is the whole demo quota.
-  wrangler = /^FREE_MESSAGES_BEFORE_EMAIL = /m.test(wrangler)
-    ? wrangler.replace(
-        /^FREE_MESSAGES_BEFORE_EMAIL = ".*"/m,
-        `FREE_MESSAGES_BEFORE_EMAIL = "${freeBeforeEmail}"`,
-      )
-    : wrangler.replace(
-        /^(DIVINCI_RELEASE_ID = ".*")$/m,
-        `$1\nFREE_MESSAGES_BEFORE_EMAIL = "${freeBeforeEmail}"`,
-      );
-  writeFileSync(wranglerPath, wrangler);
+  const host = resolveLandingHost(process.env);
+  const hostCfg = {
+    slug: draft.workerName,
+    apiBase: draft.apiBase,
+    releaseId: draft.releaseId,
+    kvNamespaceId,
+    chatGate: { noEmailGate, demoQuota, freeBeforeEmail },
+  };
+  host.configure(siteDir, hostCfg);
 
   // Patch the cloned template (survives the per-build `git reset --hard`):
   // teach /embed/ to auto-resize to its content (kills the iframe inner scroll)
@@ -1721,7 +1679,7 @@ export async function buildAndDeployLanding(
       siteName: draft.siteName,
       description: draft.ogSubtitle,
       imageAlt: draft.ogTagline,
-      pageUrl: `https://${draft.workerName}.${WORKERS_SUBDOMAIN()}/`,
+      pageUrl: `${host.urlFor(draft.workerName)}/`,
     });
     writeFileSync(join(siteDir, "dist", "index.html"), homepage);
     console.log("[landing] generated mode: bespoke homepage spliced over dist/index.html");
@@ -1730,7 +1688,7 @@ export async function buildAndDeployLanding(
     await spliceBespokeLocales(landingDir, siteDir, homepage);
   }
 
-  await execFileP("npx", ["wrangler", "deploy"], { cwd: siteDir, env: CF_ENV, timeout: 10 * 60 * 1000, maxBuffer: 32 * 1024 * 1024 });
+  const deployed = await host.deploy(siteDir, hostCfg);
 
   // Set the landing-page HMAC secret so the worker's anonymous-chat calls are
   // signed. Combined with release.requireSignedAnonymousChat=true (set by the
@@ -1739,17 +1697,13 @@ export async function buildAndDeployLanding(
   // MUST be one of the API's accepted LANDING_PAGE_HMAC_KEY values.
   const hmacKey = process.env.LANDING_PAGE_HMAC_KEY;
   if (hmacKey) {
-    // `wrangler secret put` reads the value from stdin (keeps it out of argv/
-    // shell history). execFileSync supports `input`; execFile does not.
-    execFileSync("npx", ["wrangler", "secret", "put", "LANDING_PAGE_HMAC_KEY"], {
-      cwd: siteDir, env: CF_ENV, input: hmacKey, timeout: 2 * 60 * 1000, stdio: ["pipe", "ignore", "inherit"],
-    });
+    await host.setSecret(siteDir, draft.workerName, "LANDING_PAGE_HMAC_KEY", hmacKey);
   }
 
   // Basic-Auth preview gate — OFF unless explicitly asked for.
   //
   // ⛔ THIS WAS ON BY DEFAULT UNTIL 2026-08-14 AND IT COST A DEAL. The Applied
-  // BioCode prospect opened her demo during a scheduled call, hit a password
+  // Acme Bio prospect opened their demo during a scheduled call, hit a password
   // prompt, could not show it to her manager, and the project slipped. The gate
   // existed to stop a half-built demo being browsable by a stranger who
   // guessed the URL — a hypothetical harm — and it was paid for with a real
@@ -1779,17 +1733,11 @@ export async function buildAndDeployLanding(
   if (!wantsGate) {
     let removed = false;
     for (const name of ["BASIC_AUTH_PASSWORD", "BASIC_AUTH_USERNAME"]) {
-      try {
-        execFileSync("npx", ["wrangler", "secret", "delete", name], {
-          cwd: siteDir, env: CF_ENV, input: "y\n", timeout: 2 * 60 * 1000,
-          stdio: ["pipe", "ignore", "ignore"],
-        });
-        removed = true;
-      } catch {
-        // Not set is the normal case and indistinguishable from a failed
-        // delete here — wrangler's output is discarded. The deploy verifies
-        // the result over HTTP below rather than trusting this.
-      }
+      // clearSecret treats "was not set" as success — it is indistinguishable
+      // from a failed delete on every host. The deploy verifies the result over
+      // HTTP below rather than trusting this.
+      await host.clearSecret(siteDir, draft.workerName, name);
+      removed = true;
     }
     if (removed) console.log("[landing] cleared any previous preview gate");
   }
@@ -1797,13 +1745,9 @@ export async function buildAndDeployLanding(
   const basicAuthPassword = wantsGate ? process.env.BASIC_AUTH_PASSWORD : undefined;
   const basicAuthUsername = wantsGate ? process.env.BASIC_AUTH_USERNAME : undefined;
   if (basicAuthPassword) {
-    execFileSync("npx", ["wrangler", "secret", "put", "BASIC_AUTH_PASSWORD"], {
-      cwd: siteDir, env: CF_ENV, input: basicAuthPassword, timeout: 2 * 60 * 1000, stdio: ["pipe", "ignore", "inherit"],
-    });
+    await host.setSecret(siteDir, draft.workerName, "BASIC_AUTH_PASSWORD", basicAuthPassword);
     if (basicAuthUsername) {
-      execFileSync("npx", ["wrangler", "secret", "put", "BASIC_AUTH_USERNAME"], {
-        cwd: siteDir, env: CF_ENV, input: basicAuthUsername, timeout: 2 * 60 * 1000, stdio: ["pipe", "ignore", "inherit"],
-      });
+      await host.setSecret(siteDir, draft.workerName, "BASIC_AUTH_USERNAME", basicAuthUsername);
     }
   }
 
@@ -1811,7 +1755,13 @@ export async function buildAndDeployLanding(
   // dependencies again. Reclaim the ~470MB install (see pruneSiteDependencies).
   if (pruneSiteDependencies(siteDir)) console.log("[landing] pruned node_modules from the run clone");
 
-  return { url: `https://${draft.workerName}.${WORKERS_SUBDOMAIN()}`, workerName: draft.workerName, hmacSet: !!hmacKey, basicAuthSet: !!basicAuthPassword };
+  return {
+    url: deployed.url,
+    workerName: draft.workerName,
+    host: host.name,
+    hmacSet: !!hmacKey,
+    basicAuthSet: !!basicAuthPassword,
+  };
 }
 
 /**

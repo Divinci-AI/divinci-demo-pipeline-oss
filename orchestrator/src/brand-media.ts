@@ -55,7 +55,7 @@ export interface GeneratedBrandMedia {
   corpusVideoUrl?: string;
   /** Local path to a poster frame to stage into landing/brand/corpus-poster.jpg. */
   corpusPosterPath?: string;
-  /** Feature-section videos (generated-mode demo, drfuhrman-style): a native
+  /** Feature-section videos (generated-mode demo, acmenutrition-style): a native
    *  mobile app w/ photo recognition (multimodal) + an on-device/offline clip. */
   mobileAppVideo?: VideoAsset;
   offlineVideo?: VideoAsset;
@@ -266,7 +266,7 @@ export function uploadDemoAsset(localPath: string, key: string, contentType: str
 }
 
 /**
- * Generate the two drfuhrman-style feature videos (native mobile app w/ photo
+ * Generate the two acmenutrition-style feature videos (native mobile app w/ photo
  * recognition + on-device/offline) → R2. Best-effort per video. Reuses a passed
  * Vertex token or mints its own (so it can run standalone).
  */
@@ -328,7 +328,7 @@ export async function generateBrandMedia(
     // background — so we want soft abstract edge-to-edge texture (gentle gradient
     // washes, flowing organic forms) in the brand color, NOT a centered literal
     // subject (which crops awkwardly and reads as "random AI art" behind a card).
-    // Hero = a RECOGNIZABLE, lightly-faded line-art illustration (drfuhrman style),
+    // Hero = a RECOGNIZABLE, lightly-faded line-art illustration (acmenutrition style),
     // shown with little/no blur and an open center — NOT a heavy abstract blur. The
     // motifs evoke the business; brand colors only; near-white so it sits behind text.
     const heroPrompt = `Elegant, detailed line-art illustration in a refined vintage engraving / botanical-plate style for ${opts.productName ?? "a premium brand"}, arranged as a graceful ARCH or WREATH of motifs that frame a LARGE OPEN, EMPTY central space (negative space for headline text). The motifs must clearly and recognizably evoke ${subject} — fine line drawings of that field's signature subjects, tools, and activities. Delicate thin strokes drawn ONLY in the brand colors ${colorName(navy)} (${navy}) and ${colorName(accent)} (${accent}) on a NEAR-WHITE background — clearly tinted in those two colors, NOT pink, NOT warm, NOT grey. Light, airy, premium; a tasteful faded illustration that frames the page while the CENTER stays open and light. No solid fills, no heavy shading, no human faces, no text, no words, no logos, no watermark, light background.`;
@@ -361,7 +361,7 @@ export async function generateBrandMedia(
       console.warn(`[brand-media] corpus video skipped (hero KEPT) — ${(e as Error).message.split("\n")[0]}`);
     }
 
-    // Feature-section videos (drfuhrman-style): native mobile app w/ photo
+    // Feature-section videos (acmenutrition-style): native mobile app w/ photo
     // recognition (multimodal) + an on-device/offline clip.
     const { mobileAppVideo, offlineVideo } = await generateFeatureVideos(workDir, prospect, { primaryHex: navy, subject }, token);
 

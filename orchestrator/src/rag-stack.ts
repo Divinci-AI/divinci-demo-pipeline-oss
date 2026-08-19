@@ -9,7 +9,7 @@
  * the dataset cannot answer the one question the whole experiment programme
  * asks: *did that stack score better?*
  *
- * That is why the 2026-08-15 BioRenew A/B had to be assembled by hand, and it
+ * That is why the 2026-08-15 Acme Renew A/B had to be assembled by hand, and it
  * is the precondition for an arena: arms you cannot LABEL cannot be compared,
  * and a ledger of unlabelled scores is just noise with timestamps.
  *
@@ -99,7 +99,7 @@ const num = (v: unknown): number | null =>
  *
  * A `graphBuildStatus: "failed"` vector is serving plain vector search, and
  * labelling it `lightrag` would credit or blame LightRAG for a score it had no
- * part in. This is the same class of mistake as arm B1 in the BioRenew A/B,
+ * part in. This is the same class of mistake as arm B1 in the Acme Renew A/B,
  * which never produced a usable index and would have scored as "that stack is
  * worse" had anyone read its number.
  */
@@ -127,7 +127,7 @@ export function deriveStack(doc: RagVectorLike): RagStackDescriptor {
           : null;
 
   // The stored embeddingModel often ALREADY carries its dimension, e.g.
-  // "gemini-embedding-2-preview@1536" (observed on the real BioRenew vector).
+  // "gemini-embedding-2-preview@1536" (observed on the real Acme Renew vector).
   // Split it so the descriptor has one meaning per field, and so a vector that
   // records the dimension only in the model string still gets a numeric one.
   const rawModel = str(doc.embeddingModel);

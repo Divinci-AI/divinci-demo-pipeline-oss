@@ -10,12 +10,12 @@ describe("parseTeam", () => {
     const team = parseTeam({
       portraits,
       headings: [
-        { text: "Frank Kuwamura, M.D.", top: 210, blurb: "" },
-        { text: "Dr. Kuwamura", top: 600, blurb: "" }, // partial dup → merges
-        { text: "Raj Nangunoori, M.D.", top: 910, blurb: "" },
+        { text: "Alex Rivera, M.D.", top: 210, blurb: "" },
+        { text: "Dr. Rivera", top: 600, blurb: "" }, // partial dup → merges
+        { text: "Robin Patel, M.D.", top: 910, blurb: "" },
       ],
     }, "Spine Surgeon");
-    expect(team.map((m) => m.name)).toEqual(["Dr. Frank Kuwamura", "Dr. Raj Nangunoori"]);
+    expect(team.map((m) => m.name)).toEqual(["Dr. Alex Rivera", "Dr. Robin Patel"]);
     expect(team[0].imageUrl).toContain("kuwamura");
     expect(team[1].imageUrl).toContain("raj");
     expect(team[0].title).toBe("Spine Surgeon");
@@ -36,7 +36,7 @@ describe("parseTeam", () => {
 
 describe("personSurnames", () => {
   it("extracts the person from an 'Org (Dr. Person)' bio name, dropping org words", () => {
-    expect(personSurnames("MD Spine Care (Dr. Frank Kuwamura)")).toEqual(["frank", "kuwamura"]);
+    expect(personSurnames("MD Spine Care (Dr. Alex Rivera)")).toEqual(["alex", "rivera"]);
   });
   it("strips titles + punctuation from a plain name", () => {
     expect(personSurnames("Dr. Jane A. Smith, M.D.")).toEqual(["jane", "smith"]);
@@ -73,39 +73,39 @@ describe("scoreCandidate", () => {
   });
 });
 
-// Found 2026-08-09 on the EvoNexus demo, at Gate 3, ready to send. EvoNexus is
+// Found 2026-08-09 on the Acme Incubator demo, at Gate 3, ready to send. Acme Incubator is
 // a startup incubator; the page shipped eight real, named venture and
 // technology executives captioned "Physician", six of them wearing a
 // colleague's face. The people and the source page were correct — everything
 // the pipeline added on top was wrong.
 describe("parseTeam — non-clinical sites", () => {
-  // Shape taken from evonexus.org/people/.
-  const evonexus = {
+  // Shape taken from acmeincubator.org/people/.
+  const acmeincubator = {
     portraits: [
       { src: "https://x/dantsker.jpg", top: 200, w: 300, h: 300 },
       { src: "https://x/kim.jpg", top: 800, w: 300, h: 300 },
     ],
     headings: [
-      { text: "Gene Dantsker, Ph.D., MBA EvoNexus Executive Advisor", top: 210, blurb: "" },
-      { text: "Dong-Su Kim, Ph.D., Corporate EVP, LG Technology Ventures", top: 810, blurb: "" },
-      { text: "Kelly Ko, PhD, VP Technology Ventures & Innovation", top: 1600, blurb: "" },
+      { text: "Sam Torres, Ph.D., MBA Acme Incubator Executive Advisor", top: 210, blurb: "" },
+      { text: "Dong-Min Park, Ph.D., Corporate EVP, LG Technology Ventures", top: 810, blurb: "" },
+      { text: "Jamie Fox, PhD, VP Technology Ventures & Innovation", top: 1600, blurb: "" },
     ],
   };
 
   it("never captions a non-clinical site's people 'Physician'", () => {
-    const team = parseTeam(evonexus);
+    const team = parseTeam(acmeincubator);
     expect(team.map((m) => m.title)).not.toContain("Physician");
     expect(team.map((m) => m.title)).not.toContain("Spine Surgeon");
   });
 
   it("uses the role the page states, not an invented one", () => {
-    const team = parseTeam(evonexus);
-    expect(team[0].title).toBe("EvoNexus Executive Advisor");
+    const team = parseTeam(acmeincubator);
+    expect(team[0].title).toBe("Acme Incubator Executive Advisor");
     expect(team[1].title).toBe("Corporate EVP, LG Technology Ventures");
   });
 
   it("gives no two people the same photograph", () => {
-    const team = parseTeam(evonexus);
+    const team = parseTeam(acmeincubator);
     const used = team.map((m) => m.imageUrl).filter(Boolean);
     expect(new Set(used).size).toBe(used.length);
   });
@@ -113,13 +113,13 @@ describe("parseTeam — non-clinical sites", () => {
   it("leaves the third person without a photo rather than reusing one", () => {
     // Two portraits, three people. The unmatched one renders an initials
     // avatar; wearing a colleague's face is the failure being prevented.
-    const team = parseTeam(evonexus);
+    const team = parseTeam(acmeincubator);
     expect(team.filter((m) => m.imageUrl)).toHaveLength(2);
     expect(team[2].imageUrl).toBeUndefined();
   });
 
   it("matches each portrait to its OWN card, closest first", () => {
-    const team = parseTeam(evonexus);
+    const team = parseTeam(acmeincubator);
     expect(team[0].imageUrl).toContain("dantsker");
     expect(team[1].imageUrl).toContain("kim");
   });
@@ -136,36 +136,36 @@ describe("parseTeam — non-clinical sites", () => {
     const team = parseTeam({
       portraits: [],
       headings: [
-        { text: "Frank Kuwamura, M.D.", top: 100, blurb: "" },
-        { text: "Gene Dantsker, Ph.D., MBA Executive Advisor", top: 900, blurb: "" },
+        { text: "Alex Rivera, M.D.", top: 100, blurb: "" },
+        { text: "Sam Torres, Ph.D., MBA Executive Advisor", top: 900, blurb: "" },
       ],
     });
-    expect(team.map((m) => m.name)).toEqual(["Dr. Frank Kuwamura", "Dr. Gene Dantsker"]);
+    expect(team.map((m) => m.name)).toEqual(["Dr. Alex Rivera", "Dr. Sam Torres"]);
   });
 });
 
 describe("roleFromHeading", () => {
   it("skips the credentials and returns the job", () => {
-    expect(roleFromHeading("Gene Dantsker, Ph.D., MBA EvoNexus Executive Advisor")).toBe("EvoNexus Executive Advisor");
+    expect(roleFromHeading("Sam Torres, Ph.D., MBA Acme Incubator Executive Advisor")).toBe("Acme Incubator Executive Advisor");
   });
 
   it("returns nothing when there is only a credential", () => {
-    expect(roleFromHeading("Frank Kuwamura, M.D.")).toBeUndefined();
-    expect(roleFromHeading("Raj Nangunoori, MD, FACS")).toBeUndefined();
+    expect(roleFromHeading("Alex Rivera, M.D.")).toBeUndefined();
+    expect(roleFromHeading("Robin Patel, MD, FACS")).toBeUndefined();
   });
 
   it("returns nothing for a bare name, or a location", () => {
-    expect(roleFromHeading("Rory Moore")).toBeUndefined();
+    expect(roleFromHeading("Casey Brook")).toBeUndefined();
     expect(roleFromHeading("Allegheny General Hospital, Pittsburgh, PA")).toBeUndefined();
   });
 });
 
-// Ground truth from evonexus.org/people/ (scraped 2026-08-09). Three people per
+// Ground truth from acmeincubator.org/people/ (scraped 2026-08-09). Three people per
 // grid row share ONE `top` value, which is why vertical-only matching gave real
 // people each other's faces — distance could not tell them apart at all.
 describe("parseTeam — grid layouts", () => {
   const row = (top: number) => [
-    { text: "Gene Dantsker, Ph.D., MBA", top, left: 100, blurb: "" },
+    { text: "Sam Torres, Ph.D., MBA", top, left: 100, blurb: "" },
     { text: "Dr. Michael Hill", top, left: 500, blurb: "" },
     { text: "John LeMoine, MD", top, left: 900, blurb: "" },
   ];
@@ -178,7 +178,7 @@ describe("parseTeam — grid layouts", () => {
   it("matches each person to the portrait in their OWN column", () => {
     const team = parseTeam({ portraits, headings: row(1290) });
     const by = Object.fromEntries(team.map((m) => [m.name, m.imageUrl]));
-    expect(by["Dr. Gene Dantsker"]).toContain("dantsker");
+    expect(by["Dr. Sam Torres"]).toContain("dantsker");
     expect(by["Dr. Michael Hill"]).toContain("hill");
     expect(by["Dr. John LeMoine"]).toContain("lemoine");
   });
@@ -195,14 +195,14 @@ describe("inferFallbackRole", () => {
   it("does NOT read the ordinary word 'do' as the credential DO", () => {
     // /\b(MD|DO)\b/i matches "What we do" — my own first attempt at this fix,
     // which made effectively every page on the web look clinical.
-    expect(inferFallbackRole(["What we do", "Rory Moore", "Bridget Kimball"])).toBe("Team");
+    expect(inferFallbackRole(["What we do", "Casey Brook", "Bridget Kimball"])).toBe("Team");
   });
 
   it("is not swayed by ONE clinician among many executives", () => {
-    // evonexus.org/people/ verbatim shape: one MD, the rest venture partners.
+    // acmeincubator.org/people/ verbatim shape: one MD, the rest venture partners.
     expect(
       inferFallbackRole([
-        "Rory Moore", "Gene Dantsker, Ph.D., MBA", "Bob Genthert, CPA",
+        "Casey Brook", "Sam Torres, Ph.D., MBA", "Bob Genthert, CPA",
         "Rich Stewart", "Ron Melanson", "Bridget Kimball",
         "John LeMoine, MD",
       ]),
@@ -211,12 +211,12 @@ describe("inferFallbackRole", () => {
 
   it("still recognises an actual clinic", () => {
     expect(
-      inferFallbackRole(["Frank Kuwamura, M.D.", "Raj Nangunoori, MD", "Ana Ruiz, DO", "Jane Poole, MD"]),
+      inferFallbackRole(["Alex Rivera, M.D.", "Robin Patel, MD", "Ana Ruiz, DO", "Jane Poole, MD"]),
     ).toBe("Physician");
   });
 
   it("prefers the more specific role when the page says surgeon", () => {
-    expect(inferFallbackRole(["Frank Kuwamura, M.D., Spine Surgeon", "Raj Nangunoori, MD"])).toBe("Spine Surgeon");
+    expect(inferFallbackRole(["Alex Rivera, M.D., Spine Surgeon", "Robin Patel, MD"])).toBe("Spine Surgeon");
   });
 
   it("says Team when there are no people at all", () => {
@@ -227,42 +227,42 @@ describe("inferFallbackRole", () => {
 
 // Item 4, 2026-08-09. The collector never captured a job title — headings are
 // name-only and the blurb is empty — so every non-clinical team fell back to an
-// invented role. Fixture text is the LIVE card text from evonexus.org/people/.
+// invented role. Fixture text is the LIVE card text from acmeincubator.org/people/.
 describe("roleFromCard", () => {
   it("subtracts the name and returns the real title", () => {
     expect(
       roleFromCard(
-        "Gene Dantsker, Ph.D., MBA EvoNexus Executive Advisor, Former Sr. Director of Business Development & Licensing,",
-        "Gene Dantsker, Ph.D., MBA",
+        "Sam Torres, Ph.D., MBA Acme Incubator Executive Advisor, Former Sr. Director of Business Development & Licensing,",
+        "Sam Torres, Ph.D., MBA",
       ),
-    ).toBe("EvoNexus Executive Advisor, Former Sr. Director of Business Development & Licensing");
+    ).toBe("Acme Incubator Executive Advisor, Former Sr. Director of Business Development & Licensing");
   });
 
   it("handles a title that follows credentials on the card", () => {
-    expect(roleFromCard("Dong-Su Kim, Ph.D. Corporate EVP, LG Technology Ventures", "Dong-Su Kim, Ph.D."))
+    expect(roleFromCard("Dong-Min Park, Ph.D. Corporate EVP, LG Technology Ventures", "Dong-Min Park, Ph.D."))
       .toBe("Corporate EVP, LG Technology Ventures");
   });
 
   it("returns nothing when the card holds only the name", () => {
-    expect(roleFromCard("Rory Moore", "Rory Moore")).toBeUndefined();
+    expect(roleFromCard("Casey Brook", "Casey Brook")).toBeUndefined();
   });
 
   it("returns nothing when the name is not in the card text", () => {
     // Mispaired inputs must produce no title rather than someone else's.
-    expect(roleFromCard("Kelly Ko, PhD VP Technology Ventures", "Gene Dantsker")).toBeUndefined();
+    expect(roleFromCard("Jamie Fox, PhD VP Technology Ventures", "Sam Torres")).toBeUndefined();
   });
 
   it("returns nothing for a card, or a heading, we do not have", () => {
-    expect(roleFromCard(undefined, "Gene Dantsker")).toBeUndefined();
-    expect(roleFromCard("Gene Dantsker Advisor", "")).toBeUndefined();
+    expect(roleFromCard(undefined, "Sam Torres")).toBeUndefined();
+    expect(roleFromCard("Sam Torres Advisor", "")).toBeUndefined();
   });
 
   it("does not return a location as a job", () => {
-    expect(roleFromCard("Frank Kuwamura, M.D. Pittsburgh, PA", "Frank Kuwamura, M.D.")).toBeUndefined();
+    expect(roleFromCard("Alex Rivera, M.D. Pittsburgh, PA", "Alex Rivera, M.D.")).toBeUndefined();
   });
 
   it("does not return a bare credential as a job", () => {
-    expect(roleFromCard("Raj Nangunoori, MD FACS", "Raj Nangunoori, MD")).toBeUndefined();
+    expect(roleFromCard("Robin Patel, MD FACS", "Robin Patel, MD")).toBeUndefined();
   });
 
   it("takes one clause, not a whole biography", () => {
@@ -280,17 +280,17 @@ describe("parseTeam — real titles beat the fallback", () => {
       portraits: [],
       headings: [
         {
-          text: "Gene Dantsker, Ph.D., MBA",
+          text: "Sam Torres, Ph.D., MBA",
           top: 100,
           left: 0,
           blurb: "",
-          card: "Gene Dantsker, Ph.D., MBA EvoNexus Executive Advisor",
+          card: "Sam Torres, Ph.D., MBA Acme Incubator Executive Advisor",
         },
-        { text: "Dong-Su Kim, Ph.D.", top: 900, left: 0, blurb: "", card: "Dong-Su Kim, Ph.D. Corporate EVP, LG Technology Ventures" },
+        { text: "Dong-Min Park, Ph.D.", top: 900, left: 0, blurb: "", card: "Dong-Min Park, Ph.D. Corporate EVP, LG Technology Ventures" },
       ],
     });
     expect(team.map((m) => m.title)).toEqual([
-      "EvoNexus Executive Advisor",
+      "Acme Incubator Executive Advisor",
       "Corporate EVP, LG Technology Ventures",
     ]);
   });
@@ -299,8 +299,8 @@ describe("parseTeam — real titles beat the fallback", () => {
     const team = parseTeam({
       portraits: [],
       headings: [
-        { text: "Gene Dantsker, Ph.D.", top: 100, left: 0, blurb: "", card: "Gene Dantsker, Ph.D. Executive Advisor" },
-        { text: "Rory Moore, Ph.D.", top: 900, left: 0, blurb: "", card: "Rory Moore, Ph.D." },
+        { text: "Sam Torres, Ph.D.", top: 100, left: 0, blurb: "", card: "Sam Torres, Ph.D. Executive Advisor" },
+        { text: "Casey Brook, Ph.D.", top: 900, left: 0, blurb: "", card: "Casey Brook, Ph.D." },
       ],
     });
     expect(team[0].title).toBe("Executive Advisor");
@@ -308,7 +308,7 @@ describe("parseTeam — real titles beat the fallback", () => {
   });
 });
 
-// drlongevityrx.com/doctors/ returned ZERO members off a page that carries
+// acmelongevity.com/doctors/ returned ZERO members off a page that carries
 // three names in <h3> and three 300x300 portraits — every one of them
 // collected correctly and then discarded by parseTeam. Measured 2026-08-16.
 describe("a credential trailing the NAME, with no comma and no Dr. prefix", () => {
@@ -319,11 +319,11 @@ describe("a credential trailing the NAME, with no comma and no Dr. prefix", () =
       { src: "https://lh3.googleusercontent.com/jen=w300", top: 1016, left: 855, w: 300, h: 300 },
     ],
     headings: [
-      { text: "Joel Fuhrman MD", top: 1375, left: 117, blurb: "",
-        card: "MD · Board-Certified Family PhysicianJoel Fuhrman MDCo-Founder · Nutritional Medicine Pioneer" },
+      { text: "Pat Morgan MD", top: 1375, left: 117, blurb: "",
+        card: "MD · Board-Certified Family PhysicianPat Morgan MDCo-Founder · Nutritional Medicine Pioneer" },
       // NOTE the double space after "·" — a typo on the real page.
-      { text: "Cara Fuhrman ND", top: 1375, left: 482, blurb: "",
-        card: "ND · Licensed Naturopathic DoctorCara Fuhrman NDCo-Founder ·  Women's Health Specialist" },
+      { text: "Cara Morgan ND", top: 1375, left: 482, blurb: "",
+        card: "ND · Licensed Naturopathic DoctorCara Morgan NDCo-Founder ·  Women's Health Specialist" },
       { text: "Jennifer Cornell ND", top: 1377, left: 847, blurb: "",
         card: "ND · Licensed Naturopathic DoctorJennifer Cornell NDGut & Immune Health Specialist" },
     ],
@@ -331,23 +331,23 @@ describe("a credential trailing the NAME, with no comma and no Dr. prefix", () =
 
   it("finds all three doctors", () => {
     expect(parseTeam(REAL_LONGEVITYRX, "Team").map((m) => m.name)).toEqual([
-      "Dr. Joel Fuhrman", "Dr. Cara Fuhrman", "Dr. Jennifer Cornell",
+      "Dr. Pat Morgan", "Dr. Cara Morgan", "Dr. Jennifer Cornell",
     ]);
   });
 
   it("does NOT drop a colleague who shares a surname", () => {
-    // Dedup was keyed on surname alone, so of the two Fuhrmans — who
+    // Dedup was keyed on surname alone, so of the two Morgans — who
     // co-founded the clinic together — exactly one would have survived.
     const names = parseTeam(REAL_LONGEVITYRX, "Team").map((m) => m.name);
-    expect(names).toContain("Dr. Joel Fuhrman");
-    expect(names).toContain("Dr. Cara Fuhrman");
+    expect(names).toContain("Dr. Pat Morgan");
+    expect(names).toContain("Dr. Cara Morgan");
   });
 
   it("still merges the same person written two ways", () => {
     // The case surname-dedup existed for. First+last agree, so it still merges.
     const raw = { portraits: [], headings: [
-      { text: "Frank Kuwamura, MD", top: 10, left: 0, blurb: "", card: "" },
-      { text: "Frank J. Kuwamura, MD", top: 900, left: 0, blurb: "", card: "" },
+      { text: "Alex Rivera, MD", top: 10, left: 0, blurb: "", card: "" },
+      { text: "Alex Rivera, MD", top: 900, left: 0, blurb: "", card: "" },
     ] };
     expect(parseTeam(raw, "Team")).toHaveLength(1);
   });

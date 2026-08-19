@@ -7,18 +7,18 @@ import {
   MAX_URLS_PER_REQUEST,
 } from "./furniture-backfill.js";
 
-/** Real titles, copied from Ansir's vector. */
+/** Real titles, copied from Acme Security's vector. */
 const REAL_FILES = [
-  { _id: "a", title: "URL: https://ansirsd.com/about 2026-8-14 7:19:48" },
-  { _id: "b", title: "URL: https://ansirsd.com/1-million-cups 2026-8-14 7:19:50" },
-  { _id: "c", title: "URL: https://ansirsd.com/about 2026-8-14 9:01:02" },
+  { _id: "a", title: "URL: https://acmesecurity.com/about 2026-8-14 7:19:48" },
+  { _id: "b", title: "URL: https://acmesecurity.com/1-million-cups 2026-8-14 7:19:50" },
+  { _id: "c", title: "URL: https://acmesecurity.com/about 2026-8-14 9:01:02" },
 ];
 
 describe("extractPageUrls", () => {
   it("pulls the URL out of the generated title and dedupes", () => {
     expect(extractPageUrls(REAL_FILES)).toEqual([
-      "https://ansirsd.com/1-million-cups",
-      "https://ansirsd.com/about",
+      "https://acmesecurity.com/1-million-cups",
+      "https://acmesecurity.com/about",
     ]);
   });
 

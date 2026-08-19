@@ -1,7 +1,7 @@
 /**
  * hero-lockup-check.ts — DETERMINISTIC checks on the deployed hero lockup.
  *
- * Why this exists: the vision-model design review passed the Ansir demo with
+ * Why this exists: the vision-model design review passed the Acme Security demo with
  * "0 critical, 0 major" while its hero logo was rendering at a contrast ratio
  * of 1.12:1 — a white wordmark on a light tan background, effectively invisible
  * — and its "AI" mark sat 3.5px below the wordmark's optical centre. Both are
@@ -135,7 +135,7 @@ export const HERO_PROBE = `(scope) => {
   //
   // ⚠️ This replaces a derived optical-centre metric that was WRONG and did
   // real damage. It computed the baseline from line-height and the font's
-  // bounding box rather than measuring it, reported -5.6px for a BioRenew
+  // bounding box rather than measuring it, reported -5.6px for a Acme Renew
   // lockup the browser had aligned perfectly, and a 5.6px "correction" was
   // applied on the strength of it — pushing "AI" visibly below the wordmark.
   // The same metric then reported +0.0px afterwards, i.e. it validated its own
@@ -245,7 +245,7 @@ export const HERO_PROBE = `(scope) => {
   // TEXT LOCKUP. When the brand's logo is a MARK (a square-ish glyph) the
   // template renders the name as styled text instead of an image, so there is
   // no <img> to find — and this probe used to answer "no in-viewport logo
-  // image" and grade NOTHING. That is a silent pass: the BioRenew demo shipped
+  // image" and grade NOTHING. That is a silent pass: the Acme Renew demo shipped
   // with its AI mark visibly off the wordmark's centre while all four scopes
   // reported NOT MEASURED. The alignment question is identical for text; only
   // the ink measurement differs.
@@ -262,7 +262,7 @@ export const HERO_PROBE = `(scope) => {
   const ctx = cv.getContext("2d");
   // Apply the element's own CSS filter/opacity before sampling. drawImage uses
   // the SOURCE pixels, so without this the probe measures the logo file rather
-  // than what the visitor sees — and reported 1.12:1 for an Ansir page whose
+  // than what the visitor sees — and reported 1.12:1 for an Acme Security page whose
   // \`brightness(0)\` had already made the mark black on cream at ~17:1. A check
   // that cries wolf on a correctly-fixed page is a check people switch off.
   const cs = getComputedStyle(img);

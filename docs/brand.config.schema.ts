@@ -3,14 +3,14 @@
  * Divinci SDK landing-page template (see docs/SDK-LANDING-TEMPLATE.md).
  *
  * This is the SCHEMA CONTRACT. In Step 1, every brand-specific value scattered
- * across drfuhrman.ai (global.css, build-og.mjs, divinci.ts, the .astro
+ * across acmenutrition.ai (global.css, build-og.mjs, divinci.ts, the .astro
  * sections, astro.config, wrangler.toml, i18n nouns) is moved to read from a
  * `BrandConfig` object shaped like this. Re-skinning a customer then = produce
  * one of these (Step 2 auto-extracts a draft) + drop 4 assets in brand/.
  *
  * Two reference configs ship with the template:
  *   examples/acme.brand.config.ts      — neutral, builds out-of-the-box (OSS)
- *   examples/drfuhrman.brand.config.ts — the real values, proves the extraction
+ *   examples/acmenutrition.brand.config.ts — the real values, proves the extraction
  */
 
 export interface BrandConfig {
@@ -26,7 +26,7 @@ export interface BrandConfig {
   };
 
   /** 8 semantic color tokens — injected as CSS vars (global.css) AND consumed
-   *  by the OG generator (kills the drfuhrman global.css/build-og.mjs dup). */
+   *  by the OG generator (kills the acmenutrition global.css/build-og.mjs dup). */
   palette: {
     primary: string;   // df-navy
     dark: string;      // df-green-dark
@@ -60,7 +60,7 @@ export interface BrandConfig {
    *  via wrangler vars (keep them in sync, or document the multi-turn split). */
   divinci: {
     releaseId: string;
-    apiBase: string;         // PROD api for real customers (drfuhrman bug: prod→staging)
+    apiBase: string;         // PROD api for real customers (acmenutrition bug: prod→staging)
     whitelabelId: string;
   };
 
@@ -135,7 +135,7 @@ export const MDSPINECARE_EXAMPLE: BrandConfig = {
     apiBase: "https://api.stage.divinci.app",
     whitelabelId: "6a293367c50b252c45c6ca44",
   },
-  bios: [{ name: "Dr. Frank K. Kuwamura III, MD", title: "Founder & Chief Spine Surgeon", blurbKey: "bios.bodies.0" }],
+  bios: [{ name: "Dr. Alex Rivera, MD", title: "Founder & Chief Spine Surgeon", blurbKey: "bios.bodies.0" }],
   corpus: {
     framing: "Built on 19+ years of spine surgery expertise",
     stats: [
@@ -149,7 +149,7 @@ export const MDSPINECARE_EXAMPLE: BrandConfig = {
     starters: [
       "What is ACDF surgery and what does recovery look like?",
       "What's the difference between XLIF and ALIF?",
-      "How do I schedule a consultation with Dr. Kuwamura?",
+      "How do I schedule a consultation with Dr. Rivera?",
     ],
   },
   media: {

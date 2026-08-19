@@ -10,7 +10,7 @@ const base: FoundationKit = {
   logoUrl: "/brand/logo.png", logoIsLight: true,
   corpusStats: [{ value: "99", label: "pages indexed" }],
   team: [
-    { name: "Dr. Frank Kuwamura", title: "Spine Surgeon", image: "https://x/t0.webp" },
+    { name: "Dr. Alex Rivera", title: "Spine Surgeon", image: "https://x/t0.webp" },
     { name: "Dr. Reem Razeq", title: "Spine Surgeon" },
   ],
   hasLogin: false, mainSite: "https://www.acmespine.com", embedUrl: "/embed/",
@@ -33,7 +33,7 @@ describe("buildFoundationPrompt", () => {
     const p = buildFoundationPrompt(base);
     expect(p).toContain("/embed/");
     expect(p).toContain('initials "RR"');     // Razeq → no photo → navy circle + RR
-    expect(p).toContain("photo: https://x/t0.webp"); // Kuwamura → photo
+    expect(p).toContain("photo: https://x/t0.webp"); // Rivera → photo
   });
   it("injects only provided facts (no-invention guardrail present)", () => {
     expect(buildFoundationPrompt(base)).toMatch(/Do NOT invent stats|use ONLY the facts/i);

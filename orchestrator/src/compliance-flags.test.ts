@@ -10,7 +10,7 @@ import { hazardsFor, TIER_HAZARDS, FLAG_HAZARDS } from "./qa-suite-gen.js";
 import { parseQueue, FLAGS, TIERS } from "./intake.js";
 
 /**
- * `complianceFlags` exists because Seeking Health could not be described by one
+ * `complianceFlags` exists because Acme Supplements could not be described by one
  * tier: its legal exposure is commercial (139 priced products, FTC claim
  * substantiation) while its readers are people self-treating chronic
  * conditions. Choosing a tier meant choosing which hazard to leave undefended.
@@ -71,7 +71,7 @@ describe("the flag layers onto a commerce-medium tier", () => {
 
   it("puts the flag rules LAST, where the floor's stated authority is", () => {
     // The opening line says the rules below override anything above, so
-    // position and stated authority must agree — Stone Clinic showed a later
+    // position and stated authority must agree — Acme Clinic showed a later
     // instruction beating an earlier one purely on recency.
     const firstFlagIdx = flagged.indexOf(SENSITIVE_AUDIENCE_RULES[0]);
     const lastStrictIdx = flagged.lastIndexOf(

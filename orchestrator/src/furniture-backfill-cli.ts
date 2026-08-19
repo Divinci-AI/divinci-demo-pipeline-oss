@@ -3,7 +3,7 @@
  * more demo corpora.
  *
  *   npx tsx src/furniture-backfill-cli.ts --list          # what needs it, and how big
- *   npx tsx src/furniture-backfill-cli.ts ansirsd         # repair one
+ *   npx tsx src/furniture-backfill-cli.ts acmesecurity         # repair one
  *   npx tsx src/furniture-backfill-cli.ts --all           # repair every one on the list
  *
  * Reads workspace/vector ids from each prospect's newest run state, and the

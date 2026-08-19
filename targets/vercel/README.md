@@ -1,9 +1,82 @@
-# Target: Vercel — designed, and mostly a warning
+# Target: Vercel — the demo's landing page
 
-> **Status: DESIGN ONLY, and the honest recommendation is "not this".** There is
-> no code in this directory. This file exists because Vercel is a reasonable
-> thing to ask for and deserves a real answer rather than silence — and the real
-> answer is that only a small piece of the pipeline fits.
+> **Status: the adapter is BUILT; the template is not ready.** The orchestrator
+> can deploy a finished demo's landing page to Vercel, provision its secrets and
+> tear it down — see [`orchestrator/src/landing-host.ts`](../../orchestrator/src/landing-host.ts).
+> It **refuses to deploy** until the landing template ships Vercel middleware,
+> for a reason worth understanding before you reach for `LANDING_ALLOW_UNSIGNED=1`.
+>
+> The pipeline itself does **not** run on Vercel and should not; that half of
+> this page is unchanged.
+
+```sh
+LANDING_HOST=vercel VERCEL_TOKEN=... npm run demo -- --prospect acme --run 2026-08-19-001
+```
+
+| variable | |
+|---|---|
+| `LANDING_HOST` | `cloudflare` (default) or `vercel` |
+| `VERCEL_TOKEN` | required for the Vercel host |
+| `VERCEL_ORG_ID` | optional — deploy into a team rather than a personal account |
+| `LANDING_ALLOW_UNSIGNED` | deploy without signing. Read the next section first. |
+
+## ⚠️ Why it refuses
+
+`LANDING_PAGE_HMAC_KEY` is a secret the deployed site reads **at request time**
+to sign its anonymous-chat calls. Paired with
+`release.requireSignedAnonymousChat = true` — which the landing stage sets — it
+is what stops anyone who extracts the public release id from calling the chat
+API directly and bypassing the per-email quota. It is a security control.
+
+On Cloudflare the Worker does that signing. On Vercel it has to be Edge
+Middleware or a Function, and
+[`divinci-landing-template`](https://github.com/Divinci-AI/divinci-landing-template)
+— a separate repository, cloned at run time — currently ships only the Worker.
+
+So `VercelLandingHost.deploy` checks for `middleware.ts` (or `src/middleware.ts`,
+or an `api/` route) and **throws** if there is none. The alternative is worse
+than an error: the page would deploy, look perfect, and have **every chat
+message refused by the API**, with nothing at deploy time to indicate it.
+
+`LANDING_ALLOW_UNSIGNED=1` overrides the check. It is only meaningful for a demo
+whose release does **not** require signed chat.
+
+**To finish this target**, add a `middleware.ts` to the landing template that
+signs the way its Worker does. That is the whole remaining gap, and it lives in
+the template repository rather than here.
+
+## The seam
+
+`LandingHost` is six functions, and that is the entire surface a new host
+implements:
+
+```ts
+interface LandingHost {
+  readonly name: string;
+  urlFor(slug): string;                          // BEFORE deploy — og:url is baked in
+  configure(siteDir, cfg): void;                 // write the host's config file
+  deploy(siteDir, cfg): Promise<{ url: string }>;
+  setSecret(siteDir, slug, name, value): Promise<void>;
+  clearSecret(siteDir, slug, name): Promise<void>;
+  destroy(siteDir, slug): Promise<void>;         // demos expire; no zombie hosting
+}
+```
+
+Three of those are less obvious than they look:
+
+- **`urlFor` comes first.** The page bakes its own `og:url` and social cards at
+  build time, so a host that cannot predict its own URL ships cards pointing
+  somewhere else. Vercel therefore uses the stable `<project>.vercel.app`
+  domain, never the per-deployment URL — that one changes on every push and
+  would break a link already sent to a customer.
+- **`setSecret` is not optional**, per the section above.
+- **`clearSecret` must treat "was not set" as success.** It is indistinguishable
+  from a failed delete on every host, and the caller clears the preview gate on
+  *every* deploy precisely so a demo unlocked once cannot come back locked.
+
+Adding Netlify, S3+CloudFront or GitHub Pages is now implementing that interface
+— though the first three of those cannot hold a request-time secret either, so
+they hit exactly the same wall.
 
 ## What does not fit, and why
 
@@ -68,50 +141,6 @@ deploy, and it means the seam has to cover secret provisioning.
 in `landing.ts` before turning it on: it was on by default until 2026-08-14 and
 cost a deal — a prospect hit a password prompt during a scheduled call and could
 not show the demo to her manager.)
-
-## What building it would involve
-
-The coupling lives in `orchestrator/src/landing.ts`, which assumes Cloudflare
-Workers + KV and reads `CF_WORKERS_SUBDOMAIN` and `LANDING_KV_NAMESPACE_ID`.
-Making the destination pluggable — the way `review-board.ts` made the human-gate
-board pluggable — is the actual work, and it benefits every target rather than
-only this one.
-
-The seam, revised for what the landing page really is:
-
-```ts
-interface LandingHost {
-  /** Build output → a live URL. */
-  deploy(siteDir: string, slug: string): Promise<{ url: string }>;
-
-  /**
-   * Provision a secret the deployed site reads AT REQUEST TIME.
-   * Not optional: LANDING_PAGE_HMAC_KEY is what makes
-   * requireSignedAnonymousChat meaningful, and a host that cannot hold a
-   * secret cannot serve a signed landing page at all.
-   */
-  setSecret(slug: string, name: string, value: string): Promise<void>;
-  clearSecret(slug: string, name: string): Promise<void>;
-
-  /** Demos expire; no zombie hosting. */
-  destroy(slug: string): Promise<void>;
-}
-```
-
-`destroy` is not optional either. Demo workspaces are torn down on expiry to cap
-standing spend and create honest urgency, and a landing host with no teardown
-leaves a live page pointing at a workspace that no longer exists.
-
-A Vercel implementation would be: `deploy` → the Vercel REST API or `vercel
-deploy --prebuilt`; `setSecret` → project environment variables; `destroy` →
-delete the project. The signing logic itself moves into a middleware file in the
-landing template, which is the part that has to be written once and shared by
-both hosts.
-
-**Nobody has built this.** The interface above is a design, not an extraction —
-`landing.ts` is 1,896 lines and `buildAndDeployLanding` is ~250 of them, so
-pulling the seam out is a real refactor that should be done together with the
-first non-Cloudflare implementation, not speculatively ahead of it.
 
 ## If you want the whole pipeline serverless anyway
 

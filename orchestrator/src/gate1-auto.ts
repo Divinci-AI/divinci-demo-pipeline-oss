@@ -184,7 +184,7 @@ export async function autoApproveGate1(
   try {
     const { origin, hostname } = new URL(prospect.url);
     // `sameSiteAs` is a HOSTNAME, not a URL. Passing the full URL made every
-    // fetch fail the guard — "www.thorne.com is not https://www.thorne.com" —
+    // fetch fail the guard — "www.acmesupply.com is not https://www.acmesupply.com" —
     // so the check returned "no robots.txt" for sites it had never reached, and
     // reported that as evidence. A check that reports a clean result it never
     // performed is the exact failure this codebase keeps producing.

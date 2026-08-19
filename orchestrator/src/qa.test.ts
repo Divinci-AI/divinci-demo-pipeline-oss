@@ -56,7 +56,7 @@ describe("releaseDemoReadiness", () => {
     mockFetch(() => json({ status: "error", message: "not found" }, 404));
     const r = await releaseDemoReadiness(RELEASE);
     expect(r.ready).toBe(false);
-    // The apbiocode case: available on the admin path, 404 publicly, because the
+    // The acmebio case: available on the admin path, 404 publicly, because the
     // run targeted a different environment. The base must be in the message or
     // the reason reads as "the demo is broken".
     expect(r.reason).toContain(BASE);

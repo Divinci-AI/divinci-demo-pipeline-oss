@@ -198,7 +198,7 @@ describe("failure quarantine", () => {
   });
 
   it("QUARANTINES a run failing identically past the limit", () => {
-    // Stone Clinic failed at `ingest` on 8 consecutive ticks, re-running a
+    // Acme Clinic failed at `ingest` on 8 consecutive ticks, re-running a
     // 30-minute crawl each time to no effect. One alert, then silent spend.
     expect(isQuarantined({ step: "ingest", count: 3, lastAt: "" }, "ingest")).toBe(true);
   });
@@ -219,7 +219,7 @@ describe("failure quarantine", () => {
 
   it("writes the CAUSE down, not just the count", () => {
     // A quarantine is the moment the failure stops being reproducible on
-    // demand. evonexus was quarantined after three nights of a one-line npm
+    // demand. acmeincubator was quarantined after three nights of a one-line npm
     // error and recovering it meant re-running a landing deploy by hand.
     const rec = recordFailure(undefined, "landing", "t", "npm error code EALLOWSCRIPTS\n");
     expect(rec.lastError).toBe("npm error code EALLOWSCRIPTS");
@@ -285,7 +285,7 @@ describe("summarizeFailure", () => {
   it("prefers the thrown Error over the stack frames under it", () => {
     // The frames name OUR code; the message names the problem.
     const tail = [
-      "landing: building + deploying demo-evonexus-landing…",
+      "landing: building + deploying demo-acmeincubator-landing…",
       "Error: Command failed: npm install",
       "    at genericNodeError (node:internal/errors:983:15)",
       "    at ChildProcess.exithandler (node:child_process:417:12)",

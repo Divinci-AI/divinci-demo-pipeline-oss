@@ -9,7 +9,7 @@
  *
  * The repair is `bulk-rescrape` with `forceRescrape`, which re-fetches every
  * page through the (now fixed) `fetchUrl` → `process-html` path and re-chunks
- * it. Measured on Ansir's /about/: 2 chunks, both furniture, zero prose →
+ * it. Measured on Acme Security's /about/: 2 chunks, both furniture, zero prose →
  * 9 prose chunks carrying the amenities, the location and the founder quote.
  *
  * Three things about this operation that are easy to get wrong:

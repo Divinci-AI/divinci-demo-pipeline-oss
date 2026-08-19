@@ -164,7 +164,7 @@ describe("configureChatGate", () => {
 
   it("gives a direct-handoff demo the WHOLE budget, not one message", () => {
     // THE BUG THIS PINS. The old patch turned off the email gate and left
-    // `FREE_MESSAGE_QUOTA = 1` untouched, so apbiocode — a demo handed to a
+    // `FREE_MESSAGE_QUOTA = 1` untouched, so acmebio — a demo handed to a
     // customer — allowed exactly one question before the composer was replaced
     // by the sign-up CTA, while its worker was configured for 500. Nothing
     // failed; the client and the worker simply disagreed.
@@ -208,12 +208,12 @@ describe("ensureBrandWordmark", () => {
   const favicon = () => readFileSync(join(brandDir(), "favicon.svg"), "utf8");
 
   it("REPLACES the Acme placeholder — it shipped as a customer's headline", () => {
-    // Applied BioCode's demo went out with "Acme Expert" in the hero: the page
+    // Acme Bio's demo went out with "Acme Expert" in the hero: the page
     // title, copy and chat were all correct, so only the logo was wrong and
     // review missed it.
     seedPlaceholder();
-    ensureBrandWordmark(siteDir, { siteName: "Applied BioCode" });
-    expect(logo()).toContain("Applied BioCode");
+    ensureBrandWordmark(siteDir, { siteName: "Acme Bio" });
+    expect(logo()).toContain("Acme Bio");
     expect(logo()).not.toContain("Acme Expert");
   });
 
@@ -225,10 +225,10 @@ describe("ensureBrandWordmark", () => {
     // coupling them made one silently depend on the other's failure.
     // See brand-favicon.test.ts.
     seedPlaceholder();
-    ensureBrandWordmark(siteDir, { siteName: "Applied BioCode" });
+    ensureBrandWordmark(siteDir, { siteName: "Acme Bio" });
     expect(favicon()).toContain("Acme Expert");
 
-    ensureBrandFavicon(siteDir, { siteName: "Applied BioCode" });
+    ensureBrandFavicon(siteDir, { siteName: "Acme Bio" });
     expect(favicon()).not.toContain("Acme Expert");
     expect(favicon()).toContain(">AB<");
   });
@@ -236,7 +236,7 @@ describe("ensureBrandWordmark", () => {
   it("does NOT touch a real extracted logo", () => {
     mkdirSync(brandDir(), { recursive: true });
     writeFileSync(join(brandDir(), "logo.svg"), "<svg><!-- the customer's real mark --></svg>");
-    ensureBrandWordmark(siteDir, { siteName: "Applied BioCode", logoFile: "logo.png" });
+    ensureBrandWordmark(siteDir, { siteName: "Acme Bio", logoFile: "logo.png" });
     expect(logo()).toContain("real mark");
   });
 
@@ -254,8 +254,8 @@ describe("ensureBrandWordmark", () => {
 
 describe("brandInitials", () => {
   it("takes the first letter of the first two words", () => {
-    expect(brandInitials("Applied BioCode")).toBe("AB");
-    expect(brandInitials("Dr. Fuhrman Online")).toBe("DF");
+    expect(brandInitials("Acme Bio")).toBe("AB");
+    expect(brandInitials("Dr. Morgan Online")).toBe("DM");
   });
   it("falls back to one letter for a single word", () => {
     expect(brandInitials("Divinci")).toBe("D");
@@ -267,13 +267,19 @@ describe("brandInitials", () => {
 
 describe("wordmarkTextWidth", () => {
   it("measures the glyphs — the flat 18.6/char guess overshot by ~18%", () => {
-    // "Applied BioCode" at 30px Helvetica Bold is ~228 units of ink. The old
-    // estimate produced 279, and those 51 units of trailing whitespace inside
-    // the <img> are what pushed the hero's blue "AI" mark off to the right.
-    const w = wordmarkTextWidth("Applied BioCode", 30);
-    expect(w).toBeGreaterThan(215);
-    expect(w).toBeLessThan(240);
-    expect(w).toBeLessThan(Math.round("Applied BioCode".length * 18.6));
+    // "Acme Biosciences" at 30px Helvetica Bold is ~251 units of ink. The old
+    // flat estimate produced 298, and those 47 units of trailing whitespace
+    // inside the <img> are what pushed the hero's blue "AI" mark off to the
+    // right.
+    //
+    // The fixture is a long name on purpose: the gap between a real glyph
+    // measurement and a flat per-character guess only shows up over enough
+    // characters, so a short name would let the flat estimate back in.
+    const NAME = "Acme Biosciences";
+    const w = wordmarkTextWidth(NAME, 30);
+    expect(w).toBeGreaterThan(240);
+    expect(w).toBeLessThan(265);
+    expect(w).toBeLessThan(Math.round(NAME.length * 18.6));
   });
 
   it("scales with font size", () => {
@@ -316,14 +322,14 @@ describe("wordmark is font-independent", () => {
     // the viewer has. On a machine with neither Helvetica nor Arial the
     // fallback is wider and the renderer CLIPS — a customer's name truncated
     // mid-word on a machine we never see. Reported from the field.
-    ensureBrandWordmark(dir, { siteName: "Applied BioCode" });
+    ensureBrandWordmark(dir, { siteName: "Acme Bio" });
     const m = logo().match(/viewBox="0 0 (\d+) 42"[\s\S]*?textLength="(\d+)"/);
     expect(m, "logo must declare textLength").toBeTruthy();
     expect(m![2]).toBe(m![1]);
   });
 
   it("uses spacingAndGlyphs so the fit adjusts letterforms, not just gaps", () => {
-    ensureBrandWordmark(dir, { siteName: "Applied BioCode" });
+    ensureBrandWordmark(dir, { siteName: "Acme Bio" });
     expect(logo()).toContain('lengthAdjust="spacingAndGlyphs"');
   });
 });
@@ -397,7 +403,7 @@ describe("looksLikeOrganisation", () => {
   });
 
   it("leaves real people alone", () => {
-    for (const n of ["Dr. Joel Fuhrman", "Ken Chang", "Dr. Vonda Wright", "Peter Attia, MD"])
+    for (const n of ["Dr. Pat Morgan", "Ken Chang", "Dr. Vonda Wright", "Chris Vance, MD"])
       expect(looksLikeOrganisation(n), n).toBe(false);
   });
 

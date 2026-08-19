@@ -138,9 +138,36 @@ jobs:
           # a pattern that already matches is a build that is already red, and
           # the first thing anyone does with a permanently-red check is delete
           # it.
+          # ── slugs ─────────────────────────────────────────────────────────
           if git grep -nPI '\b(mdspinecare|drhyman|satsearch|caseymeans|ibji|payloadspace|ssip|33fg|backincontrol|drchatterjee|nutritionfacts|peterattiamd|amymyersmd|centenoschultz|stoneclinic|texasback|discsportsspine|drvondawright|drwilliamli)\b' \
                -- . ':!.github/**'; then
             echo "::error::a real third party is named in a public repository — use an acme-* fixture name"
+            exit 1
+          fi
+
+          # ── company names in PROSE, and their domains ────────────────────
+          #
+          # The slug sweep above could not see these, because a slug pattern
+          # does not match "Applied BioCode". They were found only by reading a
+          # comment. Note `ansirsd.com`: the extraction deliberately WITHHELD
+          # that third party's security disclosure, and its domain shipped
+          # anyway in test fixtures — withholding a document does not withhold
+          # the name.
+          if git grep -nPI '(Applied BioCode|BioRenew|Banner Health|Seeking Health|Stone Clinic|EvoNexus|apbiocode|biorenewim|evonexus|thorne\.com|drlongevityrx|drfuhrman|ansirsd|dodcyberconsulting)' \
+               -- . ':!.github/**'; then
+            echo "::error::a real company or its domain is named — use an Acme-family fixture"
+            exit 1
+          fi
+
+          # ── named individuals ────────────────────────────────────────────
+          #
+          # The most sensitive class and the last one found: real physicians
+          # and scientists, by full name and credential, in test fixtures —
+          # including two well-known public figures. A person's name is not
+          # secret-shaped, so no secret scanner will ever flag it.
+          if git grep -nPI '(Kuwamura|Dantsker|Nangunoori|Fuhrman|Peter Attia|Jacob Woodruff|Rory Moore|Kelly Ko)' \
+               -- . ':!.github/**'; then
+            echo "::error::a real person is named in a public repository — use an invented name"
             exit 1
           fi
 

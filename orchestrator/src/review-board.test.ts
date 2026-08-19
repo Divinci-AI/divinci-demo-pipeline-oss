@@ -9,24 +9,24 @@ const p = (id: string, name: string): BoardProject => ({
 });
 
 const BOARD = [
-  p("stone-qualified", "Demo — The Stone Clinic (Dr. Kevin R. Stone)"),
-  p("mdspine", "Demo — MD Spine Care (Dr. Frank Kuwamura)"),
-  p("apbio", "Demo — Applied BioCode (apbiocode.com)"),
+  p("stone-qualified", "Demo — The Acme Clinic (Dr. Kevin R. Stone)"),
+  p("mdspine", "Demo — MD Spine Care (Dr. Alex Rivera)"),
+  p("apbio", "Demo — Acme Bio (acmebio.com)"),
   p("deploys", "🚀 Deploys"),
 ];
 
 describe("resolveProjectByName", () => {
   it("prefers an exact match", () => {
-    const board = [...BOARD, p("stone-exact", "Demo — The Stone Clinic")];
-    expect(resolveProjectByName(board, "Demo — The Stone Clinic")?.id).toBe("stone-exact");
+    const board = [...BOARD, p("stone-exact", "Demo — The Acme Clinic")];
+    expect(resolveProjectByName(board, "Demo — The Acme Clinic")?.id).toBe("stone-exact");
   });
 
   it("REUSES a hand-qualified project rather than forking the board", () => {
     // The real regression: the first production tick created a second
-    // "Demo — The Stone Clinic" alongside the existing
-    // "Demo — The Stone Clinic (Dr. Kevin R. Stone)", so a prospect's history
+    // "Demo — The Acme Clinic" alongside the existing
+    // "Demo — The Acme Clinic (Dr. Kevin R. Stone)", so a prospect's history
     // would end up split across two projects.
-    expect(resolveProjectByName(BOARD, "Demo — The Stone Clinic")?.id).toBe("stone-qualified");
+    expect(resolveProjectByName(BOARD, "Demo — The Acme Clinic")?.id).toBe("stone-qualified");
   });
 
   it("refuses an AMBIGUOUS prefix instead of guessing", () => {
@@ -39,11 +39,11 @@ describe("resolveProjectByName", () => {
   });
 
   it("does not match a longer name against a shorter project", () => {
-    expect(resolveProjectByName(BOARD, "Demo — The Stone Clinic Group Holdings")).toBeUndefined();
+    expect(resolveProjectByName(BOARD, "Demo — The Acme Clinic Group Holdings")).toBeUndefined();
   });
 
   it("requires a word boundary — no mid-word prefix adoption", () => {
-    // "Demo — Applied Bio" must not adopt "Demo — Applied BioCode (…)":
+    // "Demo — Applied Bio" must not adopt "Demo — Acme Bio (…)":
     // they are different companies as far as this function can tell.
     expect(resolveProjectByName(BOARD, "Demo — Applied Bio")).toBeUndefined();
   });

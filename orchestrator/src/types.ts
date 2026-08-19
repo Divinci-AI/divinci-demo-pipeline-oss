@@ -157,7 +157,7 @@ export interface RunState {
   /**
    * Corpus COMPLETENESS — set arithmetic between the site's sitemap and the
    * URLs actually in the vector. Free (no model call). Added 2026-08-15 after
-   * biorenewim.com shipped with 8 of its 29 pages and nothing noticed:
+   * acmerenew.com shipped with 8 of its 29 pages and nothing noticed:
    * `pagesCrawled` counts pages VISITED, not distinct URLs that landed.
    */
   coverageRatio?: number | null;
