@@ -1,0 +1,15 @@
+{
+  "name": "divinci-demo-pipeline-target-cloudflare",
+  "private": true,
+  "type": "module",
+  "description": "All-edge crawl → chunk → embed → publish pipeline (Workers + Workflows)",
+  "scripts": {
+    "test": "./test/run-all.sh",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail",
+    "health": "node -e \"const u=process.env.PIPELINE_URL;if(!u){console.error('set PIPELINE_URL');process.exit(2)}fetch(u+'/health').then(r=>r.text()).then(console.log)\""
+  },
+  "devDependencies": {
+    "wrangler": "^4.119.0"
+  }
+}
