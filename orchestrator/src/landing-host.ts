@@ -239,7 +239,30 @@ export function vercelSigningReadiness(siteDir: string): { ready: boolean; reaso
     join("src", "middleware.ts"), join("src", "middleware.js"),
     join("api", "chat.ts"), join("api", "chat.js"),
   ];
-  if (candidates.some((c) => existsSync(join(siteDir, c)))) return { ready: true };
+  const found = candidates.map((c) => join(siteDir, c)).find((p) => existsSync(p));
+  if (found) {
+    // ⚠️ The file existing is not the thing that matters — it has to actually
+    // hold the signing key. An empty `middleware.ts`, or one added for
+    // redirects or analytics, would satisfy a mere existence check and deploy a
+    // page whose every chat message is refused, which is the exact failure this
+    // guard exists to prevent.
+    //
+    // Naming the variable is the cheapest honest proxy: a middleware that signs
+    // must read LANDING_PAGE_HMAC_KEY, and one that does not cannot.
+    const body = readFileSync(found, "utf8");
+    if (!body.includes("LANDING_PAGE_HMAC_KEY")) {
+      return {
+        ready: false,
+        reason:
+          `${found.replace(siteDir + "/", "")} exists but never reads ` +
+          "LANDING_PAGE_HMAC_KEY, so it cannot be signing anything.\n" +
+          "  A middleware added for redirects or analytics satisfies a file check " +
+          "and still deploys a page whose every chat message is refused.\n" +
+          "  See VERCEL.md in divinci-landing-template.",
+      };
+    }
+    return { ready: true };
+  }
   return {
     ready: false,
     reason:

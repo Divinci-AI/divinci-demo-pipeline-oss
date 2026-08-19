@@ -14,7 +14,7 @@ pipeline**. Read the second column first.
 | [**cloudflare**](../targets/cloudflare) | crawl + chunk + embed + publish, entirely on the edge | **built, tested** |
 | [**gcp**](../targets/gcp) | the whole orchestrator, on a schedule, with durable state | **built**, unverified against a live project |
 | [**aws**](../targets/aws) | same as GCP, on Fargate + EFS | **built**, unverified against a live account |
-| [**vercel**](../targets/vercel) | the demo's landing page, not the pipeline | adapter **built**; blocked on the landing template |
+| [**vercel**](../targets/vercel) | the demo's landing page, not the pipeline | **built** both sides; unverified against a live project |
 
 ## Choosing
 
@@ -42,10 +42,11 @@ hosted targets on correctness, at the cost of a VPC and a security group.
 
 **On Vercel?** [Read that one before you start.](../targets/vercel) Three of the
 platform's hard limits are individually disqualifying for the *orchestrator*.
-The part that fits is hosting each finished demo's **landing page**, and that
-adapter is built — `LANDING_HOST=vercel`. It refuses to deploy until the landing
-template ships middleware that can sign chat calls, because a landing page is
-not the static site it looks like.
+The part that fits is hosting each finished demo's **landing page**, and both
+sides are built — `LANDING_HOST=vercel`, plus Edge Middleware in the landing
+template that signs chat calls at request time. It still refuses to deploy if
+that middleware is missing or does not read the signing key, because a landing
+page is not the static site it looks like.
 
 ## The two axes
 
