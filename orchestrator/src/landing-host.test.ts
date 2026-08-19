@@ -223,3 +223,47 @@ describe("a landing page is not a static site", () => {
     expect(r.reason).toMatch(/LANDING_ALLOW_UNSIGNED=1/);
   });
 });
+
+describe("the Vercel CLI surface actually exists", () => {
+  // ⚠️ `vercel deploy --name` DOES NOT EXIST — it was removed from the CLI
+  // years ago, and the first version of VercelLandingHost used it. Every
+  // deploy would have failed on the flag before doing anything, and no unit
+  // test could have noticed: the failure is in an argv the tests never run.
+  //
+  // Source assertions are the weakest useful form of this check and are used
+  // because the strong form means shelling out to a real `vercel`. They catch
+  // the regression they are aimed at — someone reaching for `--name` again —
+  // and would not catch a subtly wrong flag VALUE.
+  const src = readFileSync(new URL("./landing-host.ts", import.meta.url), "utf8");
+  const vercel = src.slice(src.indexOf("class VercelLandingHost"));
+
+  it("never passes --name to any vercel command", () => {
+    expect(vercel).not.toMatch(/"--name"/);
+  });
+
+  it("links the project instead, which is where identity now comes from", () => {
+    expect(vercel).toMatch(/"vercel",\s*"link",\s*"--yes",\s*"--project"/);
+  });
+
+  it("links before every command that needs a project", () => {
+    // deploy, setSecret and clearSecret all act on a project. `remove` takes
+    // the name directly and does not.
+    for (const method of ["async deploy", "async setSecret", "async clearSecret"]) {
+      const body = vercel.slice(vercel.indexOf(method), vercel.indexOf(method) + 900);
+      expect(body, `${method} must link first`).toMatch(/this\.link\(/);
+    }
+  });
+
+  it("does not leak the link step into the Cloudflare host", () => {
+    const cf = src.slice(src.indexOf("class CloudflareLandingHost"), src.indexOf("class VercelLandingHost"));
+    expect(cf).not.toMatch(/this\.link\(/);
+  });
+
+  it("passes the token and scope to every vercel invocation", () => {
+    // A missing --token falls back to an interactive login, which in an
+    // unattended run hangs until the step times out.
+    const calls = [...vercel.matchAll(/"vercel",([\s\S]{0,260}?)\]/g)].map((m) => m[1]);
+    expect(calls.length).toBeGreaterThan(3);
+    for (const c of calls) expect(c).toMatch(/VERCEL_TOKEN\(\)/);
+  });
+});

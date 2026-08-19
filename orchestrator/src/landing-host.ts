@@ -304,19 +304,40 @@ export class VercelLandingHost implements LandingHost {
     }, null, 2) + "\n");
   }
 
+  /**
+   * Bind this directory to the project named `slug`.
+   *
+   * ⚠️ `vercel deploy --name` DOES NOT EXIST. It was removed years ago and the
+   * first version of this class used it, so every Vercel deploy would have
+   * failed on the flag before doing anything. Project identity now comes from
+   * `.vercel/project.json`, which `vercel link` writes — and `env add` and
+   * `remove` need it too, not just `deploy`.
+   *
+   * Idempotent and cheap, so every method that needs a project calls it rather
+   * than depending on `deploy` having run first.
+   */
+  private async link(siteDir: string, slug: string): Promise<void> {
+    await execFileP("npx", [
+      "vercel", "link", "--yes", "--project", slug,
+      "--token", VERCEL_TOKEN(), ...vercelScopeArgs(),
+    ], { cwd: siteDir, timeout: 2 * 60 * 1000 });
+  }
+
   async deploy(siteDir: string, cfg: LandingConfig): Promise<{ url: string }> {
     if (process.env.LANDING_ALLOW_UNSIGNED !== "1") {
       const readiness = vercelSigningReadiness(siteDir);
       if (!readiness.ready) throw new Error(`[landing:vercel] ${readiness.reason}`);
     }
+    await this.link(siteDir, cfg.slug);
     await execFileP("npx", [
       "vercel", "deploy", "--prod", "--yes",
-      "--token", VERCEL_TOKEN(), "--name", cfg.slug, ...vercelScopeArgs(),
+      "--token", VERCEL_TOKEN(), ...vercelScopeArgs(),
     ], { cwd: siteDir, timeout: 10 * 60 * 1000, maxBuffer: 32 * 1024 * 1024 });
     return { url: this.urlFor(cfg.slug) };
   }
 
   async setSecret(siteDir: string, slug: string, name: string, value: string): Promise<void> {
+    await this.link(siteDir, slug);
     // Remove first: `vercel env add` fails on an existing name rather than
     // replacing it, so a redeploy would leave the OLD value in place while
     // reporting an error the caller might reasonably ignore.
@@ -329,8 +350,9 @@ export class VercelLandingHost implements LandingHost {
     ], { cwd: siteDir, input: value, timeout: 2 * 60 * 1000, stdio: ["pipe", "ignore", "inherit"] });
   }
 
-  async clearSecret(siteDir: string, _slug: string, name: string): Promise<void> {
+  async clearSecret(siteDir: string, slug: string, name: string): Promise<void> {
     try {
+      await this.link(siteDir, slug);
       execFileSync("npx", [
         "vercel", "env", "rm", name, "production", "--yes",
         "--token", VERCEL_TOKEN(), ...vercelScopeArgs(),
@@ -341,6 +363,8 @@ export class VercelLandingHost implements LandingHost {
   }
 
   async destroy(siteDir: string, slug: string): Promise<void> {
+    // `remove` takes the project NAME and needs no link, but pass the scope so
+    // a team project is found.
     await execFileP("npx", [
       "vercel", "remove", slug, "--yes", "--token", VERCEL_TOKEN(), ...vercelScopeArgs(),
     ], { cwd: siteDir, timeout: 5 * 60 * 1000 });
