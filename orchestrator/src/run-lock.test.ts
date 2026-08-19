@@ -2,7 +2,10 @@ import { describe, it, expect, afterEach } from "vitest";
 import { mkdtempSync, rmSync, writeFileSync, existsSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { acquireRunLock, describeHolder, isAlive, isStale, LOCK_FILE } from "./run-lock.js";
+import {
+  acquireRunLock, describeHolder, isAlive, isStale, LOCK_FILE,
+  DEFAULT_CROSS_HOST_MAX_AGE_MS, crossHostMaxAgeMs,
+} from "./run-lock.js";
 
 const dirs: string[] = [];
 function runDir(): string {
@@ -129,5 +132,83 @@ describe("describeHolder", () => {
     const at = new Date("2026-08-08T12:00:00Z").toISOString();
     const msg = describeHolder({ pid: 999, at }, new Date("2026-08-08T11:00:00Z"));
     expect(msg).not.toContain("-");
+  });
+});
+
+describe("a pid is only meaningful on the host that wrote it", () => {
+  // The container wedge this guards against:
+  //
+  //   1. a task is OOM-killed mid-tick, leaving .run.lock naming pid 23
+  //   2. the next task starts in a FRESH pid namespace
+  //   3. npm → node → tsx occupy several low pids, so pid 23 exists — and is
+  //      something completely unrelated
+  //   4. isStale() asks process.kill(23, 0), gets "alive", and refuses
+  //   5. every subsequent tick does the same, forever, reporting success
+  //
+  // Nondeterministic (it depends how many processes the new container starts),
+  // so it passes tests and wedges in production later.
+  const ALIVE = () => true;
+  const DEAD = () => false;
+  const NOW = Date.parse("2026-08-19T12:00:00Z");
+  const ago = (ms: number) => new Date(NOW - ms).toISOString();
+
+  it("does NOT trust a live-looking pid from another host", () => {
+    const held = { pid: 23, at: ago(60_000), host: "container-a" };
+    expect(isStale(held, ALIVE, { now: NOW, host: "container-b", maxAgeMs: 30_000 })).toBe(true);
+  });
+
+  it("still respects a RECENT lock from another host — a remote process can be alive", () => {
+    // The whole point of a shared volume. Taking this over is the corruption.
+    const held = { pid: 23, at: ago(10_000), host: "container-a" };
+    expect(isStale(held, ALIVE, { now: NOW, host: "container-b", maxAgeMs: 30_000 })).toBe(false);
+  });
+
+  it("uses pid liveness within one host, exactly as before", () => {
+    const held = { pid: 23, at: ago(10 * 60 * 60 * 1000), host: "laptop" };
+    // Old and same-host: still held, because the process is genuinely running.
+    expect(isStale(held, ALIVE, { now: NOW, host: "laptop" })).toBe(false);
+    expect(isStale(held, DEAD, { now: NOW, host: "laptop" })).toBe(true);
+  });
+
+  it("treats a lock with no host field as same-host — the pre-existing behaviour", () => {
+    const held = { pid: 23, at: ago(10 * 60 * 60 * 1000) };
+    expect(isStale(held, ALIVE, { now: NOW, host: "anything" })).toBe(false);
+    expect(isStale(held, DEAD, { now: NOW, host: "anything" })).toBe(true);
+  });
+
+  it("refuses a cross-host lock whose timestamp cannot be read", () => {
+    // No evidence either way. A wedged run is recoverable by hand; two writers
+    // on one state.json is not.
+    const held = { pid: 23, at: "not a date", host: "container-a" };
+    expect(isStale(held, ALIVE, { now: NOW, host: "container-b", maxAgeMs: 1 })).toBe(false);
+  });
+
+  it("takes over a cross-host lock once it is older than the window", () => {
+    const held = { pid: 23, at: ago(7 * 60 * 60 * 1000), host: "container-a" };
+    // Default window is 6h.
+    expect(isStale(held, ALIVE, { now: NOW, host: "container-b" })).toBe(true);
+  });
+
+  it("the default window is far longer than any tick", () => {
+    expect(DEFAULT_CROSS_HOST_MAX_AGE_MS).toBeGreaterThan(60 * 60 * 1000);
+  });
+
+  it("RUN_LOCK_MAX_AGE_MS overrides it, and junk does not become NaN", () => {
+    expect(crossHostMaxAgeMs({ RUN_LOCK_MAX_AGE_MS: "5000" })).toBe(5000);
+    expect(crossHostMaxAgeMs({ RUN_LOCK_MAX_AGE_MS: "nonsense" })).toBe(DEFAULT_CROSS_HOST_MAX_AGE_MS);
+    expect(crossHostMaxAgeMs({ RUN_LOCK_MAX_AGE_MS: "-1" })).toBe(DEFAULT_CROSS_HOST_MAX_AGE_MS);
+    expect(crossHostMaxAgeMs({})).toBe(DEFAULT_CROSS_HOST_MAX_AGE_MS);
+  });
+
+  it("records the host when taking the lock, so the next reader can tell", () => {
+    const dir = mkdtempSync(join(tmpdir(), "runlock-host-"));
+    const got = acquireRunLock(dir, "test");
+    expect(got.ok).toBe(true);
+    const held = JSON.parse(readFileSync(join(dir, LOCK_FILE), "utf8"));
+    expect(typeof held.host).toBe("string");
+    expect(held.host.length).toBeGreaterThan(0);
+    expect(held.pid).toBe(process.pid);
+    if (got.ok) got.release();
+    rmSync(dir, { recursive: true, force: true });
   });
 });

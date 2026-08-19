@@ -1,0 +1,296 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Divinci demo pipeline — the orchestrator as a scheduled ECS Fargate task,
+  with run state on EFS. One execution = one loop tick.
+
+# ── Why CloudFormation and not CDK or a pile of `aws` calls ─────────────────
+#
+# Nine resources with a real dependency graph (the schedule needs the task
+# definition, which needs the access point, which needs the file system, which
+# needs mount targets in the right subnets). A shell script would hand-roll that
+# ordering and its idempotency; CDK would add a whole toolchain and a bootstrap
+# step. A template is declarative, needs only the `aws` CLI, updates in place,
+# and rolls back on failure — and it reads as the specification of what this
+# target IS.
+
+Parameters:
+  ImageUri:
+    Type: String
+    Description: ECR image URI for the orchestrator (built from targets/container/Dockerfile)
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC for the task and the EFS mount targets
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: >
+      Public subnets. Public with a public IP, not private with a NAT Gateway:
+      this task only makes OUTBOUND calls, and a NAT Gateway would cost more per
+      month than everything else in this template combined.
+  ScheduleExpression:
+    Type: String
+    Default: rate(1 hour)
+  DivinciCredentialsSecretArn:
+    Type: String
+    Description: >
+      Secrets Manager ARN holding the WHOLE contents of the CLI's
+      credentials.json. Not a bare access token: the refresh token is what lets
+      an unattended loop keep working, and it is rotated on every refresh.
+  Cpu:
+    Type: String
+    Default: "2048"
+  Memory:
+    Type: String
+    Default: "4096"
+  RunLockMaxAgeMs:
+    Type: String
+    Default: "7200000"
+    Description: >
+      How long a run lock written by a DIFFERENT container may sit before it is
+      assumed abandoned. Keep it comfortably above the longest tick — too short
+      recreates the two-writer corruption the lock exists to prevent.
+
+Resources:
+
+  # ── Networking ────────────────────────────────────────────────────────────
+  TaskSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Divinci demo pipeline task
+      VpcId: !Ref VpcId
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+          Description: Outbound only — crawling, the Divinci API, ECR, logs
+
+  EfsSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Divinci demo pipeline EFS
+      VpcId: !Ref VpcId
+
+  # Scoped to the task's security group rather than a CIDR, so nothing else in
+  # the VPC can reach the file system holding run state.
+  EfsIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref EfsSecurityGroup
+      IpProtocol: tcp
+      FromPort: 2049
+      ToPort: 2049
+      SourceSecurityGroupId: !Ref TaskSecurityGroup
+      Description: NFS from the pipeline task only
+
+  # ── State ─────────────────────────────────────────────────────────────────
+  #
+  # EFS rather than S3, deliberately. The orchestrator does ordinary filesystem
+  # work — `openSync(path, "wx")` for its run lock, in-place state.json
+  # rewrites, directory listings. S3 has none of those semantics, and mounting
+  # it does not supply them. EFS is NFSv4: exclusive create is atomic, so the
+  # run lock genuinely works here, which is more than the GCS-mount target can
+  # say.
+  FileSystem:
+    Type: AWS::EFS::FileSystem
+    Properties:
+      Encrypted: true
+      PerformanceMode: generalPurpose
+      ThroughputMode: bursting
+      LifecyclePolicies:
+        - TransitionToIA: AFTER_30_DAYS
+      FileSystemTags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-state"
+
+  MountTargetA:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId: !Ref FileSystem
+      SubnetId: !Select [0, !Ref SubnetIds]
+      SecurityGroups: [!Ref EfsSecurityGroup]
+
+  MountTargetB:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId: !Ref FileSystem
+      SubnetId: !Select [1, !Ref SubnetIds]
+      SecurityGroups: [!Ref EfsSecurityGroup]
+
+  # The container runs as root, so the access point owns the directory as 0:0.
+  # Without an access point the task would mount the file system root and
+  # `runs/` would have to be created by hand before the first tick.
+  AccessPoint:
+    Type: AWS::EFS::AccessPoint
+    Properties:
+      FileSystemId: !Ref FileSystem
+      PosixUser:
+        Uid: "0"
+        Gid: "0"
+      RootDirectory:
+        Path: /state
+        CreationInfo:
+          OwnerUid: "0"
+          OwnerGid: "0"
+          Permissions: "0755"
+
+  # ── Compute ───────────────────────────────────────────────────────────────
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/ecs/${AWS::StackName}"
+      RetentionInDays: 30
+
+  Cluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub "${AWS::StackName}"
+
+  # Pulls the image, writes logs, and reads the one secret. Nothing else.
+  ExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ecs-tasks.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: read-the-token
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # Scoped to the ONE secret. A blanket secretsmanager:GetSecretValue
+              # would let the pipeline read every secret in the account.
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Ref DivinciCredentialsSecretArn
+
+  # What the orchestrator itself may do: mount its own file system.
+  TaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ecs-tasks.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: efs-client
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - elasticfilesystem:ClientMount
+                  - elasticfilesystem:ClientWrite
+                Resource: !GetAtt FileSystem.Arn
+                Condition:
+                  StringEquals:
+                    elasticfilesystem:AccessPointArn: !GetAtt AccessPoint.Arn
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    DependsOn: [MountTargetA, MountTargetB]
+    Properties:
+      Family: !Sub "${AWS::StackName}"
+      RequiresCompatibilities: [FARGATE]
+      NetworkMode: awsvpc
+      Cpu: !Ref Cpu
+      Memory: !Ref Memory
+      ExecutionRoleArn: !GetAtt ExecutionRole.Arn
+      TaskRoleArn: !GetAtt TaskRole.Arn
+      Volumes:
+        - Name: state
+          EFSVolumeConfiguration:
+            FilesystemId: !Ref FileSystem
+            TransitEncryption: ENABLED
+            AuthorizationConfig:
+              AccessPointId: !Ref AccessPoint
+              IAM: ENABLED
+      ContainerDefinitions:
+        - Name: orchestrator
+          Image: !Ref ImageUri
+          Essential: true
+          MountPoints:
+            - SourceVolume: state
+              ContainerPath: /app/state
+          Environment:
+            - Name: STATE_DIR
+              Value: /app/state
+            - Name: RUN_LOCK_MAX_AGE_MS
+              Value: !Ref RunLockMaxAgeMs
+          Secrets:
+            - Name: DIVINCI_CREDENTIALS_JSON
+              ValueFrom: !Ref DivinciCredentialsSecretArn
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: tick
+
+  # ── Schedule ──────────────────────────────────────────────────────────────
+  SchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: scheduler.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: run-the-task
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: ecs:RunTask
+                Resource: !Ref TaskDefinition
+              # RunTask assumes the task's roles, so the scheduler must be
+              # allowed to pass them. Omitting this is the classic failure:
+              # the schedule is created fine and every fire is denied.
+              - Effect: Allow
+                Action: iam:PassRole
+                Resource:
+                  - !GetAtt ExecutionRole.Arn
+                  - !GetAtt TaskRole.Arn
+
+  Schedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: !Sub "${AWS::StackName}-tick"
+      ScheduleExpression: !Ref ScheduleExpression
+      # OFF, not a flexible window: ticks must not be nudged into overlapping.
+      FlexibleTimeWindow: { Mode: "OFF" }
+      Target:
+        Arn: !GetAtt Cluster.Arn
+        RoleArn: !GetAtt SchedulerRole.Arn
+        EcsParameters:
+          TaskDefinitionArn: !Ref TaskDefinition
+          LaunchType: FARGATE
+          TaskCount: 1
+          NetworkConfiguration:
+            AwsvpcConfiguration:
+              Subnets: !Ref SubnetIds
+              SecurityGroups: [!Ref TaskSecurityGroup]
+              # Required to reach ECR and the internet from a public subnet
+              # without a NAT Gateway.
+              AssignPublicIp: ENABLED
+        RetryPolicy:
+          # A failed tick is retried by the NEXT tick, which re-reads state from
+          # EFS. An immediate retry would more likely collide with the tick that
+          # is still shutting down.
+          MaximumRetryAttempts: 0
+
+Outputs:
+  FileSystemId:
+    Value: !Ref FileSystem
+  ClusterName:
+    Value: !Ref Cluster
+  TaskDefinitionArn:
+    Value: !Ref TaskDefinition
+  LogGroupName:
+    Value: !Ref LogGroup

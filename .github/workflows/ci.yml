@@ -59,6 +59,17 @@ jobs:
       - name: Local target
         run: ./targets/local/test/run-all.sh
 
+      - name: AWS target — CloudFormation template
+        run: |
+          python3 -m pip install --quiet pyyaml
+          python3 targets/aws/test/validate-template.py
+
+      # The GCP and AWS targets share one image definition. If that stops
+      # building, both targets are broken and neither suite would notice —
+      # they test scripts and templates, not the container.
+      - name: Shared container image builds
+        run: docker build -f targets/container/Dockerfile -t divinci-orchestrator:ci .
+
       # A shell script that does not parse is a deploy that fails at the worst
       # possible moment. `bash -n` is free and catches it here.
       #
