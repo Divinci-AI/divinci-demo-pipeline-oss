@@ -41,6 +41,38 @@ jobs:
       - name: Test
         run: npm test
 
+  targets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # Each target's suite runs with no network, no credentials and no cloud
+      # account, which is the property that makes it runnable here at all.
+      # They are plain node scripts with no dependencies, so there is nothing
+      # to install.
+      - name: Cloudflare target
+        run: ./targets/cloudflare/test/run-all.sh
+
+      - name: Local target
+        run: ./targets/local/test/run-all.sh
+
+      # A shell script that does not parse is a deploy that fails at the worst
+      # possible moment. `bash -n` is free and catches it here.
+      #
+      # ⚠️ Ubuntu ships bash 5; macOS ships bash 3.2, and 3.2 mis-parses a
+      # single quote inside ${VAR:?...} EVEN INSIDE double quotes — reporting
+      # the error ~45 lines from its cause. That bug shipped in run-batch.sh
+      # and was caught by hand, not here, so CI cannot claim to cover it.
+      - name: Shell scripts parse
+        run: |
+          for f in targets/*/*.sh targets/*/test/*.sh docs/open-web-vectors/*.sh; do
+            [ -e "$f" ] || continue
+            bash -n "$f" || { echo "::error file=$f::does not parse"; exit 1; }
+          done
+
   hygiene:
     runs-on: ubuntu-latest
     steps:
@@ -67,8 +99,30 @@ jobs:
           # pattern stays simple and nothing has to be carved out of it —
           # a carve-out is where the next real identifier would hide.
           if git grep -nE 'openai-api-4375643|pub-[0-9a-f]{32}\.r2\.dev|[0-9a-f]{32}' \
-               -- . ':!package-lock.json' ':!.github/**'; then
+               -- . ':!package-lock.json' ':!.github/**' ':!docs/open-web-vectors/*.png'; then
             echo "::error::an account-specific identifier is committed — route it through requireEnv"
+            exit 1
+          fi
+
+      - name: No account-specific identifiers in targets/
+        run: |
+          # The Cloudflare target's extraction introduced three identifier
+          # shapes the sweep above cannot see: a Turso organisation slug, a
+          # *.workers.dev subdomain, and a 24-hex Mongo ObjectId (the
+          # whitelabel) — which is SHORTER than the 32-hex pattern and so slips
+          # straight through it.
+          #
+          # ⚠️ SCOPED TO targets/ ON PURPOSE, and this is accepted debt rather
+          # than a clean bill of health. `orchestrator/` carries PRE-EXISTING
+          # occurrences of the originating account's real subdomain
+          # (divinci-ai.workers.dev, in 6 files) and of real prospect slugs in
+          # fixtures and migration scripts. Those predate this job, need their
+          # own change to clean up, and must not be silently normalised by a
+          # regex here. Widening this scope without fixing them first would
+          # only teach people to delete the check.
+          if git grep -nE '[a-z0-9-]+\.workers\.dev|"TURSO_ORG"[[:space:]]*:[[:space:]]*"[^"]{1,}"|"WHITELABEL_ID"[[:space:]]*:[[:space:]]*"[0-9a-f]{24}"' \
+               -- targets/ ':!targets/*/README.md' ':!targets/cloudflare/run-batch.sh'; then
+            echo "::error::an account-specific identifier is committed under targets/ — make it a required env var with no default"
             exit 1
           fi
 

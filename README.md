@@ -14,6 +14,17 @@ approval and demo review, and hard spend caps via Kill Switch Agent Guard.
 
 Start with [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
+**Running it somewhere other than a laptop?** See
+[`docs/TARGETS.md`](docs/TARGETS.md) — the pipeline has five deployment targets
+beyond the default, two of them built and tested:
+
+| target | what runs there |
+|---|---|
+| [**local**](targets/local) | crawl + chunk + embed **on your own machine** with Ollama; only the vectors sync up. Embedding costs nothing and the page text never leaves. |
+| [**cloudflare**](targets/cloudflare) | the whole crawl→publish path on the edge — Browser Rendering, Workers AI, Turso, R2 — with no laptop in the loop. ~$0.0007 to crawl a host. |
+| [**gcp**](targets/gcp) | the full orchestrator as a Cloud Run Job on a schedule, with `runs/` state on GCS. |
+| [aws](targets/aws) · [vercel](targets/vercel) | designed, not built — including why Vercel fits the landing page but not the pipeline. |
+
 **Using an AI coding agent?** [`AGENTS.md`](AGENTS.md) carries the rules that
 are load-bearing here, and the repo ships agent skills that take an agent from
 a clone to a working demo — see [Agent skills](#agent-skills) below.
@@ -254,12 +265,32 @@ to hear about it.
 We do appreciate contributions back — including a bug report that amounts to
 "this setup step does not work on my machine", since *can a stranger run this?*
 is the test this repo is built around. And the wider project it feeds is the
-[**Open Web Vectors Initiative**](https://divinci.ai/open-web-vectors/): a
-public, per-site retrieval index where every site gets its own vectors, its own
-embeddings and a citation-backed chat endpoint, nothing is trained on, and any
-site owner can claim theirs. You contribute to it by indexing sites (the opt-in
-`wwwrag` step above) and by improving the crawling — pages our scrapers cannot
-read are the main limit on its coverage.
+[**Open Web Vectors Initiative**](https://divinci.ai/open-web-vectors/).
+
+[![The Open Web Vectors Initiative — the web is only legible to AI if someone already swallowed it. A public, per-site retrieval index: every site gets its own vector database, its own embeddings, and a chat endpoint grounded in its own words with citations back to the page. Nothing is trained on. Live counts: 1,656 sites indexed, 443,738 pages crawled, 7,022,048 chunks embedded, 3 GB of extracted text, 1,597 live chat endpoints, 224 pages for the median site.](docs/open-web-vectors/open-web-vectors.png)](https://divinci.ai/open-web-vectors/)
+
+A public, per-site retrieval index where every site gets its own vectors, its
+own embeddings and a citation-backed chat endpoint, nothing is trained on, and
+any site owner can claim theirs.
+
+[![The RAG universe — a force-directed map of the corpus. Each dot is an indexed site, sized by pages indexed, positioned near the sites it resembles by embedding similarity. Blue lines are hyperlinks found between sites; faint lines are semantic ties. Sites whose embeddings are not yet computed are parked on an outer ring, and a dashed circle means that site's links have not been mapped yet.](docs/open-web-vectors/rag-universe.png)](https://divinci.ai/www-rag/)
+
+Each dot is an indexed site, sized by pages indexed and **positioned near the
+sites it resembles** — the layout is the embeddings, not a category tree. Blue
+lines are hyperlinks actually found between sites; the fainter web is semantic
+similarity. Sites on the outer ring are crawled but not yet embedded, so their
+position means nothing yet, and a dashed circle means that site's links have not
+been mapped — not that it links nowhere. It is
+[live](https://divinci.ai/www-rag/), and it grows by roughly 150 sites a day.
+
+You contribute to it by indexing sites — the opt-in `wwwrag` step above, or by
+running [the Cloudflare target](targets/cloudflare) against your own account —
+and by improving the crawling. **Pages our scrapers cannot read are the single
+biggest limit on coverage**, so a fix there is worth more than a new feature.
+
+> The images above are captured from the live pages; the counts were current at
+> the last refresh. [`docs/open-web-vectors/refresh.sh`](docs/open-web-vectors/refresh.sh)
+> re-takes them.
 
 Details, and the checks to run before you push, are in
 [`CONTRIBUTING.md`](CONTRIBUTING.md).

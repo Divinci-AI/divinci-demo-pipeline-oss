@@ -1,0 +1,12 @@
+{
+  "name": "divinci-demo-pipeline-target-local",
+  "private": true,
+  "type": "module",
+  "description": "Crawl, chunk and embed on your own machine; sync only the vectors up",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "check": "node src/cli.mjs check",
+    "run-site": "node src/cli.mjs run",
+    "test": "./test/run-all.sh"
+  }
+}

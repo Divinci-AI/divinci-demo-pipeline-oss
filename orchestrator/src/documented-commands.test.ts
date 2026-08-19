@@ -27,6 +27,35 @@ function markdownFiles(dir: string, acc: string[] = []): string[] {
   return acc;
 }
 
+/**
+ * Which package.json a documented `npm run` should be checked against.
+ *
+ * A target's README documents ITS OWN scripts, run from its own directory —
+ * `targets/local/README.md` saying `npm run check` means
+ * `targets/local/package.json`, not the orchestrator's. Checking every document
+ * against the orchestrator alone reported a real, working command as missing.
+ *
+ * Resolving by the document's own location (rather than pooling every script
+ * name from every package) keeps the check strict: a command documented in the
+ * local target's README still fails if only the Cloudflare target defines it.
+ */
+function scriptsFor(doc: string): string[] {
+  const m = /(?:^|\/)targets\/([a-z0-9-]+)\//.exec(doc.replace(REPO + "/", "/"));
+  const pkg = m
+    ? join(REPO, "targets", m[1], "package.json")
+    : join(REPO, "orchestrator", "package.json");
+  try {
+    return Object.keys(JSON.parse(readFileSync(pkg, "utf8")).scripts ?? {});
+  } catch {
+    // A target with no package.json (a design-only one) documents no scripts of
+    // its own, so fall back rather than throwing — but see the arity guard
+    // below, which is what stops this becoming a silent pass.
+    return Object.keys(
+      JSON.parse(readFileSync(join(REPO, "orchestrator", "package.json"), "utf8")).scripts ?? {},
+    );
+  }
+}
+
 describe("every command the documentation tells you to run exists", () => {
   const docs = markdownFiles(REPO);
   const scripts = Object.keys(
@@ -38,6 +67,20 @@ describe("every command the documentation tells you to run exists", () => {
     expect(docs.length).toBeGreaterThan(3);
     expect(docs.some((d) => d.endsWith("README.md"))).toBe(true);
     expect(docs.some((d) => d.includes(".claude/skills"))).toBe(true);
+    // The deployment targets carry their own READMEs and their own scripts. If
+    // the scan stops reaching them, this check silently stops covering them.
+    expect(docs.some((d) => d.includes("/targets/local/"))).toBe(true);
+    expect(docs.some((d) => d.includes("/targets/cloudflare/"))).toBe(true);
+  });
+
+  it("a target's README is checked against ITS OWN package.json", () => {
+    // The regression this encodes: `targets/local/README.md` documents
+    // `npm run check`, which exists in targets/local/package.json and NOT in
+    // the orchestrator's — and was reported as a missing command.
+    expect(scriptsFor(join(REPO, "targets", "local", "README.md"))).toContain("check");
+    expect(scripts).not.toContain("check");
+    // …and the resolution is per-target, not a pool of every script anywhere.
+    expect(scriptsFor(join(REPO, "targets", "cloudflare", "README.md"))).not.toContain("check");
   });
 
   it("every `npm run <script>` names a real script", () => {
@@ -49,7 +92,7 @@ describe("every command the documentation tells you to run exists", () => {
         // `npm run build` inside a fenced block may belong to the landing
         // template, which is a separate repository cloned at run time.
         if (name === "build") continue;
-        if (!scripts.includes(name)) {
+        if (!scriptsFor(doc).includes(name)) {
           missing.push(`${doc.replace(REPO + "/", "")}: npm run ${name}`);
         }
       }

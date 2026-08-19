@@ -1,0 +1,133 @@
+// Copy to `wrangler.jsonc` and fill in the four values marked ⬅ CHANGE ME.
+// `wrangler.jsonc` is gitignored, so your account's identifiers never get
+// committed.
+//
+//   cp wrangler.example.jsonc wrangler.jsonc
+//   npx wrangler r2 bucket create <your-bucket>
+//   npx wrangler deploy
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+
+  // ⬅ CHANGE ME — becomes <name>.<your-subdomain>.workers.dev
+  "name": "www-rag-pipeline",
+
+  "main": "src/index.js",
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+
+  "workflows": [
+    {
+      "name": "www-rag-site-pipeline",
+      "binding": "PIPELINE",
+      "class_name": "SitePipeline"
+    }
+  ],
+
+  "ai": { "binding": "AI" },
+
+  "r2_buckets": [
+    // ⬅ CHANGE ME — `npx wrangler r2 bucket create <bucket_name>` first.
+    // Holds the crawl frontier, raw pages and link maps.
+    { "binding": "BUCKET", "bucket_name": "www-rag-pipeline" }
+  ],
+
+  // Continuous operation. Every tick tops the fleet back up to MAX_CONCURRENT;
+  // it does not launch a fixed batch, so ticks cannot stack runs.
+  //
+  // ⚠️ 2 MINUTES IS SET BY THE STATUS FEED, NOT BY THE CRAWLER. If you set
+  // WWW_RAG_ACTIVITY_URL, the tick also emits that heartbeat, and a feed
+  // typically ages a report out at ~300s. At */5 the cadence EQUALS the
+  // staleness window, so the public page flips to "offline" every cycle while
+  // the crawler is plainly running — measured: 368s stale, then 31s fresh,
+  // then stale again. A heartbeat must beat comfortably faster than the window
+  // that judges it; */2 leaves 2.5x headroom.
+  //
+  // Cost of the higher frequency is negligible (R2 Class B list operations,
+  // ~18k/day) and the extra reaping is a throughput gain, not a tax: a tick is
+  // a top-up, so at steady state the launch RATE is set by how fast crawls
+  // finish, never by how often we look.
+  //
+  // ⚠️ START WITH THIS COMMENTED OUT. A cron on a fresh deployment begins
+  // crawling the moment it deploys. Prove one host through /run first.
+  // "triggers": { "crons": ["*/2 * * * *"] },
+
+  "vars": {
+    // ── Required. These name YOUR infrastructure ─────────────────────────
+    //
+    // There is deliberately no default for either. A default that is merely
+    // wrong fails loudly on the first call; a default naming a real resource
+    // belonging to somebody else SUCCEEDS, and you get no signal that your
+    // sites landed in a stranger's account. The Worker refuses to tick and
+    // /health reports what is missing.
+
+    "TURSO_ORG": "",        // ⬅ CHANGE ME — your Turso organisation slug
+    "WHITELABEL_ID": "",    // ⬅ CHANGE ME — the Divinci whitelabel that owns the vectors
+
+    // ── Platform endpoint. Same for everyone; override for another env ────
+    "DIVINCI_API_BASE": "https://api.divinci.app",
+
+    // ── Dedupe authority ─────────────────────────────────────────────────
+    //
+    // UNSET (the default) = OWN-CORPUS mode. Nothing else writes to your
+    // corpus, so this Worker's own R2 `seeds/done/` set is a complete record
+    // of what it has published and no remote call is made.
+    //
+    // SET = SHARED-DIRECTORY mode: ask a directory before publishing, and fail
+    // closed if it cannot be reached. Point this at the Open Web Vectors
+    // directory only if you are contributing to that shared corpus — see the
+    // README. Pointing a PRIVATE deployment at someone else's directory makes
+    // it skip every host THEY have published, which is silently the wrong
+    // corpus.
+    //
+    // "DIRECTORY_URL": "https://api.divinci.app/api/v1/www-rag-directory",
+
+    // ── Optional: public crawl-status feed ───────────────────────────────
+    // Only useful if you run a page that renders it. Needs the secret
+    // WWW_RAG_ACTIVITY_TOKEN. Unset means the tick reports nothing.
+    // "WWW_RAG_ACTIVITY_URL": "https://example.com/api/crawl/activity",
+
+    // ── Behavioural. Defaults are fine; tune freely ──────────────────────
+    "MAX_CONCURRENT": "8",        // start small — 64 is a warmed-up fleet
+    "CRAWL_LIMIT": "300",         // pages rendered per host
+    "SEEDS_PER_RUN": "100",
+    "INFLIGHT_TTL_MS": "4500000",
+    "TURSO_GROUP": "default",
+    "MIN_CHUNK_BYTES": "5000",    // a corpus below this is not worth publishing
+    "MIN_PAGES": "3",
+    "MIN_BYTES_PER_PAGE": "500",
+    "CRAWL_MAX_POLLS": "90",
+    "MAX_ATTEMPTS": "3",
+    "MAX_PLATFORM_ATTEMPTS": "8",
+    "DISKANN_OPTS": "compress_neighbors=float1bit,max_neighbors=16",
+
+    // Web-crawl chunks (nav pages, terse fragments) score ~0.40-0.46 cosine.
+    // The platform default of 0.62 filters out every legitimate hit, so the
+    // vector exists, is indexed, and returns nothing.
+    "MIN_SIMILARITY": "0.4",
+
+    // Submission door. Bounds one request's cost, and bounds unbounded
+    // frontier growth from submissions.
+    "SUBMIT_MAX_PER_REQUEST": "20",
+    "MAX_PENDING": "20000",
+
+    "BULK_THRESHOLD": "1000",
+    "BULK_BATCH": "1000",
+    "LIVE_BATCH": "50"
+  }
+
+  // ── Secrets: `npx wrangler secret put <NAME>` ───────────────────────────
+  //
+  //   CF_ACCOUNT_ID           the account Browser Rendering is billed to
+  //   CF_BROWSER_TOKEN        API token with Browser Rendering write
+  //   TURSO_PLATFORM_TOKEN    Turso platform token that can create databases
+  //   DIVINCI_API_KEY         Divinci key with rag-vector + release write
+  //   TRIGGER_TOKEN           bearer gating /run and /status
+  //
+  // Optional:
+  //   SUBMIT_TOKEN                    gates /submit if you expose it
+  //   WWW_RAG_ACTIVITY_TOKEN          for the status feed above
+  //   WWW_RAG_THEME_WEBHOOK_SECRET    registers sites in a SHARED directory;
+  //                                   without it registration is skipped and
+  //                                   everything else still works
+}

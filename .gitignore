@@ -31,3 +31,15 @@ runs/*/*/landing/site/
 
 # Generated-media scratch (Imagen/Veo stills + clips; finals live on R2)
 runs/*/*/landing/gen/
+
+# ── targets/ ────────────────────────────────────────────────────────────────
+# Each target's real config names YOUR account. Only the .example is tracked,
+# for the same reason nothing else here defaults to real infrastructure.
+targets/*/wrangler.jsonc
+targets/*/.wrangler/
+targets/cloudflare/.sent-log
+targets/*/.env
+targets/**/node_modules/
+targets/gcp/.terraform/
+targets/gcp/terraform.tfstate*
+targets/gcp/*.auto.tfvars
