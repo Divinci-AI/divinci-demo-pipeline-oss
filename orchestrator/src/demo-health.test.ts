@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { checkDemo, findDemos, summarize, FAILING_VERDICTS, type Probe } from "./demo-health.js";
 import type { RunState } from "./types.js";
 
-const LANDING = "https://demo-x-landing.divinci-ai.workers.dev";
+const LANDING = "https://demo-x-landing.example-account.workers.dev";
 const RELEASE = "6a305d15f9bfeeca0d8be1e7";
 const STAGE = "https://api.stage.divinci.app";
 const PROD = "https://api.divinci.app";

@@ -15,7 +15,7 @@ describe("isCompatibleShape", () => {
   it("rejects array length mismatch", () => {
     // Directional: a LONGER generated array is fine (the renderer indexes by
     // its own meta array, so extras are unused), a SHORTER one is not (it
-    // would render undefined). Requiring equality is what made drchatterjee
+    // would render undefined). Requiring equality is what made acmedoc
     // ship "Acme Expert" copy for two months over 6 answers vs 5.
     expect(isCompatibleShape([1, 2, 3], [1, 2])).toBe(true);
     expect(isCompatibleShape([1, 2], [1, 2, 3])).toBe(false);

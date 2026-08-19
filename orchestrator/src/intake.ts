@@ -285,7 +285,7 @@ export interface SiteRecon {
  * (server-resources/.../onboarding/media.ts) so the demo pipeline buckets a
  * site the same way the platform's agentic recon does: html / document /
  * audio-video. Without this the manifest only ever proposes a text crawl, and
- * a media-heavy site (33fg.com carries 28 video references and zero PDFs)
+ * a media-heavy site (acmefg.com carries 28 video references and zero PDFs)
  * yields a demo that has never seen most of its own content.
  */
 export const DOCUMENT_EXTENSIONS = [".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx"];
@@ -561,8 +561,8 @@ export async function reconSite(url: string): Promise<SiteRecon> {
    *
    * Without this, a site with no sitemap reports ZERO pages and the manifest is
    * generated blind — the generator gets an empty survey and guesses. Both of
-   * 2026-08-05's targets are in exactly that state (satsearch.co and 33fg.com
-   * publish no sitemap), and satsearch's original 35-page corpus was planned
+   * 2026-08-05's targets are in exactly that state (acmemarket.co and acmefg.com
+   * publish no sitemap), and acmemarket's original 35-page corpus was planned
    * that way. Mirrors the server's onboarding recon caps (depth 2, ~30 fetches)
    * rather than inventing new ones.
    */

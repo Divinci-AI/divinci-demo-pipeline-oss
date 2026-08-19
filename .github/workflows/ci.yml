@@ -115,6 +115,43 @@ jobs:
             exit 1
           fi
 
+      - name: No third-party names, and no account subdomain
+        run: |
+          # ── What this is ──────────────────────────────────────────────────
+          #
+          # This repository was extracted from one that ran a real prospect
+          # pipeline. `runs/` and `research/` were withheld because they name
+          # third parties — but the names survived anyway, in test fixtures,
+          # doc examples, incident narratives and six one-off migration
+          # scripts. `migrate-landing-v4.mjs` and `rollout-translations.sh`
+          # were, between them, a list of fourteen named health companies and
+          # physicians with the dates we built demos for them.
+          #
+          # None of it was a credential, which is why three separate secret
+          # sweeps walked straight past it.
+          #
+          # The scripts were deleted (they read a `runs/` that does not exist
+          # here, and nothing referenced them). Everything else was renamed to
+          # the acme-* family. This keeps it that way.
+          #
+          # ⚠️ Add a name here when you remove one from the tree, not before —
+          # a pattern that already matches is a build that is already red, and
+          # the first thing anyone does with a permanently-red check is delete
+          # it.
+          if git grep -nPI '\b(mdspinecare|drhyman|satsearch|caseymeans|ibji|payloadspace|ssip|33fg|backincontrol|drchatterjee|nutritionfacts|peterattiamd|amymyersmd|centenoschultz|stoneclinic|texasback|discsportsspine|drvondawright|drwilliamli)\b' \
+               -- . ':!.github/**'; then
+            echo "::error::a real third party is named in a public repository — use an acme-* fixture name"
+            exit 1
+          fi
+
+          # The originating account's workers.dev subdomain. Not a secret, but
+          # it names whose infrastructure this was, and a fork copying a fixture
+          # would point at it.
+          if git grep -nPI 'divinci-ai\.workers\.dev' -- . ':!.github/**'; then
+            echo "::error::the originating account's workers.dev subdomain is committed"
+            exit 1
+          fi
+
       - name: No account-specific identifiers in targets/
         run: |
           # The Cloudflare target's extraction introduced three identifier
@@ -123,14 +160,11 @@ jobs:
           # whitelabel) — which is SHORTER than the 32-hex pattern and so slips
           # straight through it.
           #
-          # ⚠️ SCOPED TO targets/ ON PURPOSE, and this is accepted debt rather
-          # than a clean bill of health. `orchestrator/` carries PRE-EXISTING
-          # occurrences of the originating account's real subdomain
-          # (divinci-ai.workers.dev, in 6 files) and of real prospect slugs in
-          # fixtures and migration scripts. Those predate this job, need their
-          # own change to clean up, and must not be silently normalised by a
-          # regex here. Widening this scope without fixing them first would
-          # only teach people to delete the check.
+          # ⚠️ Scoped to targets/ because a *.workers.dev URL is legitimate in
+          # the orchestrator's fixtures (they describe landing pages, which are
+          # Workers). The originating ACCOUNT's subdomain is banned repo-wide by
+          # the step above; this catches a real one appearing in a target's
+          # configuration, where any workers.dev URL is somebody's account.
           if git grep -nE '[a-z0-9-]+\.workers\.dev|"TURSO_ORG"[[:space:]]*:[[:space:]]*"[^"]{1,}"|"WHITELABEL_ID"[[:space:]]*:[[:space:]]*"[0-9a-f]{24}"' \
                -- targets/ ':!targets/*/README.md' ':!targets/cloudflare/run-batch.sh'; then
             echo "::error::an account-specific identifier is committed under targets/ — make it a required env var with no default"

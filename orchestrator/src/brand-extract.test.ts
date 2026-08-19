@@ -285,7 +285,7 @@ describe("buildPalette", () => {
   });
 });
 
-// Found 2026-08-09 on peterattiamd, at Gate 3, after the demo had been built.
+// Found 2026-08-09 on acmehealthmd, at Gate 3, after the demo had been built.
 // The header/nav selector grabbed a decorative UI glyph and wrote it as the
 // logo. It served flawlessly — HTTP 200, image/svg+xml, correct bytes — and
 // rendered nothing, because its <use> pointed at a sprite symbol that lives in

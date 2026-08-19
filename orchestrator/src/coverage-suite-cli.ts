@@ -3,7 +3,7 @@
  * coverage-suite-cli.ts — measure whether a demo can state what its prospect
  * actually publishes.
  *
- *   tsx src/coverage-suite-cli.ts zilliz ssip           # generate + run + report
+ *   tsx src/coverage-suite-cli.ts zilliz acmeparts           # generate + run + report
  *   tsx src/coverage-suite-cli.ts --write zilliz        # persist to state.json
  *   tsx src/coverage-suite-cli.ts --replicates 3 --reuse zilliz
  *

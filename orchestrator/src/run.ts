@@ -2,7 +2,7 @@
  * Demo factory orchestrator (v0.2 — review board gates).
  *
  * Usage:
- *   npm run demo -- --prospect mdspinecare [--run 2026-06-10-001]
+ *   npm run demo -- --prospect acmespine [--run 2026-06-10-001]
  *                   [--profile default]
  *                   [--watch] [--watch-interval 30]
  *                   [--demo-approved-by "Name"]  # legacy bypass
@@ -488,7 +488,7 @@ log("run complete 🏭");
  * Gate 1 showed a page budget and never said what share of the site it was, so
  * "≤80 pages" read as a plan rather than as a 2% sample. Measured 2026-08-05
  * across every demo built to date: near-enough all of them ingested 80-90 pages
- * regardless of site size — drhyman took 80 of 4,272, payloadspace 80 of 3,262.
+ * regardless of site size — acmedoctor took 80 of 4,272, acmelaunch 80 of 3,262.
  * That is a budget artifact, not a crawl outcome, and it was invisible at the
  * only point where a human could have caught it.
  */
@@ -884,7 +884,7 @@ async function ingest(): Promise<void> {
           : [];
 
       // ⚠️ Deriving is not free. The manifest's path is often ASPIRATIONAL:
-      // peterattiamd declares /podcast/, /category/, /topic-guide/ and
+      // acmehealthmd declares /podcast/, /category/, /topic-guide/ and
       // /outlive/, which together cover ~85 of its 1,166 sitemap URLs because
       // its content is root-level article slugs. Before this guard the fix
       // would have cut that corpus from ~693 pages to ~280 — turning a crawl
@@ -1046,7 +1046,7 @@ async function wwwRagSubmit(): Promise<void> {
  * PRIMARY source: the vector's indexed file docs (`rag files`), whose title
  * carries the page URL. This is robust across scrapers — FireCrawl and
  * browser-rendering do NOT populate the html-page crawl history's
- * `scrapedPaths` (verified 2026-06-29 on satsearch: 35 indexed files, 0
+ * `scrapedPaths` (verified 2026-06-29 on acmemarket: 35 indexed files, 0
  * scrapedPaths), so the crawl-history path silently under-reports them.
  *
  * FALLBACK: the html-page crawl history (GET …/rag-vector/html-page/hosts/<host>).
@@ -2709,7 +2709,7 @@ async function outreach(): Promise<void> {
         manifest,
         corpusBrief: await corpusBrief(),
         // The LIVE workspace count, not state.pagesCrawled. Those differ, and
-        // the gap is not small: caseymeans crawled 129 pages and indexed 82.
+        // the gap is not small: acmewellness crawled 129 pages and indexed 82.
         // pagesCrawled counts pages VISITED; pages that fail to fetch, parse
         // or embed are still tallied there. The landing page has always used
         // indexedFileCount(), so passing the crawl tally here also made the

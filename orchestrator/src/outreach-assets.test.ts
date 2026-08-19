@@ -12,7 +12,7 @@ import {
 import type { Manifest } from "./types.js";
 
 const manifest = {
-  prospect: "stoneclinic",
+  prospect: "acmeclinic",
   prospectName: "The Stone Clinic",
   complianceTier: "clinic-high",
   complianceNotes: "Operating clinic — education only.",
@@ -53,7 +53,7 @@ describe("validateEmail", () => {
   });
 
   it("REJECTS an invented demo URL — a made-up link is a dead link", () => {
-    const bad = good.replace(DEMO_LINK_PLACEHOLDER, "https://demo-stoneclinic.divinci.app");
+    const bad = good.replace(DEMO_LINK_PLACEHOLDER, "https://demo-acmeclinic.divinci.app");
     expect(validateEmail(bad).join(" ")).toMatch(/invented demo URL|placeholder/);
   });
 

@@ -2,7 +2,7 @@
 /**
  * qa-rescore-cli.ts — give an already-scored release a real noise band.
  *
- *   tsx src/qa-rescore-cli.ts zilliz ssip vespa          # report only
+ *   tsx src/qa-rescore-cli.ts zilliz acmeparts vespa          # report only
  *   tsx src/qa-rescore-cli.ts --write --gate 0.9 zilliz  # persist replicates
  *   tsx src/qa-rescore-cli.ts --below 0.7 --write        # every alive run under 70%
  *

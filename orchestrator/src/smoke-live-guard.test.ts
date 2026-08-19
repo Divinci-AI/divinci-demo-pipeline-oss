@@ -40,7 +40,7 @@ describe("the synthetic fixture cannot run against a live API", () => {
   });
 
   it("never blocks a real prospect", () => {
-    for (const p of ["mdspinecare", "smoke", "__smoke__x", "acme"]) {
+    for (const p of ["acmespine", "smoke", "__smoke__x", "acme"]) {
       expect(smokeLiveRefusal(p, {}), p).toBeNull();
     }
   });

@@ -13,7 +13,7 @@ const base: FoundationKit = {
     { name: "Dr. Frank Kuwamura", title: "Spine Surgeon", image: "https://x/t0.webp" },
     { name: "Dr. Reem Razeq", title: "Spine Surgeon" },
   ],
-  hasLogin: false, mainSite: "https://www.mdspinecare.com", embedUrl: "/embed/",
+  hasLogin: false, mainSite: "https://www.acmespine.com", embedUrl: "/embed/",
 };
 
 describe("buildFoundationPrompt", () => {

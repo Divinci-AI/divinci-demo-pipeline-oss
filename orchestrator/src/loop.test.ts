@@ -489,7 +489,7 @@ describe("partitionRuns", () => {
   });
 });
 
-// Found 2026-08-08 by re-running five stalled runs. drchatterjee failed with:
+// Found 2026-08-08 by re-running five stalled runs. acmedoc failed with:
 //   API error (423): document is locked — Already crawling this host
 // The pipeline had no handling for 423 anywhere, so it read as a generic
 // exit 1. That makes the failure self-sustaining: the CLI's --wait abandons a

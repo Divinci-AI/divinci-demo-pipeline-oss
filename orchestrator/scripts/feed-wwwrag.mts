@@ -31,7 +31,7 @@
  *   npx tsx scripts/feed-wwwrag.mts --run 2026-06-29-001 --confirm-fix-deployed
  *
  *   # one prospect, capped:
- *   npx tsx scripts/feed-wwwrag.mts --run 2026-06-29-001 --prospect satsearch --limit 25 --confirm-fix-deployed
+ *   npx tsx scripts/feed-wwwrag.mts --run 2026-06-29-001 --prospect acmemarket --limit 25 --confirm-fix-deployed
  *
  * The corpus env = whatever `divinci auth status` points at (the active profile).
  * To target a DIFFERENT env than the active CLI profile, this script is the wrong
@@ -56,7 +56,7 @@ const ONLY_PROSPECT = flag("--prospect");
 const LIMIT = flag("--limit") ? parseInt(flag("--limit")!, 10) : Infinity;
 const DRY = has("--dry-run");
 const CONFIRMED = has("--confirm-fix-deployed");
-const DEFAULT_PROSPECTS = ["payloadspace", "ssip", "satsearch"];
+const DEFAULT_PROSPECTS = ["acmelaunch", "acmeparts", "acmemarket"];
 
 const MIN_INTERVAL_MS = 7_000; // ~8.5/min, under the server's 10/min submit cap
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));

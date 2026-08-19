@@ -65,7 +65,7 @@ describe("summariseProbes", () => {
 
 describe("retrievalLooksHealthy", () => {
   it("says healthy for the three runs we read by hand", () => {
-    // zilliz 0.716-0.880, and ssip/pinecone sat in the same range. All were
+    // zilliz 0.716-0.880, and acmeparts/pinecone sat in the same range. All were
     // investigated as RAG failures; none was one.
     expect(retrievalLooksHealthy(summariseProbes(parseProbes(ZILLIZ)))).toBe(true);
   });

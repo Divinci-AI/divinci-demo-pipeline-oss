@@ -399,7 +399,7 @@ export class SitePipeline extends WorkflowEntrypoint {
     // B/page across 96 pages — clearing 5000B and 3 pages comfortably while
     // containing nothing anyone could retrieve. The directory's healthy median
     // is ~4,662 B/page, and the worst offender in the existing corpus is
-    // www.backincontrol.com at 7 B/page across 800 pages.
+    // www.acmeback.com at 7 B/page across 800 pages.
     //
     // Mean density is the cheap discriminator: a real site cannot average a
     // few hundred bytes of prose per page. Deferred rather than retired — a

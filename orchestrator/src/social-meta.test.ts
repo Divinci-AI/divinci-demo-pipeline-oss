@@ -10,7 +10,7 @@ const META = {
   siteName: "Dr. Mark Hyman",
   description: "Chat 24/7 with an assistant trained on the published work.",
   imageAlt: "Every book. Every episode.",
-  pageUrl: "https://demo-drhyman-landing.divinci-ai.workers.dev/",
+  pageUrl: "https://demo-acmedoctor-landing.example-account.workers.dev/",
 };
 
 const SHELL = `<!DOCTYPE html>
@@ -36,7 +36,7 @@ describe("ensureSocialMeta", () => {
   it("makes og:image ABSOLUTE — X rejects a relative one outright", () => {
     const out = ensureSocialMeta(SHELL, META);
     expect(get(out, "property", "og:image")).toBe(
-      "https://demo-drhyman-landing.divinci-ai.workers.dev/og.png",
+      "https://demo-acmedoctor-landing.example-account.workers.dev/og.png",
     );
     expect(get(out, "name", "twitter:image")).toMatch(/^https:\/\//);
   });

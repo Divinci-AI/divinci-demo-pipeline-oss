@@ -5,10 +5,10 @@
  * guarded a MANUAL `run.ts` invocation, and the two share a run directory.
  *
  * What that costs, observed 2026-08-08: three `run.ts` processes ran against
- * runs/caseymeans/2026-08-07-001 at once (a background batch, a second batch,
+ * runs/acmewellness/2026-08-07-001 at once (a background batch, a second batch,
  * and a hand-started run). Each loads state.json at startup, holds it in
  * memory, and calls save() after every step — so the last writer wins with a
- * snapshot taken before the others' work existed. ibji had completed through QA
+ * snapshot taken before the others' work existed. acmeortho had completed through QA
  * and parked at Gate 2; a losing process rewrote its state back to `ingest`
  * with one source, discarding a finished QA run (0.875) and the id of a review board
  * task that was already open for review.

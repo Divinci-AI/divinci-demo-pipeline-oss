@@ -561,7 +561,7 @@ export function buildPalette(raw: RawColors): ExtractedBrand["palette"] {
  *
  * The selector takes the first <svg> inside header/nav/[class*=logo], which on
  * a real site is often a decorative UI glyph rather than the brand mark. What
- * peterattiamd.com yielded, verbatim:
+ * acmehealthmd.com yielded, verbatim:
  *
  *   <svg class="open" width="24" height="24" aria-hidden="true" role="img"
  *        focusable="false"><use href="#utility-plus"></use></svg>
