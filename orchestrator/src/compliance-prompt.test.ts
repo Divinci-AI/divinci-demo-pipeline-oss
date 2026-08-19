@@ -36,7 +36,7 @@ describe("complianceSystemPrompt", () => {
   it("does NOT put clinical refusals on a low-risk tier", () => {
     // A marketplace assistant that refuses to discuss its own products because
     // it inherited clinic rules is a different failure, equally bad.
-    const p = complianceSystemPrompt("satsearch", "wellness-low", "B2B marketplace").join("\n").toLowerCase();
+    const p = complianceSystemPrompt("acmemarket", "wellness-low", "B2B marketplace").join("\n").toLowerCase();
     expect(p).not.toContain("never interpret a result");
     expect(p).toContain("helpfully and factually");
   });

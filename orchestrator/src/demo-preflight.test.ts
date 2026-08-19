@@ -14,13 +14,13 @@ const viewport = (over: Partial<Measurements["viewports"][0]> = {}) => ({
 });
 
 const clean = (over: Partial<Measurements> = {}): Measurements => ({
-  url: "https://demo-x-landing.divinci-ai.workers.dev",
+  url: "https://demo-x-landing.example-account.workers.dev",
   reachable: true,
   viewports: [viewport(), viewport({ label: "mobile", width: 390 })],
   assets: [
-    { url: "https://demo-x-landing.divinci-ai.workers.dev/og.png", status: 200, contentType: "image/png" },
+    { url: "https://demo-x-landing.example-account.workers.dev/og.png", status: 200, contentType: "image/png" },
   ],
-  ogImage: "https://demo-x-landing.divinci-ai.workers.dev/og.png",
+  ogImage: "https://demo-x-landing.example-account.workers.dev/og.png",
   ...over,
 });
 
@@ -46,7 +46,7 @@ describe("the SPA fallback trap", () => {
       clean({
         assets: [
           {
-            url: "https://demo-x-landing.divinci-ai.workers.dev/brand/corpus.webm",
+            url: "https://demo-x-landing.example-account.workers.dev/brand/corpus.webm",
             status: 200,
             contentType: "text/html; charset=utf-8",
           },

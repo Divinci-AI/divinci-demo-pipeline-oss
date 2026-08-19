@@ -9,7 +9,7 @@
  * CONTEXT. `--sitemap` resolves the sitemap at the HOST ROOT and ignores the
  * source URL's path, so a manifest scoping a source as
  * `https://wandb.ai/wandb_fc/` crawls all of wandb.ai. Deriving the path fixes
- * that — but manifests are often ASPIRATIONAL: peterattiamd declares /podcast/,
+ * that — but manifests are often ASPIRATIONAL: acmehealthmd declares /podcast/,
  * /category/, /topic-guide/ and /outlive/, together ~85 of its 1,166 sitemap
  * URLs, because its content is root-level article slugs. Deriving there cuts
  * ~693 pages to ~280, turning a crawl that was accidentally right into one that

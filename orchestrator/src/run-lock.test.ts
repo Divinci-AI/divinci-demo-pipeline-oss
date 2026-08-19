@@ -36,12 +36,12 @@ describe("acquireRunLock", () => {
 
   it("names who holds it — 'locked' alone tells an operator nothing", () => {
     const d = runDir();
-    acquireRunLock(d, "--prospect ibji --run 2026-08-07-001");
+    acquireRunLock(d, "--prospect acmeortho --run 2026-08-07-001");
     const second = acquireRunLock(d);
     expect(second.ok).toBe(false);
     if (second.ok) return;
     expect(second.message).toContain(String(process.pid));
-    expect(second.message).toContain("--prospect ibji");
+    expect(second.message).toContain("--prospect acmeortho");
   });
 
   it("lets the next process in after release", () => {

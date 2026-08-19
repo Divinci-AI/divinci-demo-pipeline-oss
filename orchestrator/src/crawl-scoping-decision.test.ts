@@ -29,7 +29,7 @@ describe("decideScoping", () => {
     expect(d.reason).toMatch(/does not exist on this site; re-author it/);
   });
 
-  it("scopes but WARNS when matches fall short of the limit (the peterattiamd case)", () => {
+  it("scopes but WARNS when matches fall short of the limit (the acmehealthmd case)", () => {
     // /podcast/ is ~3 of 1,166 with a limit of 250. Scoping is what the
     // manifest asked for; the warning is what stops it being a surprise.
     const urls = sitemap([...Array(3)].map((_, i) => `/podcast/e${i}`).concat(

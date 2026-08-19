@@ -4,7 +4,7 @@
  * Split from hero-lockup-check.ts so the grading logic stays importable and
  * testable without launching a browser.
  *
- *   npx tsx src/hero-lockup-run.ts https://demo-x-landing.divinci-ai.workers.dev
+ *   npx tsx src/hero-lockup-run.ts https://demo-x-landing.example-account.workers.dev
  */
 import { HERO_PROBE, gradeLockup, type HeroLockupMeasurement, type LockupFinding } from "./hero-lockup-check.js";
 

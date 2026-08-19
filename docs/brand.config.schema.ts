@@ -17,7 +17,7 @@ export interface BrandConfig {
   identity: {
     /** "MD Spine Care" — used in OG, copyright, og:site_name */
     siteName: string;
-    /** canonical site, e.g. "https://mdspinecare-demo.divinci.app" */
+    /** canonical site, e.g. "https://acmespine-demo.divinci.app" */
     domain: string;
     /** the AI product name shown in chat, e.g. "DFO AI" → "MD Spine Care AI" */
     productName: string;
@@ -101,7 +101,7 @@ export interface BrandConfig {
   /** Cloudflare deploy identity (wrangler.toml). KV/DO namespaces are created
    *  per-account at deploy time, not stored here. */
   deploy: {
-    workerName: string;      // e.g. "mdspinecare-landing"
+    workerName: string;      // e.g. "acmespine-landing"
     /** the demo subdomain the landing is served on */
     demoHost: string;
   };
@@ -114,21 +114,21 @@ export interface BrandConfig {
 export const MDSPINECARE_EXAMPLE: BrandConfig = {
   identity: {
     siteName: "MD Spine Care",
-    domain: "https://mdspinecare-demo.divinci.app",
+    domain: "https://acmespine-demo.divinci.app",
     productName: "MD Spine Care AI",
     legalName: "MD Spine Care & Orthopaedics",
   },
   palette: {
-    // placeholder — Step 2 extracts real values from mdspinecare.com
+    // placeholder — Step 2 extracts real values from acmespine.com
     primary: "#1f3a5f", dark: "#13283f", mid: "#2e5a86", accent: "#4a90d9",
     cream: "#f5f7fa", soft: "#e8edf2", bubble: "#dce7f2", text: "#1a1a1a",
   },
   fonts: { family: "'Inter', system-ui, sans-serif", headingWeight: 700, bodyWeight: 400 },
   links: {
-    mainSite: "https://www.mdspinecare.com",
-    signupUrl: "https://www.mdspinecare.com/contact",
-    loginUrl: "https://www.mdspinecare.com/patient-portal",
-    bioCreditUrl: "https://www.mdspinecare.com/about",
+    mainSite: "https://www.acmespine.com",
+    signupUrl: "https://www.acmespine.com/contact",
+    loginUrl: "https://www.acmespine.com/patient-portal",
+    bioCreditUrl: "https://www.acmespine.com/about",
   },
   divinci: {
     releaseId: "6a293367c50b252c45c6ca47",
@@ -159,6 +159,6 @@ export const MDSPINECARE_EXAMPLE: BrandConfig = {
     ogTagline: "Spine answers, 24/7.",
     ogSubtitle: "AI-powered patient education from MD Spine Care — chat anytime, in any language.",
   },
-  referral: { source: "mdspinecare-demo" },
-  deploy: { workerName: "mdspinecare-landing", demoHost: "mdspinecare-demo.divinci.app" },
+  referral: { source: "acmespine-demo" },
+  deploy: { workerName: "acmespine-landing", demoHost: "acmespine-demo.divinci.app" },
 };

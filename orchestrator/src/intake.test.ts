@@ -30,15 +30,15 @@ afterEach(() => {
 
 const QUEUE = `
 prospects:
-  - slug: stoneclinic
+  - slug: acmeclinic
     name: The Stone Clinic
-    url: https://stoneclinic.com
+    url: https://acmeclinic.com
     anchorCustomer: "attio:deals/x"
     complianceTier: clinic-high
     score: 86
-  - slug: drwilliamli
+  - slug: acmemd
     name: Dr. William Li
-    url: https://drwilliamli.com
+    url: https://acmemd.com
     anchorCustomer: "attio:deals/y"
     complianceTier: wellness-low
     score: 95
@@ -49,7 +49,7 @@ describe("parseQueue", () => {
   it("parses a well-formed queue", () => {
     const q = parseQueue(QUEUE);
     expect(q).toHaveLength(2);
-    expect(q[0].slug).toBe("stoneclinic");
+    expect(q[0].slug).toBe("acmeclinic");
     expect(q[1].hold).toBe(true);
   });
 
@@ -70,12 +70,12 @@ prospects:
   });
 
   it("refuses a slug that is not a safe directory name", () => {
-    const bad = QUEUE.replace("slug: stoneclinic", "slug: ../../etc");
+    const bad = QUEUE.replace("slug: acmeclinic", "slug: ../../etc");
     expect(() => parseQueue(bad)).toThrow(/kebab-case/);
   });
 
   it("refuses a relative url", () => {
-    const bad = QUEUE.replace("https://stoneclinic.com", "stoneclinic.com");
+    const bad = QUEUE.replace("https://acmeclinic.com", "acmeclinic.com");
     expect(() => parseQueue(bad)).toThrow(/absolute/);
   });
 
@@ -88,23 +88,23 @@ describe("selectNextProspect", () => {
   const queue = parseQueue(QUEUE);
 
   it("skips held prospects even when they score highest", () => {
-    // drwilliamli scores 95 but is held; taking it would crawl a site a human
+    // acmemd scores 95 but is held; taking it would crawl a site a human
     // deliberately parked.
     const next = selectNextProspect(queue, tmp());
-    expect(next?.slug).toBe("stoneclinic");
+    expect(next?.slug).toBe("acmeclinic");
   });
 
   it("skips a prospect that already has a run — no duplicate crawls", () => {
     const runs = tmp();
-    mkdirSync(join(runs, "stoneclinic", "2026-08-04-001"), { recursive: true });
-    writeFileSync(join(runs, "stoneclinic", "2026-08-04-001", "manifest.json"), "{}");
+    mkdirSync(join(runs, "acmeclinic", "2026-08-04-001"), { recursive: true });
+    writeFileSync(join(runs, "acmeclinic", "2026-08-04-001", "manifest.json"), "{}");
     expect(selectNextProspect(queue, runs)).toBeUndefined();
   });
 
   it("ignores a run directory with no manifest (an aborted intake)", () => {
     const runs = tmp();
-    mkdirSync(join(runs, "stoneclinic", "2026-08-04-001"), { recursive: true });
-    expect(selectNextProspect(queue, runs)?.slug).toBe("stoneclinic");
+    mkdirSync(join(runs, "acmeclinic", "2026-08-04-001"), { recursive: true });
+    expect(selectNextProspect(queue, runs)?.slug).toBe("acmeclinic");
   });
 
   it("honours an explicit priority ahead of score", () => {
@@ -202,14 +202,14 @@ describe("hasRun", () => {
 describe("selectNextProspect — environment scoping", () => {
   it("offers a staging-built prospect for a production rebuild", () => {
     const runs = tmp();
-    const dir = join(runs, "stoneclinic", "2026-06-01-001");
+    const dir = join(runs, "acmeclinic", "2026-06-01-001");
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, "manifest.json"), "{}");
     writeFileSync(join(dir, "state.json"), JSON.stringify({ apiUrl: "https://api.stage.divinci.app" }));
 
     const queue = parseQueue(QUEUE);
     expect(selectNextProspect(queue, runs)).toBeUndefined(); // unscoped: taken
-    expect(selectNextProspect(queue, runs, "https://api.divinci.app")?.slug).toBe("stoneclinic");
+    expect(selectNextProspect(queue, runs, "https://api.divinci.app")?.slug).toBe("acmeclinic");
   });
 });
 
@@ -309,9 +309,9 @@ describe("recon helpers", () => {
 // ---------------------------------------------------------------- assembly
 
 const prospect: QueuedProspect = {
-  slug: "stoneclinic",
+  slug: "acmeclinic",
   name: "The Stone Clinic",
-  url: "https://stoneclinic.com",
+  url: "https://acmeclinic.com",
   anchorCustomer: "attio:deals/x",
   complianceTier: "clinic-high",
   crawlPages: 100,
@@ -319,7 +319,7 @@ const prospect: QueuedProspect = {
 const recon: SiteRecon = {
   url: prospect.url,
   reachable: true,
-  sitemapUrls: ["https://stoneclinic.com/blog/1"],
+  sitemapUrls: ["https://acmeclinic.com/blog/1"],
   topPaths: [{ prefix: "/blog/", count: 1 }],
   likelySpa: false,
   discovery: "sitemap",
@@ -334,7 +334,7 @@ function proposal(over: Record<string, unknown> = {}) {
     sources: [
       {
         id: "site",
-        url: "https://stoneclinic.com/blog",
+        url: "https://acmeclinic.com/blog",
         type: "blog",
         rationale: "columns",
         license: "public web",
@@ -351,7 +351,7 @@ function proposal(over: Record<string, unknown> = {}) {
 describe("assembleManifest", () => {
   it("produces a manifest that passes validateManifest", () => {
     const m = assembleManifest(input, proposal());
-    expect(m.prospect).toBe("stoneclinic");
+    expect(m.prospect).toBe("acmeclinic");
     expect(m.sources).toHaveLength(1);
   });
 
@@ -377,9 +377,9 @@ describe("assembleManifest", () => {
 
   it("accepts a subdomain of the prospect", () => {
     const sub = proposal({
-      sources: [{ id: "docs", url: "https://blog.stoneclinic.com/x", estPages: 5, crawl: { limit: 5 } }],
+      sources: [{ id: "docs", url: "https://blog.acmeclinic.com/x", estPages: 5, crawl: { limit: 5 } }],
     });
-    expect(assembleManifest(input, sub).sources[0].url).toContain("blog.stoneclinic.com");
+    expect(assembleManifest(input, sub).sources[0].url).toContain("blog.acmeclinic.com");
   });
 
   it("forces tier T1 and destination rag regardless of what the model said", () => {
@@ -387,7 +387,7 @@ describe("assembleManifest", () => {
       sources: [
         {
           id: "s",
-          url: "https://stoneclinic.com/x",
+          url: "https://acmeclinic.com/x",
           tier: "T3",
           destination: "fine-tune",
           estPages: 5,
@@ -403,8 +403,8 @@ describe("assembleManifest", () => {
   it("clamps an over-budget plan instead of failing the run", () => {
     const over = proposal({
       sources: [
-        { id: "a", url: "https://stoneclinic.com/a", estPages: 80, crawl: { limit: 80 } },
-        { id: "b", url: "https://stoneclinic.com/b", estPages: 80, crawl: { limit: 80 } },
+        { id: "a", url: "https://acmeclinic.com/a", estPages: 80, crawl: { limit: 80 } },
+        { id: "b", url: "https://acmeclinic.com/b", estPages: 80, crawl: { limit: 80 } },
       ],
     });
     const m = assembleManifest(input, over);

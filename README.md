@@ -155,7 +155,7 @@ submit targets a separate base with its own prod OAuth bearer.
 WWW_RAG_SUBMIT=1 \
 WWW_RAG_API_BASE=https://api.divinci.app \
 WWW_RAG_TOKEN="$(... prod OAuth bearer ...)" \
-npm run demo -- --prospect satsearch --run 2026-06-29-001
+npm run demo -- --prospect acmemarket --run 2026-06-29-001
 ```
 
 It enumerates the exact page URLs the demo crawl indexed (staging crawl history,

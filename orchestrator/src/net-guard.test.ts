@@ -42,22 +42,22 @@ describe("isPrivateAddress", () => {
 
 describe("isSameSite", () => {
   it("accepts the site and its subdomains", () => {
-    expect(isSameSite("stoneclinic.com", "stoneclinic.com")).toBe(true);
-    expect(isSameSite("www.stoneclinic.com", "stoneclinic.com")).toBe(true);
-    expect(isSameSite("blog.stoneclinic.com", "stoneclinic.com")).toBe(true);
+    expect(isSameSite("acmeclinic.com", "acmeclinic.com")).toBe(true);
+    expect(isSameSite("www.acmeclinic.com", "acmeclinic.com")).toBe(true);
+    expect(isSameSite("blog.acmeclinic.com", "acmeclinic.com")).toBe(true);
   });
 
   it("rejects a lookalike that merely ENDS with the name", () => {
-    // "evilstoneclinic.com".endsWith("stoneclinic.com") is true — the dot is
+    // "evilstoneclinic.com".endsWith("acmeclinic.com") is true — the dot is
     // what makes this a subdomain check rather than a substring check.
-    expect(isSameSite("evilstoneclinic.com", "stoneclinic.com")).toBe(false);
-    expect(isSameSite("stoneclinic.com.evil.net", "stoneclinic.com")).toBe(false);
+    expect(isSameSite("evilstoneclinic.com", "acmeclinic.com")).toBe(false);
+    expect(isSameSite("acmeclinic.com.evil.net", "acmeclinic.com")).toBe(false);
   });
 });
 
 describe("assertFetchable", () => {
   it("allows an ordinary public URL", async () => {
-    await expect(assertFetchable("https://stoneclinic.com/sitemap.xml", { resolver: PUBLIC })).resolves.toBeInstanceOf(URL);
+    await expect(assertFetchable("https://acmeclinic.com/sitemap.xml", { resolver: PUBLIC })).resolves.toBeInstanceOf(URL);
   });
 
   it("blocks localhost by name — review board listens there", async () => {
@@ -97,7 +97,7 @@ describe("assertFetchable", () => {
 
   it("enforces sameSiteAs for attacker-supplied sitemap URLs", async () => {
     await expect(
-      assertFetchable("https://other.example/sitemap.xml", { sameSiteAs: "stoneclinic.com", resolver: PUBLIC }),
+      assertFetchable("https://other.example/sitemap.xml", { sameSiteAs: "acmeclinic.com", resolver: PUBLIC }),
     ).rejects.toThrow(/off-site/);
   });
 
@@ -119,7 +119,7 @@ describe("safeGet redirect handling", () => {
   }
 
   it("returns the body on a plain 200", async () => {
-    const res = await safeGet("https://stoneclinic.com/x", {
+    const res = await safeGet("https://acmeclinic.com/x", {
       fetchImpl: fetchStub([{ status: 200, body: "<loc>a</loc>" }]),
       resolver: PUBLIC,
     });
@@ -133,7 +133,7 @@ describe("safeGet redirect handling", () => {
       { status: 302, location: "http://127.0.0.1:7777/api/tasks" },
       { status: 200, body: "SECRET" },
     ]);
-    const res = await safeGet("https://stoneclinic.com/sitemap.xml", { fetchImpl: impl, resolver: PUBLIC });
+    const res = await safeGet("https://acmeclinic.com/sitemap.xml", { fetchImpl: impl, resolver: PUBLIC });
     expect(res).toBeUndefined();
     expect(impl).toHaveBeenCalledTimes(1); // never fetched the redirect target
   });
@@ -143,8 +143,8 @@ describe("safeGet redirect handling", () => {
       { status: 302, location: "https://other.example/x" },
       { status: 200, body: "nope" },
     ]);
-    const res = await safeGet("https://stoneclinic.com/x", {
-      sameSiteAs: "stoneclinic.com",
+    const res = await safeGet("https://acmeclinic.com/x", {
+      sameSiteAs: "acmeclinic.com",
       fetchImpl: impl,
       resolver: PUBLIC,
     });
@@ -153,11 +153,11 @@ describe("safeGet redirect handling", () => {
 
   it("follows a same-site redirect", async () => {
     const impl = fetchStub([
-      { status: 301, location: "https://www.stoneclinic.com/sitemap.xml" },
+      { status: 301, location: "https://www.acmeclinic.com/sitemap.xml" },
       { status: 200, body: "ok" },
     ]);
-    const res = await safeGet("https://stoneclinic.com/sitemap.xml", {
-      sameSiteAs: "stoneclinic.com",
+    const res = await safeGet("https://acmeclinic.com/sitemap.xml", {
+      sameSiteAs: "acmeclinic.com",
       fetchImpl: impl,
       resolver: PUBLIC,
     });
@@ -165,9 +165,9 @@ describe("safeGet redirect handling", () => {
   });
 
   it("gives up on a redirect loop instead of spinning", async () => {
-    const impl = fetchStub([{ status: 302, location: "https://stoneclinic.com/loop" }]);
-    const res = await safeGet("https://stoneclinic.com/loop", {
-      sameSiteAs: "stoneclinic.com",
+    const impl = fetchStub([{ status: 302, location: "https://acmeclinic.com/loop" }]);
+    const res = await safeGet("https://acmeclinic.com/loop", {
+      sameSiteAs: "acmeclinic.com",
       fetchImpl: impl,
       resolver: PUBLIC,
       maxRedirects: 2,
@@ -180,7 +180,7 @@ describe("safeGet redirect handling", () => {
       throw new Error("ECONNRESET");
     }) as unknown as typeof fetch;
     await expect(
-      safeGet("https://stoneclinic.com/x", { fetchImpl: impl, resolver: PUBLIC }),
+      safeGet("https://acmeclinic.com/x", { fetchImpl: impl, resolver: PUBLIC }),
     ).resolves.toBeUndefined();
   });
 });

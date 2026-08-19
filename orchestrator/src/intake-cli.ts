@@ -2,7 +2,7 @@
  * Manual intake — build one prospect's run directory without waiting for a tick.
  *
  *   npm run intake -- --next               # take the top of the queue
- *   npm run intake -- --prospect stoneclinic
+ *   npm run intake -- --prospect acmeclinic
  *   npm run intake -- --next --dry-run     # recon + plan, write nothing
  *
  * Writes runs/<slug>/<today>-NNN/{manifest.json,recon.json} with

@@ -143,7 +143,7 @@ describe("gate2Decision", () => {
 describe("isHostAlreadyCrawling", () => {
   it("recognises the CLI's wrapped 423 message", () => {
     const err = new Error(
-      "divinci rag crawl https://drchatterjee.com/blog/ failed: API error (423): " +
+      "divinci rag crawl https://acmedoc.com/blog/ failed: API error (423): " +
         "document is locked — Already crawling this host",
     );
     expect(isHostAlreadyCrawling(err)).toBe(true);

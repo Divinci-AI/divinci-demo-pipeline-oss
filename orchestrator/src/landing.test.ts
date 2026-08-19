@@ -3,13 +3,13 @@ import { brandObjectLiteral, applyBrandConfig, npmInstallEnv, misattributedBioBo
 
 const draft: LandingBrandDraft = {
   siteName: "MD Spine Care",
-  domain: "https://demo-mdspinecare-landing.divinci-ai.workers.dev",
+  domain: "https://demo-acmespine-landing.example-account.workers.dev",
   productName: "MD Spine Care AI",
   legalName: "MD Spine Care",
   palette: { primary: "#172e47", dark: "#0f1e2e", mid: "#264c75", accent: "#1877f2", cream: "#ffffff", soft: "#f5f5f5", bubble: "#cfe3fc", text: "#1a1a1a" },
-  mainSite: "https://www.mdspinecare.com",
-  signupUrl: "https://www.mdspinecare.com/contact",
-  loginUrl: "https://www.mdspinecare.com/portal",
+  mainSite: "https://www.acmespine.com",
+  signupUrl: "https://www.acmespine.com/contact",
+  loginUrl: "https://www.acmespine.com/portal",
   releaseId: "6a293367c50b252c45c6ca47",
   apiBase: "https://api.stage.divinci.app",
   whitelabelId: "6a293367c50b252c45c6ca44",
@@ -20,8 +20,8 @@ const draft: LandingBrandDraft = {
   starters: ["a", "b", "c"],
   ogTagline: "Spine answers 24/7",
   ogSubtitle: "AI patient education",
-  referralSource: "mdspinecare-demo",
-  workerName: "demo-mdspinecare-landing",
+  referralSource: "acmespine-demo",
+  workerName: "demo-acmespine-landing",
 };
 
 describe("brandObjectLiteral", () => {
@@ -74,11 +74,11 @@ describe("brandObjectLiteral", () => {
     expect(def.corpusVideo).toBeUndefined();
     const gen = JSON.parse(brandObjectLiteral({
       ...draft,
-      heroImageUrl: "https://pub-x.r2.dev/mdspinecare/hero.webp",
-      corpusVideoUrl: "https://pub-x.r2.dev/mdspinecare/corpus.mp4",
+      heroImageUrl: "https://pub-x.r2.dev/acmespine/hero.webp",
+      corpusVideoUrl: "https://pub-x.r2.dev/acmespine/corpus.mp4",
     })).media;
-    expect(gen.heroImage).toBe("https://pub-x.r2.dev/mdspinecare/hero.webp");
-    expect(gen.corpusVideo).toBe("https://pub-x.r2.dev/mdspinecare/corpus.mp4");
+    expect(gen.heroImage).toBe("https://pub-x.r2.dev/acmespine/hero.webp");
+    expect(gen.corpusVideo).toBe("https://pub-x.r2.dev/acmespine/corpus.mp4");
   });
 });
 
@@ -97,7 +97,7 @@ describe("applyBrandConfig", () => {
     const out = applyBrandConfig(template, draft);
     expect(out).toContain("export interface BrandConfig");
     expect(out).toContain("export const FREE_MESSAGE_QUOTA = 1;");
-    expect(out).toContain("demo-mdspinecare-landing");
+    expect(out).toContain("demo-acmespine-landing");
     expect(out).not.toContain("Acme Expert");
   });
 

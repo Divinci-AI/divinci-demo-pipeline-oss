@@ -337,7 +337,7 @@ describe("coverage suite is the primary retrieval signal", () => {
   /**
    * Measured 2026-08-16 across six releases, each 3 replicates on both suites:
    *
-   *   zilliz   59.2 -> 89.7   ssip    60.6 -> 78.5   vespa    74.4 -> 92.4
+   *   zilliz   59.2 -> 89.7   acmeparts    60.6 -> 78.5   vespa    74.4 -> 92.4
    *   lancedb  76.9 -> 78.5   pinecone 71.4 -> 94.3
    *   weights-and-biases 74.4 -> 43.5   <- the only one that fell
    */
@@ -369,7 +369,7 @@ describe("coverage suite is the primary retrieval signal", () => {
   });
 
   it("funds ONLY the cheap arm when coverage beats hazard but misses the gate", () => {
-    // ssip 60.6 -> 78.5. Retrieval is not the binding constraint, so no
+    // acmeparts 60.6 -> 78.5. Retrieval is not the binding constraint, so no
     // ingestion-heavy index or agentic rebuild is justified.
     const t = triage({
       qaScore: 0.606, threshold: 0.9, replicates: [0.575, 0.617, 0.625],

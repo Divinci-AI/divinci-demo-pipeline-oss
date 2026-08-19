@@ -42,7 +42,7 @@ reported rather than guessed.
 
 Strategy 2 exists because slugs are lossy in both directions: the card
 "NutritionFacts.org (Dr. Michael Greger)" slugs to `nutritionfactsorg` while
-the directory is `nutritionfacts`, and no amount of fuzzing that comparison is
+the directory is `acmenutrition`, and no amount of fuzzing that comparison is
 safe when the cost of a wrong answer is a personalised email sent to the wrong
 company. Reading the manifest removes the guesswork instead of tuning it.
 

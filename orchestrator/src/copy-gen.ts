@@ -125,7 +125,7 @@ export async function generateEnTs(input: CopyGenInput): Promise<string> {
  *
  * Demanding equality made the copy generator's ordinary variation fatal: on a
  * failure the build silently keeps the NEUTRAL copy, so a demo shipped reading
- * "Acme Expert" under the customer's own domain. drchatterjee had 6 answers
+ * "Acme Expert" under the customer's own domain. acmedoc had 6 answers
  * against the template's 5 and had been shipping template copy since June.
  */
 export function isCompatibleShape(generated: unknown, neutral: unknown): boolean {

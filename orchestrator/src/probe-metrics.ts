@@ -54,7 +54,7 @@ export interface ProbeMetrics {
 /**
  * Below this, the best chunk is not a convincing match.
  *
- * Calibrated against observed healthy runs (zilliz, ssip, pinecone all sat
+ * Calibrated against observed healthy runs (zilliz, acmeparts, pinecone all sat
  * 0.71-0.88 with answers that were visibly on-topic), NOT chosen a priori.
  * It is a screening threshold for "look at this", not a pass mark.
  */

@@ -392,7 +392,7 @@ company's website.
 ```sh
 npm run intake -- --next --dry-run    # recon + show the prompt, write nothing
 npm run intake -- --next              # take the top of the queue
-npm run intake -- --prospect stoneclinic
+npm run intake -- --prospect acmeclinic
 ```
 
 Recon is content-free: `robots.txt` → sitemaps → a path-shape summary, plus an
