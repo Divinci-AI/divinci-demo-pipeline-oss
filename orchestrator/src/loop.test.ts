@@ -14,9 +14,11 @@ import {
   summarizeFailure,
   partitionRuns,
   intakeBlockedBy,
+  reconcileDemoAlerts,
   MAX_LIVE_PARKED,
   type ActiveRun,
 } from "./loop.js";
+import type { DemoHealth, DemoVerdict } from "./demo-health.js";
 
 const dirs: string[] = [];
 function runsFixture(
@@ -510,5 +512,100 @@ describe("describeExit — host busy (423)", () => {
 
   it("says the host is busy rather than that something failed", () => {
     expect(describeExit(40).outcome).toMatch(/crawled server-side|will retry/i);
+  });
+});
+
+describe("reconcileDemoAlerts — the chat probe's rotating slice must not clear alerts", () => {
+  const demo = (prospect: string, verdict: DemoVerdict): DemoHealth => ({
+    prospect,
+    run: "2026-08-18-001",
+    verdict,
+    detail: `${verdict} detail`,
+    tornDown: false,
+  });
+  const key = (prospect: string) => `${prospect}/2026-08-18-001`;
+
+  it("raises one alert for a newly failing demo", () => {
+    const { alerted, toAlert } = reconcileDemoAlerts(
+      new Set(),
+      [demo("acme", "chat-blocked")],
+      new Set([key("acme")]),
+    );
+    expect(toAlert.map((t) => t.prospect)).toEqual(["acme"]);
+    expect([...alerted]).toEqual([`demo:${key("acme")}:chat-blocked`]);
+  });
+
+  it("does not re-alert while the demo keeps failing the same way", () => {
+    const first = reconcileDemoAlerts(new Set(), [demo("acme", "chat-blocked")], new Set([key("acme")]));
+    const second = reconcileDemoAlerts(first.alerted, [demo("acme", "chat-blocked")], new Set([key("acme")]));
+    expect(second.toAlert).toEqual([]);
+  });
+
+  // THE REGRESSION. A chat-blocked demo is chat-probed 1 tick in 8. On the
+  // other 7 it is not asked, so checkDemo returns `ok` — which the pre-fix code
+  // read as recovery, cleared the key, and re-alerted on the next probe. That
+  // is one card per demo per 8 hours, indefinitely, and it is what inflated ~3
+  // banned demos into a 20-card "mass outage" on 2026-08-18/19.
+  it("holds the alert through ticks that did not chat-probe the demo", () => {
+    let alerted = reconcileDemoAlerts(
+      new Set(),
+      [demo("acme", "chat-blocked")],
+      new Set([key("acme")]),
+    ).alerted;
+
+    for (let tick = 0; tick < 7; tick++) {
+      const r = reconcileDemoAlerts(alerted, [demo("acme", "ok")], new Set()); // not in the slice
+      expect(r.toAlert).toEqual([]);
+      alerted = r.alerted;
+    }
+
+    // Rotation comes back round and it is STILL blocked: still no new card.
+    const probed = reconcileDemoAlerts(alerted, [demo("acme", "chat-blocked")], new Set([key("acme")]));
+    expect(probed.toAlert).toEqual([]);
+  });
+
+  it("retires the alert once the chat probe actually says it recovered", () => {
+    const raised = reconcileDemoAlerts(new Set(), [demo("acme", "chat-blocked")], new Set([key("acme")]));
+    const cleared = reconcileDemoAlerts(raised.alerted, [demo("acme", "ok")], new Set([key("acme")]));
+    expect([...cleared.alerted]).toEqual([]);
+
+    // ...and is alertable again afterwards, which is the property the clearing
+    // exists for at all.
+    const again = reconcileDemoAlerts(cleared.alerted, [demo("acme", "chat-blocked")], new Set([key("acme")]));
+    expect(again.toAlert.map((t) => t.prospect)).toEqual(["acme"]);
+  });
+
+  // A `dark` verdict comes from the bootstrap GET, which runs on EVERY demo
+  // every tick. Holding those for the rotation would delay a genuine recovery
+  // by up to 8 hours for no reason.
+  it("clears a non-chat verdict without waiting for the rotation", () => {
+    const raised = reconcileDemoAlerts(new Set(), [demo("acme", "dark")], new Set());
+    expect(raised.toAlert).toHaveLength(1);
+    const cleared = reconcileDemoAlerts(raised.alerted, [demo("acme", "ok")], new Set());
+    expect([...cleared.alerted]).toEqual([]);
+  });
+
+  it("treats a change of verdict as news worth one more card", () => {
+    const blocked = reconcileDemoAlerts(new Set(), [demo("acme", "chat-blocked")], new Set([key("acme")]));
+    const wentDark = reconcileDemoAlerts(blocked.alerted, [demo("acme", "dark")], new Set([key("acme")]));
+    expect(wentDark.toAlert.map((t) => t.verdict)).toEqual(["dark"]);
+  });
+
+  // Legacy bare keys carry no verdict, so they could have been raised by the
+  // chat probe. Holding one an extra rotation costs nothing; dropping one
+  // re-opens a card that is already on the board.
+  it("holds a pre-2026-08-20 bare key until the demo is chat-probed", () => {
+    const held = reconcileDemoAlerts(new Set([key("acme")]), [demo("acme", "ok")], new Set());
+    expect([...held.alerted]).toEqual([key("acme")]);
+    const cleared = reconcileDemoAlerts(held.alerted, [demo("acme", "ok")], new Set([key("acme")]));
+    expect([...cleared.alerted]).toEqual([]);
+  });
+
+  // The same file carries `run:<key>:<reason>` entries from the run-failure
+  // alert path. Those have no health verdict and must survive untouched.
+  it("leaves run-failure alert keys alone", () => {
+    const runEntry = "run:acme/2026-08-18-001:failed (exit 1)";
+    const { alerted } = reconcileDemoAlerts(new Set([runEntry]), [demo("acme", "ok")], new Set([key("acme")]));
+    expect([...alerted]).toEqual([runEntry]);
   });
 });

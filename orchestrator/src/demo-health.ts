@@ -34,7 +34,38 @@ import type { RunState } from "./types.js";
 // against that alone.
 export const API_BASES = ["https://api.divinci.app", "https://api.stage.divinci.app"] as const;
 
-export type DemoVerdict = "ok" | "open" | "dark" | "unreachable" | "gate-broken" | "no-unfurl";
+export type DemoVerdict =
+  | "ok" | "open" | "dark" | "unreachable" | "gate-broken" | "no-unfurl"
+  /** The chat endpoint REFUSED a visitor — a ban or a rate limit. */
+  | "chat-blocked"
+  /** The chat endpoint errored or did not answer. */
+  | "chat-error";
+
+/**
+ * What the chat path said when asked.
+ *
+ * ⚠️ WHY THIS EXISTS. Until 2026-08-19 this monitor checked three things —
+ * the landing worker answers, the release bootstraps, the unfurl card is an
+ * image — and all three are GETs. On 2026-08-18 an abuse-detection defect in
+ * the API banned the shared identity that every visitor of a Worker-fronted
+ * demo collapses into, and took at least three demos dark for 24 hours. Through
+ * all of it the landing worker returned 200, the release bootstrapped, and the
+ * card was fine, so this monitor reported `ok` for every dark demo. A human
+ * reported the outage.
+ *
+ * We have learned the same lesson twice: "every synthetic we had was a GET …
+ * none of them touch the endpoint that actually serves a chat turn". This
+ * closes it here.
+ */
+export type ChatProbeResult =
+  /** Guards passed and the handler rejected the probe body. The healthy answer. */
+  | { kind: "ok"; status: number }
+  /** The release requires a signed request, or runs the Free-Chat Gate, so this
+   *  probe cannot assess it. NOT a failure — the surface answered correctly. */
+  | { kind: "unprobeable"; status: number; why: string }
+  /** A visitor would be refused right now. */
+  | { kind: "blocked"; status: number; retryAfterSeconds?: number }
+  | { kind: "error"; status?: number };
 
 export interface DemoHealth {
   prospect: string;
@@ -86,6 +117,12 @@ export interface Probe {
    * behaviour but never silently stops checking.
    */
   html?(url: string, auth?: string): Promise<string | undefined>;
+  /**
+   * Ask the chat endpoint whether it would serve a visitor, WITHOUT generating
+   * anything. Optional, like `html` above: a probe that omits it skips the
+   * check rather than silently reporting health it did not measure.
+   */
+  chat?(base: string, releaseId: string): Promise<ChatProbeResult>;
 }
 
 /** Real network probe. Injected so the classifier can be tested offline. */
@@ -121,6 +158,67 @@ export const liveProbe: Probe = {
       return undefined;
     }
   },
+  /**
+   * Probes the API DIRECTLY rather than through the landing Worker, for two
+   * reasons that both matter.
+   *
+   * Cost: the body carries `releaseId` and nothing else, so it traverses every
+   * guard — release lockdown, ToS, disclaimer, landing-page HMAC, all four rate
+   * limiters, the device quota, the abuse detector — and is then refused by the
+   * handler's own field validation. No model call, no wallet, no quota slot.
+   *
+   * Blast radius: going through the Worker would make these requests arrive at
+   * the API from the shared Cloudflare egress pool, spending the SAME per-IP
+   * budget the demos' real visitors share. Probing directly spends this host's
+   * own budget instead, and one request per release against that release's
+   * 120/day. See `selectChatProbeSlice` for the arithmetic that keeps this
+   * host under its own ceiling.
+   *
+   * The trade-off, stated plainly: this does not exercise the Worker's own call
+   * to the API, so a Worker misconfigured with the wrong release id or a bad
+   * HMAC secret still looks healthy here. `head` above catches a Worker that is
+   * down; nothing yet catches one that is up and wrong.
+   */
+  async chat(base, releaseId) {
+    let res: Response;
+    try {
+      res = await fetch(`${base}/ai-chat/anonymous-chat`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ releaseId }),
+        signal: AbortSignal.timeout(30_000),
+      });
+    } catch {
+      return { kind: "error" };
+    }
+    const status = res.status;
+    const text = await res.text().catch(() => "");
+    if (status === 400) return { kind: "ok", status };
+    if (status === 429) {
+      const retry = Number(res.headers.get("retry-after"));
+      return {
+        kind: "blocked",
+        status,
+        ...(Number.isFinite(retry) && retry > 0 ? { retryAfterSeconds: retry } : {}),
+      };
+    }
+    if (status === 403) {
+      // Two different, legitimate 403s. `gate_required` means the release runs
+      // the Free-Chat Gate, so /anonymous-chat is not its path at all;
+      // `landing_page_sig_*` means the release requires a signed request, which
+      // is hardening working as intended. Neither is a fault, and calling them
+      // one would make this monitor fire on correctly-configured demos.
+      if (text.includes("gate_required"))
+        return { kind: "unprobeable", status, why: "release runs the Free-Chat Gate" };
+      if (text.includes("landing_page_sig"))
+        return { kind: "unprobeable", status, why: "release requires a signed request" };
+      return { kind: "blocked", status };
+    }
+    if (status >= 500) return { kind: "error", status };
+    // Anything else — including a 200, which this body should never earn —
+    // means the contract moved. Report it rather than assuming health.
+    return { kind: "error", status };
+  },
   async bootstrap(base, releaseId) {
     try {
       const res = await fetch(`${base}/white-label-release/${releaseId}`, {
@@ -142,6 +240,7 @@ export const liveProbe: Probe = {
 export async function checkDemo(
   demo: { prospect: string; run: string; state: RunState },
   probe: Probe = liveProbe,
+  opts: { chat?: boolean } = {},
 ): Promise<DemoHealth> {
   const { prospect, run, state } = demo;
   const base: DemoHealth = {
@@ -190,6 +289,41 @@ export async function checkDemo(
         detail: state.apiUrl
           ? `release does not bootstrap at ${state.apiUrl} — the page loads but the chat is dead`
           : "release does not bootstrap on staging OR production — the page loads but the chat is dead",
+      };
+  }
+
+  // Can a visitor actually chat? Only asked when the caller opts in, because
+  // it costs a request against the release's own per-day budget — see
+  // selectChatProbeSlice.
+  //
+  // Deliberately AFTER the bootstrap check: if the release does not serve at
+  // all, `dark` is the truer verdict and the chat probe would only restate it.
+  if (opts.chat && probe.chat && state.releaseId && (servedBy || state.apiUrl)) {
+    const result = await probe.chat(servedBy ?? state.apiUrl!, state.releaseId);
+    if (result.kind === "blocked")
+      return {
+        ...base,
+        landingStatus,
+        releaseServedBy: servedBy,
+        verdict: "chat-blocked",
+        detail:
+          `chat endpoint refused a visitor (HTTP ${result.status}` +
+          (result.retryAfterSeconds ? `, retry-after ${result.retryAfterSeconds}s` : "") +
+          ") — the page loads and the release serves, but nobody can send a message" +
+          // A refusal measured in hours is a BAN, not a rate limit: every
+          // limiter on that route caps its block at an hour. Saying so here is
+          // the difference between "wait a bit" and "go clear a Redis key".
+          (result.retryAfterSeconds && result.retryAfterSeconds > 3600
+            ? ". That is longer than any rate limit on that route lasts, so it is a BAN"
+            : ""),
+      };
+    if (result.kind === "error")
+      return {
+        ...base,
+        landingStatus,
+        releaseServedBy: servedBy,
+        verdict: "chat-error",
+        detail: `chat endpoint ${result.status ? `returned HTTP ${result.status}` : "did not answer"}`,
       };
   }
 
@@ -289,7 +423,48 @@ export async function checkDemo(
  * an outage, and paging on it would dilute the signal that a demo is dark.
  * It is surfaced in the report so it gets fixed on the next build.
  */
-export const FAILING_VERDICTS: DemoVerdict[] = ["dark", "unreachable", "gate-broken"];
+export const FAILING_VERDICTS: DemoVerdict[] = [
+  "dark", "unreachable", "gate-broken",
+  // A demo whose chat is refused is dark to a prospect, however well the page
+  // renders. This is the verdict the 2026-08-18 outage needed and nothing had.
+  "chat-blocked", "chat-error",
+];
+
+/**
+ * How many loop ticks it takes to chat-probe the whole fleet.
+ *
+ * ⚠️ THIS NUMBER IS A BUDGET, not a preference. The API caps anonymous chat at
+ * 600 requests per DAY per client address, and every probe from this host
+ * spends that same budget — as does every other agent and script on this
+ * machine that touches the endpoint. Probing all ~87 demos on an hourly loop
+ * would be ~2,088 requests a day: the monitor would trip the limiter it exists
+ * to watch, and then report the whole fleet as blocked. That failure would look
+ * exactly like a real outage.
+ *
+ * At 8 ticks the fleet is covered every 8 hours for ~260 requests a day, which
+ * leaves most of the ceiling for everything else. Raise it (slower, cheaper) or
+ * lower it (faster, dearer) with that ceiling in hand — not by taste.
+ */
+export const CHAT_PROBE_COVERAGE_TICKS = 8;
+
+/**
+ * The slice of the fleet to chat-probe on a given tick. Deterministic and pure,
+ * so the rotation is testable rather than something we assume works.
+ */
+export function selectChatProbeSlice<T>(
+  demos: T[],
+  tickIndex: number,
+  coverageTicks: number = CHAT_PROBE_COVERAGE_TICKS,
+): T[] {
+  const ticks = Math.max(1, Math.floor(coverageTicks));
+  if (demos.length === 0) return [];
+  const slot = ((Math.floor(tickIndex) % ticks) + ticks) % ticks;
+  // Contiguous slices, sized so every demo lands in exactly one slot and the
+  // last slot absorbs the remainder — no demo is skipped and none is probed
+  // twice per cycle.
+  const size = Math.ceil(demos.length / ticks);
+  return demos.slice(slot * size, (slot + 1) * size);
+}
 
 export function summarize(results: DemoHealth[]): { failing: DemoHealth[]; open: DemoHealth[] } {
   return {

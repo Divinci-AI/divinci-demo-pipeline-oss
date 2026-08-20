@@ -44,7 +44,8 @@ import {
   unstartedBacklog,
 } from "./discover.js";
 import { createTask, findOrCreateProject, isAvailable } from "./review-board.js";
-import { checkDemo, findDemos, summarize, FAILING_VERDICTS } from "./demo-health.js";
+import { checkDemo, findDemos, summarize, selectChatProbeSlice, CHAT_PROBE_COVERAGE_TICKS, FAILING_VERDICTS } from "./demo-health.js";
+import type { DemoHealth, DemoVerdict } from "./demo-health.js";
 import type { RunState } from "./types.js";
 
 const execFileP = promisify(execFile);
@@ -351,6 +352,86 @@ export function selectRunsToAdvance(
 export function runKey(r: { prospect: string; run: string }): string {
   return `${r.prospect}/${r.run}`;
 }
+
+// ------------------------------------------------- demo-alert bookkeeping
+
+/**
+ * Verdicts that ONLY the chat probe can produce.
+ *
+ * ⚠️ This distinction is the whole point of {@link reconcileDemoAlerts}. Every
+ * other failing verdict comes from a check that runs on every demo every tick,
+ * so "not failing this tick" genuinely means recovered. These two come from a
+ * probe that runs on a rotating slice — see CHAT_PROBE_COVERAGE_TICKS — so for
+ * 7 ticks out of 8 a chat-blocked demo is not assessed at all and reports `ok`
+ * by default.
+ */
+export const CHAT_ONLY_VERDICTS: DemoVerdict[] = ["chat-blocked", "chat-error"];
+
+/** One alert entry, parsed. `verdict: null` is a pre-2026-08-20 bare key. */
+function parseDemoAlert(entry: string, key: string): { verdict: DemoVerdict | null } | null {
+  if (entry === key) return { verdict: null };
+  const prefix = `demo:${key}:`;
+  return entry.startsWith(prefix) ? { verdict: entry.slice(prefix.length) as DemoVerdict } : null;
+}
+
+/**
+ * Decide which failing demos deserve a NEW task, and which alerts to retire.
+ *
+ * ⚠️ WHY THIS IS NOT `delete every non-failing key`, which is what it was until
+ * 2026-08-20. The chat probe (added 1512fb2, two weeks after this dedupe was
+ * written) only runs on ~13 of 104 demos per tick. On the other 7 ticks a
+ * persistently chat-blocked demo is never asked, comes back `ok`, and the old
+ * code cleared its key — so the next time the rotation reached it, still
+ * blocked, it opened ANOTHER task. One card per blocked demo every 8 hours,
+ * forever, from a dedupe whose own comment promised "not one per tick".
+ *
+ * That is what turned ~3 demos banned by the 2026-08-18 abuse defect into a
+ * 15-then-20 card "mass outage" that the agent fleet spent two days analysing
+ * while the fleet was in fact healthy. A monitor that manufactures its own
+ * volume is worse than one that stays quiet: the count itself became evidence.
+ *
+ * So an alert is retired only when the check that RAISED it actually ran. A
+ * legacy bare key carries no verdict, so it is treated as possibly-chat and
+ * held until a tick that chat-probes that demo — conservative on purpose:
+ * holding an alert one extra rotation costs nothing, dropping one re-opens it.
+ *
+ * Pure, and returns a NEW set: the caller persists it, and a test can assert
+ * the whole rotation without a filesystem or a review board.
+ */
+export function reconcileDemoAlerts(
+  alerted: ReadonlySet<string>,
+  results: DemoHealth[],
+  chatSlice: ReadonlySet<string>,
+): { alerted: Set<string>; toAlert: DemoHealth[] } {
+  const next = new Set(alerted);
+  const toAlert: DemoHealth[] = [];
+
+  for (const r of results) {
+    const key = runKey(r);
+
+    if (FAILING_VERDICTS.includes(r.verdict)) {
+      // Keyed by (demo, verdict): a demo that goes dark AFTER being
+      // chat-blocked has a different problem and deserves to be said once.
+      const entry = `demo:${key}:${r.verdict}`;
+      if (!next.has(entry) && !next.has(key)) {
+        next.add(entry);
+        toAlert.push(r);
+      }
+      continue;
+    }
+
+    for (const e of [...next]) {
+      const parsed = parseDemoAlert(e, key);
+      if (!parsed) continue;
+      const needsChatToClear = parsed.verdict === null || CHAT_ONLY_VERDICTS.includes(parsed.verdict);
+      if (needsChatToClear && !chatSlice.has(key)) continue; // never asked — not recovered
+      next.delete(e);
+    }
+  }
+
+  return { alerted: next, toAlert };
+}
+
 
 function readAlerted(): Set<string> {
   try {
@@ -714,28 +795,39 @@ async function tick(): Promise<TickReport> {
   //     broken page right now, which outranks building the next one.
   try {
     const demos = findDemos(runsDir);
+    // A ROTATING slice gets the chat probe each tick, so the whole fleet is
+    // covered every CHAT_PROBE_COVERAGE_TICKS hours. Probing all of them every
+    // hour would spend more than this host's entire daily anonymous-chat
+    // allowance at the API, and the monitor would start reporting the fleet as
+    // blocked by its own traffic — a false outage indistinguishable from a real
+    // one. The slot is the wall-clock hour so the rotation advances even when
+    // the loop misses ticks.
+    const chatSlice = new Set(
+      selectChatProbeSlice(demos, new Date().getUTCHours()).map((d) => `${d.prospect}/${d.run}`),
+    );
     const results = [];
-    for (const d of demos) results.push(await checkDemo(d));
+    for (const d of demos)
+      results.push(await checkDemo(d, undefined, { chat: chatSlice.has(`${d.prospect}/${d.run}`) }));
     const { failing, open } = summarize(results);
     report.health = { checked: results.length, failing: failing.length, open: open.length };
     console.log(
-      `[loop] demo health: ${results.length} checked, ${failing.length} failing, ${open.length} open`,
+      `[loop] demo health: ${results.length} checked (${chatSlice.size} chat-probed, ` +
+        `full fleet every ${CHAT_PROBE_COVERAGE_TICKS}h), ${failing.length} failing, ${open.length} open`,
     );
-    for (const f of failing) {
-      console.error(`[loop]   ✗ ${f.prospect}/${f.run}: ${f.detail}`);
-      // One task per failing demo, not one per tick: alertHuman is keyed by
-      // title, and a dark demo that stays dark should not open 24 tasks a day.
-      if (!alertedDemos.has(`${f.prospect}/${f.run}`)) {
-        alertedDemos.add(`${f.prospect}/${f.run}`);
-        await alertHuman(
-          `Demo DOWN — ${f.prospect} (${f.verdict})`,
-          [`${f.detail}`, "", `Landing: ${f.landingUrl ?? "n/a"}`, `Release: ${f.releaseId ?? "n/a"}`].join("\n"),
-        );
-      }
+    for (const f of failing) console.error(`[loop]   ✗ ${f.prospect}/${f.run}: ${f.detail}`);
+
+    // One task per failing demo, not one per tick — and, since 2026-08-20, not
+    // one per ROTATION either. See reconcileDemoAlerts for why that was not the
+    // same promise.
+    const { alerted: nextAlerted, toAlert } = reconcileDemoAlerts(alertedDemos, results, chatSlice);
+    for (const f of toAlert) {
+      await alertHuman(
+        `Demo DOWN — ${f.prospect} (${f.verdict})`,
+        [`${f.detail}`, "", `Landing: ${f.landingUrl ?? "n/a"}`, `Release: ${f.releaseId ?? "n/a"}`].join("\n"),
+      );
     }
-    // Recovered demos become alertable again.
-    for (const r of results)
-      if (!FAILING_VERDICTS.includes(r.verdict)) alertedDemos.delete(`${r.prospect}/${r.run}`);
+    alertedDemos.clear();
+    for (const e of nextAlerted) alertedDemos.add(e);
     writeAlerted(alertedDemos);
   } catch (err) {
     report.errors.push(`health: ${(err as Error).message.split("\n")[0]}`);
