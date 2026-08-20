@@ -43,13 +43,20 @@ echo "── Open Web Vectors ──"
 # ⚠️ NOT networkidle0. Both pages carry a live chat widget and a status poller,
 # so the network never goes idle and navigation times out at 45s every time.
 shot open-web-vectors '{"url":"https://divinci.ai/open-web-vectors/",
-  "viewport":{"width":1440,"height":900,"deviceScaleFactor":2},
+  "viewport":{"width":1440,"height":1000,"deviceScaleFactor":2},
   "gotoOptions":{"waitUntil":"domcontentloaded","timeout":45000},
   "waitForTimeout":9000,
   "screenshotOptions":{"type":"png"}}'
 # Crop away the site nav at the top and the chat bubble at the bottom, keeping
 # the hero and the live stat bar.
-sips -c 1240 2880 --cropOffset 300 0 open-web-vectors.raw.png --out ow.tmp.png >/dev/null
+#
+# ⚠️ The crop height is tied to how many lines the HEADLINE wraps to. It was
+# 1240 for a one-line headline; the 2026-08-20 rewrite wraps to four, which
+# pushed the stat bar out of frame entirely — and the stats are the argument
+# for contributing, so an image without them is the wrong image. Re-check this
+# number whenever the headline changes, and look at the PNG rather than
+# trusting the exit code.
+sips -c 1560 2880 --cropOffset 300 0 open-web-vectors.raw.png --out ow.tmp.png >/dev/null
 sips -Z 1760 ow.tmp.png --out open-web-vectors.png >/dev/null
 rm -f open-web-vectors.raw.png ow.tmp.png
 
