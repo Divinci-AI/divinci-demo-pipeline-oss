@@ -57,7 +57,7 @@ OUTPUT RULES — follow exactly:
 - Output ONLY a single valid JSON object, no markdown fences, no commentary.
 - Keep EVERY key and the nesting identical to the source (same shape).
 - Preserve inline placeholder tokens EXACTLY: {br}, {kbd}…{/kbd}, and any {0}/{1}/{name} tokens.
-- Do NOT translate: brand/product names (Excel Spine Center, Dr. Choll Kim, Divinci, Gemini), numbers, units, URLs.
+- Do NOT translate: brand/product names (Acme Spine Center, Dr. Robin Cole, Divinci, Gemini), numbers, units, URLs.
 - Translate ALL human-facing prose values into natural, fluent ${lang}.
 
 SOURCE JSON:

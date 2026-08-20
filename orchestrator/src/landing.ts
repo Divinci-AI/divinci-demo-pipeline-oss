@@ -350,7 +350,7 @@ export function brandObjectLiteral(d: LandingBrandDraft): string {
     // them; demos opt out.)
     // `showBios` is false when no real PERSON could be identified. The bio card
     // then falls back to the organisation's own name under a personal role, and
-    // a deployed demo read "The Space Finance Group — Founder". That is not a
+    // a deployed demo read "The Acme Finance Group — Founder". That is not a
     // polish issue: it is a false statement on a page we send to that company.
     // An absent section is honest; a wrong one is not.
     sections: { examples: false, comingSoon: false, bios: d.showBios !== false },
@@ -423,7 +423,7 @@ export function npmInstallEnv(base: NodeJS.ProcessEnv = process.env): NodeJS.Pro
  * Fields a re-extraction may add to an EXISTING brand draft.
  *
  * Backfill, not overwrite. A draft that already carries a value keeps it —
- * several are hand-tuned (AuraPath's wordmark is Fraunces italic 500 at
+ * several are hand-tuned (AcmePath's wordmark is Fraunces italic 500 at
  * `opsz 24`, set by hand), and silently replacing a human's correction with a
  * fresh guess is a worse failure than missing the new field entirely.
  *
@@ -469,9 +469,9 @@ export function backfillBrandDraft(
  * Collapse a doubled AI suffix in an EXISTING draft's productName.
  *
  * `${org} AI` was applied unconditionally, so a brand whose og:site_name
- * already ended in AI became "AuraPath AI AI". The generator fix only applies
+ * already ended in AI became "AcmePath AI AI". The generator fix only applies
  * at draft CREATION, so every draft written before it keeps the doubled name —
- * and it renders in the shared card's input placeholder ("Ask the AuraPath AI
+ * and it renders in the shared card's input placeholder ("Ask the AcmePath AI
  * AI…"), the chat byline and the copy prompts.
  *
  * A REPAIR, not a backfill: this rewrites a value that already exists, which
@@ -695,7 +695,7 @@ function syncBioArrayArity(siteDir: string, key: "roles" | "bodies", count: numb
  * So "Replace this with the founder's bio — background, coverage focus, and the
  * published research the assistant answers from." passes validation and ships.
  *
- * mach33 hit this because its team crawl found 0 members: with nobody to write
+ * acmeincubator hit this because its team crawl found 0 members: with nobody to write
  * about, the copy step returned the template's own words, and they rendered on a
  * page that was one approval away from a prospect. The design review caught it
  * only after being grounded in the DOM.
@@ -824,11 +824,11 @@ export const PLACEHOLDER_COPY = [
 /**
  * Does this name denote an ORGANISATION rather than a person?
  *
- * `prospectName` carries an optional parenthetical — "MD Spine Care (Dr. Ken
+ * `prospectName` carries an optional parenthetical — "Acme Spine Care (Dr. Ken
  * Chang)" — and the pipeline reads it as the lead person's name. Some queue
- * entries use it for the legal entity instead: "Mach33 (The Space Finance
+ * entries use it for the legal entity instead: "Acmeincubator (The Space Finance
  * Group)". The bio card then renders that entity under a personal role, and a
- * deployed demo read "The Space Finance Group — Founder".
+ * deployed demo read "The Acme Finance Group — Founder".
  *
  * Deliberately a suffix/keyword test rather than anything cleverer. It only
  * decides whether to SHOW a section, so a false positive costs a section that
@@ -1036,7 +1036,7 @@ export function readableOn(bg: string): string {
  * change — an inline-flex box exposes a baseline that broke the wrapper), and
  * this kept looking for the old string. It printed
  * `alignAiMark: hero AI wrapper not found — template changed?` and returned
- * false, and the run carried on. Observed on acmesecurity and leadwithimpact; how
+ * false, and the run carried on. Observed on acmesecurity and acmeimpact; how
  * many runs shipped un-nudged is unknown, because a warning nobody greps for is
  * not a signal.
  *
@@ -1113,7 +1113,7 @@ export function isTextLockup(draft: { logoIsMark?: boolean; logoFile?: string })
  *
  * The nudge moves the AI mark UP by a fixed 3.75/5px; logoBaselineDrop moves
  * the LOGO down by however much that particular file actually needs, read from
- * its alpha channel. Aquillius shipped both for one deploy: 5.09px of measured
+ * its alpha channel. Acme Advisors shipped both for one deploy: 5.09px of measured
  * drop plus 5px of guessed lift, i.e. 10px of correction where 5 was called
  * for, and the AI ended up as far below the letters as it had been above them.
  *

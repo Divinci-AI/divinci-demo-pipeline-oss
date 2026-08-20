@@ -122,12 +122,12 @@ describe("demoLinkBlock", () => {
   const base = { link: "https://demo-x.workers.dev", expires: "2026-08-21", readiness: { ready: true } };
 
   it("carries the preview password — the link 401s without it", () => {
-    // mach33's draft read "It's live now:" above a URL answering 401. The
+    // acmeincubator's draft read "It's live now:" above a URL answering 401. The
     // password existed in state.json and on the review-board task, one artifact away
     // from the only place it was needed. Every demo is preview-gated until Gate
     // 3, so this was every outreach email the pipeline had ever drafted.
-    const out = demoLinkBlock({ ...base, auth: { username: "preview", password: "mach33-4943" } });
-    expect(out).toContain("mach33-4943");
+    const out = demoLinkBlock({ ...base, auth: { username: "preview", password: "acmeincubator-4943" } });
+    expect(out).toContain("acmeincubator-4943");
     expect(out).toContain("preview");
   });
 

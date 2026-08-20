@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { buildFoundationPrompt, type FoundationKit } from "./gen-foundation.js";
 
 const base: FoundationKit = {
-  org: "MD Spine Care", productName: "MD Spine Care AI",
+  org: "Acme Spine Care", productName: "Acme Spine Care AI",
   tagline: "Every procedure. Every page. Every answer.",
   valueProp: "Trained only on our content.",
   palette: { primary: "#172e47", accent: "#1877f2", mid: "#264c75", cream: "#fff", soft: "#f5f5f5", text: "#111" },

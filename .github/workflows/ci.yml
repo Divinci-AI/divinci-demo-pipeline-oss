@@ -117,63 +117,39 @@ jobs:
 
       - name: No third-party names, and no account subdomain
         run: |
-          # ── What this is ──────────────────────────────────────────────────
-          #
           # This repository was extracted from one that ran a real prospect
           # pipeline. `runs/` and `research/` were withheld because they name
-          # third parties — but the names survived anyway, in test fixtures,
-          # doc examples, incident narratives and six one-off migration
-          # scripts. `migrate-landing-v4.mjs` and `rollout-translations.sh`
-          # were, between them, a list of fourteen named health companies and
-          # physicians with the dates we built demos for them.
+          # third parties — the names survived anyway, in test fixtures, doc
+          # examples and incident narratives.
           #
-          # None of it was a credential, which is why three separate secret
-          # sweeps walked straight past it.
+          # The first version of this step was a plaintext alternation listing
+          # about thirty real companies and eight real people. Two problems,
+          # and the second is why it is now a script:
           #
-          # The scripts were deleted (they read a `runs/` that does not exist
-          # here, and nothing referenced them). Everything else was renamed to
-          # the acme-* family. This keeps it that way.
+          #  1. It PUBLISHED them. A roster of the companies a demo pipeline
+          #     was run against, committed to a public repository, in the file
+          #     whose purpose was to stop this repository naming them — and
+          #     permanently, in git history, whether or not anything else in
+          #     the tree ever mentioned them.
           #
-          # ⚠️ Add a name here when you remove one from the tree, not before —
-          # a pattern that already matches is a build that is already red, and
-          # the first thing anyone does with a permanently-red check is delete
-          # it.
-          # ── slugs ─────────────────────────────────────────────────────────
-          if git grep -nPI '\b(mdspinecare|drhyman|satsearch|caseymeans|ibji|payloadspace|ssip|33fg|backincontrol|drchatterjee|nutritionfacts|peterattiamd|amymyersmd|centenoschultz|stoneclinic|texasback|discsportsspine|drvondawright|drwilliamli)\b' \
-               -- . ':!.github/**'; then
-            echo "::error::a real third party is named in a public repository — use an acme-* fixture name"
-            exit 1
-          fi
-
-          # ── company names in PROSE, and their domains ────────────────────
+          #  2. It did not work. 188 lines across 41 files named 32 real
+          #     parties while it passed, including six physicians — three of
+          #     whom were IN its own pattern. It was case-sensitive, so a name
+          #     in a `SCREAMING_CASE` fixture constant or a lowercase filename
+          #     was invisible; it used `\b`, which does not fire against `_`,
+          #     so a `NAME_SITE` constant had no boundary after the name at
+          #     all; and its list came from names somebody noticed while
+          #     reading rather than from the authoritative set, so the two most
+          #     frequent offenders (39 and 22 hits) were never in it.
           #
-          # The slug sweep above could not see these, because a slug pattern
-          # does not match "Applied BioCode". They were found only by reading a
-          # comment. Note `ansirsd.com`: the extraction deliberately WITHHELD
-          # that third party's security disclosure, and its domain shipped
-          # anyway in test fixtures — withholding a document does not withhold
-          # the name.
-          if git grep -nPI '(Applied BioCode|BioRenew|Banner Health|Seeking Health|Stone Clinic|EvoNexus|apbiocode|biorenewim|evonexus|thorne\.com|drlongevityrx|drfuhrman|ansirsd|dodcyberconsulting)' \
-               -- . ':!.github/**'; then
-            echo "::error::a real company or its domain is named — use an Acme-family fixture"
-            exit 1
-          fi
-
-          # ── named individuals ────────────────────────────────────────────
-          #
-          # The most sensitive class and the last one found: real physicians
-          # and scientists, by full name and credential, in test fixtures —
-          # including two well-known public figures. A person's name is not
-          # secret-shaped, so no secret scanner will ever flag it.
-          if git grep -nPI '(Kuwamura|Dantsker|Nangunoori|Fuhrman|Peter Attia|Jacob Woodruff|Rory Moore|Kelly Ko)' \
-               -- . ':!.github/**'; then
-            echo "::error::a real person is named in a public repository — use an invented name"
-            exit 1
-          fi
+          # The replacement hashes the list and matches lowercase-alphanumeric
+          # shingles, which removes all three failure modes structurally. See
+          # the script header.
+          python3 .github/scripts/check-third-party-names.py
 
           # The originating account's workers.dev subdomain. Not a secret, but
-          # it names whose infrastructure this was, and a fork copying a fixture
-          # would point at it.
+          # it names whose infrastructure this was, and a fork copying a
+          # fixture would point at it.
           if git grep -nPI 'divinci-ai\.workers\.dev' -- . ':!.github/**'; then
             echo "::error::the originating account's workers.dev subdomain is committed"
             exit 1

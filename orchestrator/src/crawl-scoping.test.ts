@@ -37,7 +37,7 @@ describe("sitemap crawls inherit the source URL's path", () => {
   });
 
   it("does not derive from a URL that IS a sitemap file", () => {
-    // e.g. https://primumlaw.com/page-sitemap.xml — its path is the file, not
+    // e.g. https://acmelaw.com/page-sitemap.xml — its path is the file, not
     // a section, and filtering on it would match nothing.
     expect(runTs).toContain('!urlPath.endsWith(".xml")');
   });

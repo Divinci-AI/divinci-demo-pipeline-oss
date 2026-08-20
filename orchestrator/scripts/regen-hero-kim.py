@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Regenerate the excelspine hero: a single large circular surgical light
-filling the frame with Dr. Choll Kim standing in front of it, rendered as the
+"""Regenerate the acmespineco hero: a single large circular surgical light
+filling the frame with Dr. Robin Cole standing in front of it, rendered as the
 subtle teal illustration. Uses the original OR source photo (accurate likeness
 of Dr. Kim) as the input reference.
 

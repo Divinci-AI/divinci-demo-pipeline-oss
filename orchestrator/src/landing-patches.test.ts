@@ -349,7 +349,7 @@ describe("stripPlaceholderBios", () => {
 
   it("blanks the template's own text when the copy step echoed it back", () => {
     // validateEnTs checks SHAPE — same keys, same array lengths — which a model
-    // satisfies perfectly by returning the neutral text unchanged. mach33 shipped
+    // satisfies perfectly by returning the neutral text unchanged. acmeincubator shipped
     // "Replace this with the founder's bio…" to a page one approval from a
     // prospect, and only a DOM-grounded design review caught it.
     const f = join(siteDir, "en.ts");
@@ -396,14 +396,14 @@ describe("stripPlaceholderBios", () => {
 
 describe("looksLikeOrganisation", () => {
   it("catches the entity that shipped as a Founder", () => {
-    // "Mach33 (The Space Finance Group)" — the parenthetical is read as the
-    // lead person, so the bio card rendered "The Space Finance Group — Founder"
+    // "Acmeincubator (The Acme Finance Group)" — the parenthetical is read as the
+    // lead person, so the bio card rendered "The Acme Finance Group — Founder"
     // on a live demo.
-    expect(looksLikeOrganisation("The Space Finance Group")).toBe(true);
+    expect(looksLikeOrganisation("The Acme Finance Group")).toBe(true);
   });
 
   it("leaves real people alone", () => {
-    for (const n of ["Dr. Pat Morgan", "Ken Chang", "Dr. Vonda Wright", "Chris Vance, MD"])
+    for (const n of ["Dr. Pat Morgan", "Ken Chang", "Dr. Iris Bello", "Chris Vance, MD"])
       expect(looksLikeOrganisation(n), n).toBe(false);
   });
 

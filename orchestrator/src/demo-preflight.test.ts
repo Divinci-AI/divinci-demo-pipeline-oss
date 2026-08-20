@@ -4,7 +4,7 @@ import { evaluatePreflight, formatDefects, measureUntilStable, PLACEHOLDER_TEXT,
 const viewport = (over: Partial<Measurements["viewports"][0]> = {}) => ({
   label: "desktop",
   width: 1440,
-  text: "Mach33 AI — answers from our space-sector research.",
+  text: "Acmeincubator AI — answers from our space-sector research.",
   brokenImages: [],
   deadVideos: [],
   horizontalScroll: false,

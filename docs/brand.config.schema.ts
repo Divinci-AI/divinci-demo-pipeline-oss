@@ -15,11 +15,11 @@
 
 export interface BrandConfig {
   identity: {
-    /** "MD Spine Care" — used in OG, copyright, og:site_name */
+    /** "Acme Spine Care" — used in OG, copyright, og:site_name */
     siteName: string;
     /** canonical site, e.g. "https://acmespine-demo.divinci.app" */
     domain: string;
-    /** the AI product name shown in chat, e.g. "DFO AI" → "MD Spine Care AI" */
+    /** the AI product name shown in chat, e.g. "DFO AI" → "Acme Spine Care AI" */
     productName: string;
     /** copyright holder text; year is always dynamic */
     legalName: string;
@@ -108,15 +108,15 @@ export interface BrandConfig {
 }
 
 /* ----------------------------------------------------------------------------
- * Example — the values Step 2's auto-extractor would draft for MD Spine Care,
+ * Example — the values Step 2's auto-extractor would draft for Acme Spine Care,
  * shown filled in so the schema is concrete. (Illustrative; not wired yet.)
  * --------------------------------------------------------------------------*/
-export const MDSPINECARE_EXAMPLE: BrandConfig = {
+export const ACMESPINE_EXAMPLE: BrandConfig = {
   identity: {
-    siteName: "MD Spine Care",
+    siteName: "Acme Spine Care",
     domain: "https://acmespine-demo.divinci.app",
-    productName: "MD Spine Care AI",
-    legalName: "MD Spine Care & Orthopaedics",
+    productName: "Acme Spine Care AI",
+    legalName: "Acme Spine Care & Orthopaedics",
   },
   palette: {
     // placeholder — Step 2 extracts real values from acmespine.com
@@ -145,7 +145,7 @@ export const MDSPINECARE_EXAMPLE: BrandConfig = {
     ],
   },
   chat: {
-    fallbackWelcome: "Hi, I'm MD Spine Care's AI assistant. Ask me about spine procedures, recovery, or scheduling a consult.",
+    fallbackWelcome: "Hi, I'm Acme Spine Care's AI assistant. Ask me about spine procedures, recovery, or scheduling a consult.",
     starters: [
       "What is ACDF surgery and what does recovery look like?",
       "What's the difference between XLIF and ALIF?",
@@ -157,7 +157,7 @@ export const MDSPINECARE_EXAMPLE: BrandConfig = {
     favicon: "brand/favicon.svg",
     heroImage: "brand/hero.webp",
     ogTagline: "Spine answers, 24/7.",
-    ogSubtitle: "AI-powered patient education from MD Spine Care — chat anytime, in any language.",
+    ogSubtitle: "AI-powered patient education from Acme Spine Care — chat anytime, in any language.",
   },
   referral: { source: "acmespine-demo" },
   deploy: { workerName: "acmespine-landing", demoHost: "acmespine-demo.divinci.app" },

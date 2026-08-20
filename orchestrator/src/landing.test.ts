@@ -2,10 +2,10 @@ import { describe, it, expect } from "vitest";
 import { brandObjectLiteral, applyBrandConfig, npmInstallEnv, misattributedBioBodies, defaultAiNudge, defaultHeaderAiNudge, type LandingBrandDraft } from "./landing.js";
 
 const draft: LandingBrandDraft = {
-  siteName: "MD Spine Care",
+  siteName: "Acme Spine Care",
   domain: "https://demo-acmespine-landing.example-account.workers.dev",
-  productName: "MD Spine Care AI",
-  legalName: "MD Spine Care",
+  productName: "Acme Spine Care AI",
+  legalName: "Acme Spine Care",
   palette: { primary: "#172e47", dark: "#0f1e2e", mid: "#264c75", accent: "#1877f2", cream: "#ffffff", soft: "#f5f5f5", bubble: "#cfe3fc", text: "#1a1a1a" },
   mainSite: "https://www.acmespine.com",
   signupUrl: "https://www.acmespine.com/contact",
@@ -16,7 +16,7 @@ const draft: LandingBrandDraft = {
   bios: [{ name: "Dr. Alex Rivera", title: "About", blurbKey: "bios.bodies.0" }],
   corpusFraming: "Built on our published knowledge base",
   corpusStats: [{ value: "99", label: "sources" }],
-  fallbackWelcome: "Hi, I'm the MD Spine Care AI.",
+  fallbackWelcome: "Hi, I'm the Acme Spine Care AI.",
   starters: ["a", "b", "c"],
   ogTagline: "Spine answers 24/7",
   ogSubtitle: "AI patient education",
@@ -45,7 +45,7 @@ describe("brandObjectLiteral", () => {
 
   it("HIDES the team section when no real person was identified", () => {
     // The card falls back to the organisation's own name under a personal role.
-    // A deployed demo read "The Space Finance Group — Founder", which is not a
+    // A deployed demo read "The Acme Finance Group — Founder", which is not a
     // polish issue but a false statement on a page we send to that company.
     expect(JSON.parse(brandObjectLiteral({ ...draft, showBios: false })).sections.bios).toBe(false);
   });
@@ -204,7 +204,7 @@ describe("misattributedBioBodies", () => {
     // Most of the fleet is one "About" card whose prose legitimately says
     // "our founder" without ever stating a surname. Flagging those would blank
     // good copy across ~40 demos to fix a problem they do not have.
-    const one = [{ name: "Dr. Amy Myers" }];
+    const one = [{ name: "Dr. Robin Cole" }];
     expect(misattributedBioBodies(one, ["Our founder writes about thyroid health."])).toEqual([]);
   });
 
@@ -224,7 +224,7 @@ describe("misattributedBioBodies", () => {
 
 describe("a measured logo drop supersedes the guessed AI nudge", () => {
   it("zeroes the nudge when the logo was actually measured", () => {
-    // Both fix the same defect. Aquillius shipped both for one deploy: 5.09px
+    // Both fix the same defect. Acme Advisors shipped both for one deploy: 5.09px
     // of measured drop plus 5px of guessed lift, i.e. double the correction —
     // the AI ended as far BELOW the letters as it had been above them.
     expect(defaultAiNudge(false, 0.0909)).toEqual({ base: 0, md: 0 });

@@ -10,7 +10,7 @@ const p = (id: string, name: string): BoardProject => ({
 
 const BOARD = [
   p("stone-qualified", "Demo — The Acme Clinic (Dr. Kevin R. Stone)"),
-  p("mdspine", "Demo — MD Spine Care (Dr. Alex Rivera)"),
+  p("mdspine", "Demo — Acme Spine Care (Dr. Alex Rivera)"),
   p("apbio", "Demo — Acme Bio (acmebio.com)"),
   p("deploys", "🚀 Deploys"),
 ];
@@ -30,12 +30,12 @@ describe("resolveProjectByName", () => {
   });
 
   it("refuses an AMBIGUOUS prefix instead of guessing", () => {
-    // "Demo — Dr. Will" must not silently adopt "Demo — Dr. William Li".
+    // Two projects share the prefix, so the prefix identifies neither.
     const board = [
-      p("a", "Demo — Dr. William Li (nutrition)"),
-      p("b", "Demo — Dr. William Osler (history)"),
+      p("a", "Demo — Dr. Rowan Pike (nutrition)"),
+      p("b", "Demo — Dr. Rowan Ashby (history)"),
     ];
-    expect(resolveProjectByName(board, "Demo — Dr. William")).toBeUndefined();
+    expect(resolveProjectByName(board, "Demo — Dr. Rowan")).toBeUndefined();
   });
 
   it("does not match a longer name against a shorter project", () => {
@@ -53,7 +53,7 @@ describe("resolveProjectByName", () => {
   });
 
   it("is unaffected by unrelated projects on the board", () => {
-    expect(resolveProjectByName(BOARD, "Demo — MD Spine Care")?.id).toBe("mdspine");
+    expect(resolveProjectByName(BOARD, "Demo — Acme Spine Care")?.id).toBe("mdspine");
   });
 });
 

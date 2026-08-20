@@ -35,7 +35,7 @@ export interface HeroLockupMeasurement {
    * The AI MARK's own contrast against what is painted behind it.
    *
    * Separate from `contrast`, which is the WORDMARK's. They are not the same
-   * measurement and can disagree completely: Aquillius extracts `primary` and
+   * measurement and can disagree completely: Acme Advisors extracts `primary` and
    * `accent` as the same orange, so its header drew the AI in the exact colour
    * of the bar behind it — invisible — while this check reported 20.97:1 for
    * the white wordmark beside it and passed. A green badge on an absent mark.

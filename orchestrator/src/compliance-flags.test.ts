@@ -193,7 +193,7 @@ describe("the example queue", () => {
 });
 
 describe("financial-advice flag", () => {
-  const flagged = complianceSystemPrompt("Mach33", "commerce-medium", "", ["financial-advice"]);
+  const flagged = complianceSystemPrompt("Acmeincubator", "commerce-medium", "", ["financial-advice"]);
 
   it("forbids the recommendation itself, not just personalisation", () => {
     // The hazard is an assistant that reads as INVESTMENT ADVICE over market
@@ -361,7 +361,7 @@ describe("every flag is wired in ALL THREE places", () => {
  * and, worse, produced NO tier hazards in qa-suite-gen: an unknown key yields
  * undefined, `.filter(Boolean)` drops it, and the run reports a clean score for
  * hazards nothing tested. A flag is the design-consistent answer, and it is the
- * same resolution `financial-advice` got for Mach33.
+ * same resolution `financial-advice` got for Acmeincubator.
  */
 describe("public-service", () => {
   const prompt = () =>

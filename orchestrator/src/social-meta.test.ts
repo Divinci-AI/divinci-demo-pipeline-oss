@@ -7,7 +7,7 @@ import { ensureSocialMeta } from "./landing.js";
  * og tags whatsoever — a link posted to Slack or X unfurled as a bare URL.
  */
 const META = {
-  siteName: "Dr. Mark Hyman",
+  siteName: "Dr. Ellis Vaughn",
   description: "Chat 24/7 with an assistant trained on the published work.",
   imageAlt: "Every book. Every episode.",
   pageUrl: "https://demo-acmedoctor-landing.example-account.workers.dev/",
@@ -17,7 +17,7 @@ const SHELL = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Dr. Mark Hyman AI — Every book. Every episode. Every answer.</title>
+<title>Dr. Ellis Vaughn AI — Every book. Every episode. Every answer.</title>
 </head>
 <body><h1>hi</h1></body>
 </html>`;
@@ -28,7 +28,7 @@ const get = (html: string, attr: string, key: string) =>
 describe("ensureSocialMeta", () => {
   it("adds the tags an unfurl actually needs", () => {
     const out = ensureSocialMeta(SHELL, META);
-    expect(get(out, "property", "og:title")).toContain("Dr. Mark Hyman AI");
+    expect(get(out, "property", "og:title")).toContain("Dr. Ellis Vaughn AI");
     expect(get(out, "property", "og:description")).toBe(META.description);
     expect(get(out, "name", "twitter:card")).toBe("summary_large_image");
   });
@@ -45,7 +45,7 @@ describe("ensureSocialMeta", () => {
     // It is the line the copy generator wrote for this brand — a better
     // headline than anything reconstructed from the site name.
     expect(get(ensureSocialMeta(SHELL, META), "property", "og:title")).toBe(
-      "Dr. Mark Hyman AI — Every book. Every episode. Every answer.",
+      "Dr. Ellis Vaughn AI — Every book. Every episode. Every answer.",
     );
   });
 

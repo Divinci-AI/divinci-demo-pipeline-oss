@@ -40,7 +40,7 @@ export const MAX_PAGES = Number(process.env.GATE1_AUTO_MAX_PAGES ?? 400);
  *
  * `clinic-high` means an operating clinic: the corpus is patient-facing
  * material about people's bodies, and what belongs in it is a judgement about
- * medical context rather than a measurement. EmergeOrtho is the live example —
+ * medical context rather than a measurement. Acmeemerge is the live example —
  * discovery scored it 74 and it is exactly the kind of prospect that should
  * have a person read the plan.
  */
@@ -50,7 +50,7 @@ export const TIERS_NEEDING_A_HUMAN = new Set(["clinic-high"]);
  * Markers an operator uses to say "stop here".
  *
  * The queue's `notes` field is where a human records a doubt — "⚠️ TIER GAP —
- * read before Gate 1" sat on mach33 for exactly this reason. Auto-approval must
+ * read before Gate 1" sat on acmeincubator for exactly this reason. Auto-approval must
  * honour that, or the one channel we have for flagging a prospect becomes
  * decorative the day this ships.
  */

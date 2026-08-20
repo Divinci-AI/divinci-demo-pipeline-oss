@@ -3,7 +3,7 @@ import { personSurnames, scoreCandidate, parseTeam, roleFromHeading, inferFallba
 
 describe("parseTeam", () => {
   const portraits = [
-    { src: "https://x/kuwamura.jpg", top: 200, w: 300, h: 400 },
+    { src: "https://x/alvarez.jpg", top: 200, w: 300, h: 400 },
     { src: "https://x/raj.jpg", top: 900, w: 300, h: 400 },
   ];
   it("extracts credentialed people, matches the nearest photo, dedups by surname", () => {
@@ -16,7 +16,7 @@ describe("parseTeam", () => {
       ],
     }, "Spine Surgeon");
     expect(team.map((m) => m.name)).toEqual(["Dr. Alex Rivera", "Dr. Robin Patel"]);
-    expect(team[0].imageUrl).toContain("kuwamura");
+    expect(team[0].imageUrl).toContain("alvarez");
     expect(team[1].imageUrl).toContain("raj");
     expect(team[0].title).toBe("Spine Surgeon");
   });
@@ -27,7 +27,7 @@ describe("parseTeam", () => {
         { text: "Allegheny General Hospital, Pittsburgh, PA", top: 210, blurb: "" },
         { text: "Drexel University, Philadelphia, PA", top: 250, blurb: "" },
         { text: "Education", top: 300, blurb: "" },
-        { text: "MD Spine Care", top: 350, blurb: "" },
+        { text: "Acme Spine Care", top: 350, blurb: "" },
       ],
     });
     expect(team).toEqual([]);
@@ -36,7 +36,7 @@ describe("parseTeam", () => {
 
 describe("personSurnames", () => {
   it("extracts the person from an 'Org (Dr. Person)' bio name, dropping org words", () => {
-    expect(personSurnames("MD Spine Care (Dr. Alex Rivera)")).toEqual(["alex", "rivera"]);
+    expect(personSurnames("Acme Spine Care (Dr. Alex Rivera)")).toEqual(["alex", "rivera"]);
   });
   it("strips titles + punctuation from a plain name", () => {
     expect(personSurnames("Dr. Jane A. Smith, M.D.")).toEqual(["jane", "smith"]);
@@ -67,8 +67,8 @@ describe("scoreCandidate", () => {
     expect(doc).toBeGreaterThan(plain);
   });
   it("strongly boosts a surname match (the wrong-person guard)", () => {
-    const noName = scoreCandidate({ ...base, src: "https://x/team-1.jpg" }, ["kuwamura"]);
-    const named = scoreCandidate({ ...base, src: "https://x/frank-kuwamura-md.jpg" }, ["kuwamura"]);
+    const noName = scoreCandidate({ ...base, src: "https://x/team-1.jpg" }, ["alvarez"]);
+    const named = scoreCandidate({ ...base, src: "https://x/frank-alvarez-md.jpg" }, ["alvarez"]);
     expect(named).toBeGreaterThanOrEqual(noName + 5);
   });
 });
@@ -82,7 +82,7 @@ describe("parseTeam — non-clinical sites", () => {
   // Shape taken from acmeincubator.org/people/.
   const acmeincubator = {
     portraits: [
-      { src: "https://x/dantsker.jpg", top: 200, w: 300, h: 300 },
+      { src: "https://x/okafor.jpg", top: 200, w: 300, h: 300 },
       { src: "https://x/kim.jpg", top: 800, w: 300, h: 300 },
     ],
     headings: [
@@ -120,7 +120,7 @@ describe("parseTeam — non-clinical sites", () => {
 
   it("matches each portrait to its OWN card, closest first", () => {
     const team = parseTeam(acmeincubator);
-    expect(team[0].imageUrl).toContain("dantsker");
+    expect(team[0].imageUrl).toContain("okafor");
     expect(team[1].imageUrl).toContain("kim");
   });
 
@@ -170,7 +170,7 @@ describe("parseTeam — grid layouts", () => {
     { text: "John LeMoine, MD", top, left: 900, blurb: "" },
   ];
   const portraits = [
-    { src: "https://x/dantsker.jpg", top: 1290, left: 100, w: 300, h: 300 },
+    { src: "https://x/okafor.jpg", top: 1290, left: 100, w: 300, h: 300 },
     { src: "https://x/hill.jpg", top: 1290, left: 500, w: 300, h: 300 },
     { src: "https://x/lemoine.jpg", top: 1290, left: 900, w: 300, h: 300 },
   ];
@@ -178,7 +178,7 @@ describe("parseTeam — grid layouts", () => {
   it("matches each person to the portrait in their OWN column", () => {
     const team = parseTeam({ portraits, headings: row(1290) });
     const by = Object.fromEntries(team.map((m) => [m.name, m.imageUrl]));
-    expect(by["Dr. Sam Torres"]).toContain("dantsker");
+    expect(by["Dr. Sam Torres"]).toContain("okafor");
     expect(by["Dr. Michael Hill"]).toContain("hill");
     expect(by["Dr. John LeMoine"]).toContain("lemoine");
   });

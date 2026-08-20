@@ -9,8 +9,8 @@ import { execFileSync } from "node:child_process";
  * mark overshoots, so the image's lowest ink belongs to the MARK and the
  * letters float above the "AI" next to them.
  *
- * Measured on Aquillius (643x143): the flame occupies rows 3..142 while
- * "AQUILLIUS" occupies rows 55..129. Thirteen pixels of overshoot — ~5px once
+ * Measured on Acme Advisors (643x143): the flame occupies rows 3..142 while
+ * "ACMEADVISORS" occupies rows 55..129. Thirteen pixels of overshoot — ~5px once
  * the logo is drawn at the hero's 56px, which is exactly the gap visible on the
  * deployed page.
  *
@@ -40,7 +40,7 @@ export const MIN_BASELINE_SUPPORT = 0.25;
  * at least MIN_BASELINE_SUPPORT of the inked columns, and return the LOWEST of
  * them. Two different logos make that the right rule for two different reasons:
  *
- *   - Aquillius: letters on row 129 (~520 columns) and a flame descending to
+ *   - Acme Advisors: letters on row 129 (~520 columns) and a flame descending to
  *     row 142 (~100 columns). The flame is 16% of the columns, below the
  *     support floor, so it cannot pass for a baseline. The letters win.
  *   - A logo with a TAGLINE under the wordmark has two well-supported rows.

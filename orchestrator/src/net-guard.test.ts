@@ -48,9 +48,9 @@ describe("isSameSite", () => {
   });
 
   it("rejects a lookalike that merely ENDS with the name", () => {
-    // "evilstoneclinic.com".endsWith("acmeclinic.com") is true — the dot is
+    // "evilacmeclinic.com".endsWith("acmeclinic.com") is true — the dot is
     // what makes this a subdomain check rather than a substring check.
-    expect(isSameSite("evilstoneclinic.com", "acmeclinic.com")).toBe(false);
+    expect(isSameSite("evilacmeclinic.com", "acmeclinic.com")).toBe(false);
     expect(isSameSite("acmeclinic.com.evil.net", "acmeclinic.com")).toBe(false);
   });
 });

@@ -41,7 +41,7 @@ reported rather than guessed.
   3. Last resort, an exact slug match on the run directory name.
 
 Strategy 2 exists because slugs are lossy in both directions: the card
-"NutritionFacts.org (Dr. Michael Greger)" slugs to `nutritionfactsorg` while
+"Acmefacts.org (Dr. Dana Reyes)" slugs to `acmefactsorg` while
 the directory is `acmenutrition`, and no amount of fuzzing that comparison is
 safe when the cost of a wrong answer is a personalised email sent to the wrong
 company. Reading the manifest removes the guesswork instead of tuning it.

@@ -107,11 +107,11 @@ describe("the discovery prompt", () => {
     // that same file is how they come back out as prose.
     const p = buildDiscoveryPrompt({
       rubric: "vertical match 30%",
-      existing: [{ name: "Acme Supplements", url: "https://www.seekinghealth.com" }],
+      existing: [{ name: "Acme Supplements", url: "https://www.acmesupplements.com" }],
       workingClusters: ["Supplements"],
       count: 3,
     });
-    expect(p).toContain("Acme Supplements (seekinghealth.com)");
+    expect(p).toContain("Acme Supplements (acmesupplements.com)");
     expect(p).not.toMatch(/attio:/i);
     expect(p).not.toMatch(/adjacency score|deal record/i);
   });

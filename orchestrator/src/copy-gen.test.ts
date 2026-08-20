@@ -58,7 +58,7 @@ describe("extractEnShape (AST, no execution)", () => {
   it("accepts a differently-worded but same-shape file", () => {
     const customized = `
       export const en = {
-        meta: { title: "MD Spine Care", description: "spine answers" },
+        meta: { title: "Acme Spine Care", description: "spine answers" },
         nav: { chat: "Chat" },
         starters: ["What is ACDF?", "Mobi-C?", "XLIF vs ALIF?"],
         cards: [{ badge: "iOS", title: "App" }, { badge: "Web", title: "Offline" }],
@@ -97,7 +97,7 @@ describe("explainEnTsMismatch", () => {
 
   it("says nothing when the copy is compatible", () => {
     const n = write("n1.ts", `{ hero: { headline: "x" } }`);
-    const g = write("g1.ts", `{ hero: { headline: "Mach33 AI" } }`);
+    const g = write("g1.ts", `{ hero: { headline: "Acmeincubator AI" } }`);
     expect(explainEnTsMismatch(g, n)).toBeUndefined();
   });
 
@@ -108,7 +108,7 @@ describe("explainEnTsMismatch", () => {
     // "failed shape validation", which names nothing — diagnosing it by hand
     // cost most of an hour.
     const n = write("n2.ts", `{ header: { logoAriaLabel: "a", menuAriaLabel: "Menu" } }`);
-    const g = write("g2.ts", `{ header: { logoAriaLabel: "Mach33 AI" } }`);
+    const g = write("g2.ts", `{ header: { logoAriaLabel: "Acmeincubator AI" } }`);
     const why = explainEnTsMismatch(g, n)!;
     expect(why).toContain("menuAriaLabel");
     expect(why).toMatch(/MISSING/);

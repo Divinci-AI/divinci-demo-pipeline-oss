@@ -3,7 +3,7 @@ import { isFurnitureChunk, summariseCorpus, needsRecrawl, RECRAWL_THRESHOLD } fr
 
 /**
  * Pins the measurement that found 16 demo corpora worth re-crawling — led by
- * primumlaw at 100% and acmesecurity at 63% — after the live Acme Security assistant said it
+ * acmelaw at 100% and acmesecurity at 63% — after the live Acme Security assistant said it
  * had "no specific details on the types of spaces available" about a page that
  * describes them in 743 words.
  */
@@ -79,7 +79,7 @@ describe("needsRecrawl", () => {
   });
 
   it("flags the measured offenders", () => {
-    for (const [p, rate] of [["primumlaw", 1.0], ["acmesecurity", 0.63], ["acmebio", 0.51]] as const) {
+    for (const [p, rate] of [["acmelaw", 1.0], ["acmesecurity", 0.63], ["acmebio", 0.51]] as const) {
       expect(needsRecrawl({ prospect: p, chunks: 120, furniture: Math.round(120 * rate), furnitureRate: rate, textRate: rate }), p).toBe(true);
     }
   });

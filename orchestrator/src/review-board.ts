@@ -246,7 +246,7 @@ export async function createProject(
  * under another.
  *
  * The match must be UNIQUE. A bare prefix rule would let "Demo — Dr. Will"
- * silently adopt "Demo — Dr. William Li"; when a prefix is ambiguous this
+ * silently adopt "Demo — Dr. Rowan Pike"; when a prefix is ambiguous this
  * returns undefined and the caller creates an unambiguous project instead.
  */
 export function resolveProjectByName(

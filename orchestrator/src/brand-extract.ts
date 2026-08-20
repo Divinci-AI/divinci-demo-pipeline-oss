@@ -28,7 +28,7 @@ export interface ExtractedBrand {
    *  to the body font rather than pinning a duplicate into a second token. */
   displayFontFamily?: string;
   /** The rest of the display treatment, captured from the same element. A
-   *  wordmark is a specific CUT, not just a family: AuraPath's is Fraunces
+   *  wordmark is a specific CUT, not just a family: AcmePath's is Fraunces
    *  italic 500 at `opsz 24`, which looks nothing like Fraunces upright 400 at
    *  its default `opsz 144`. Each field is undefined when it matches the
    *  browser default and so carries no information. */
@@ -215,9 +215,9 @@ export function googleFontsCandidates(family?: string, opts: { italic?: boolean;
 /**
  * The brand's name with the AI suffix, without doubling one it already has.
  *
- * `${org} AI` is right for "Greystone" and wrong for "AuraPath AI", which the
+ * `${org} AI` is right for "Acme Realty" and wrong for "AcmePath AI", which the
  * extractor reads straight off og:site_name — that produced the product name
- * "AuraPath AI AI", carried into copy prompts, the chat byline and the example
+ * "AcmePath AI AI", carried into copy prompts, the chat byline and the example
  * transcript.
  *
  * Matches only a trailing word, so "Xenon AI Labs" is left alone: the suffix is
@@ -229,7 +229,7 @@ export function googleFontsCandidates(family?: string, opts: { italic?: boolean;
  * The hero lockup renders `[logo] AI` and relies on the logo carrying the
  * brand's NAME. That holds for a wordmark and fails completely for a mark: the
  * extractor's fallback chain ends at apple-touch-icon / og:image, which are
- * square app icons, so AuraPath's hero read "⟨A⟩ AI" with the word "AuraPath"
+ * square app icons, so AcmePath's hero read "⟨A⟩ AI" with the word "AcmePath"
  * nowhere on it.
  *
  * Aspect ratio is the signal — a wordmark is wide because it contains a word.
@@ -357,7 +357,7 @@ export function aiProductName(org: string): string {
  * trailing "AI" removed. Inverse of `aiProductName`.
  *
  * The hero lockup draws "AI" as its own styled element, so rendering the full
- * site name next to it reads "AuraPath AI AI" on screen for exactly the brands
+ * site name next to it reads "AcmePath AI AI" on screen for exactly the brands
  * whose name already carries the suffix.
  */
 export function brandNameWithoutAiSuffix(org: string): string {
@@ -369,7 +369,7 @@ export function brandNameWithoutAiSuffix(org: string): string {
  *
  * `withSansFallback` is right for body copy, where falling through to the UA
  * serif is the failure. It is wrong here: a display stack is often deliberately
- * a serif (AuraPath's headings are `Fraunces, Tiempos, Charter, Georgia,
+ * a serif (AcmePath's headings are `Fraunces, Tiempos, Charter, Georgia,
  * serif`), and appending a sans fallback to it says "if every serif is missing,
  * use a grotesque" — the opposite of what the brand chose.
  *
@@ -596,14 +596,14 @@ export function usableInlineSvg(svg: string): boolean {
   // meaningful in the context it was lifted from.
   //
   // Checked on the whole string, not the root tag, because a single
-  // stroke/fill on any child is enough to make the mark visible — izone3's had
+  // stroke/fill on any child is enough to make the mark visible — acmezone's had
   // exactly one (`<circle fill="currentColor">`), which is why it rendered as
   // a lone dot rather than nothing at all.
   //
   // `currentColor` does NOT count as paint here. It means "whatever colour the
   // surrounding text is", which is the same context dependency in another
   // form: standalone it falls back to the initial black rather than the
-  // brand's. izone3's mark was exactly this — every stroke from CSS plus one
+  // brand's. acmezone's mark was exactly this — every stroke from CSS plus one
   // `<circle fill="currentColor">` — so it would have rendered as a lone 1.2px
   // black dot in a 16px box. Loadable, and still not a logo.
   if (/\bfill\s*=\s*["']none["']/i.test(svg) && !/\bstroke\s*=\s*["'](?!none)/i.test(svg)) {
@@ -624,7 +624,7 @@ export function usableInlineSvg(svg: string): boolean {
  * parsed as XML, where the namespace is REQUIRED. The browser cannot decode
  * it, so `<img>` reports naturalWidth 0 with complete true.
  *
- * That is what izone3's logo did on 2026-08-14: HTTP 200, image/svg+xml, 316
+ * That is what acmezone's logo did on 2026-08-14: HTTP 200, image/svg+xml, 316
  * correct bytes, and ten "image never loaded" defects. Serving the right file
  * and serving a loadable file are different things, and only the second is
  * visible to a browser.
@@ -697,7 +697,7 @@ export async function extractBrand(url: string, outDir: string): Promise<Extract
         // body face into a second token.
         //
         // Prefers the header's own brand text (the wordmark) over an h1: that
-        // is the face the "AI" glyphs sit beside. AuraPath sets IBM Plex Sans
+        // is the face the "AI" glyphs sit beside. AcmePath sets IBM Plex Sans
         // on body and Fraunces on its header, and reading only the body put a
         // heavy grotesque next to a serif logo.
         display: (function () {
@@ -717,7 +717,7 @@ export async function extractBrand(url: string, outDir: string): Promise<Extract
             var txt = (cands[c].textContent || "").trim();
             if (cs.fontFamily && cs.fontFamily !== body && txt.length > 0) {
               // The whole treatment, not just the family. A brand's wordmark is
-              // a specific CUT — AuraPath's is Fraunces italic 500 at optical
+              // a specific CUT — AcmePath's is Fraunces italic 500 at optical
               // size 24, which looks nothing like Fraunces upright 400 at its
               // default opsz 144 (the high-contrast display cut).
               return {

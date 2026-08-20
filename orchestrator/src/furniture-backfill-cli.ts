@@ -203,7 +203,7 @@ export async function backfillOne(t: BackfillTarget, token: string): Promise<boo
     const batch = urls.slice(i, i + BATCH);
 
     // A transient network error must cost ONE BATCH, not the rest of the
-    // corpus. hughston-clinic died on batch 3 of 9 with a bare `fetch failed`
+    // corpus. acmesports-clinic died on batch 3 of 9 with a bare `fetch failed`
     // — token still valid, API healthy a moment later — and the remaining 380
     // URLs went unrepaired because the throw escaped to the per-prospect
     // catch. Retry the batch, then skip it and keep going.

@@ -11,7 +11,7 @@
 import { describe, expect, it } from "vitest";
 import { MIN_REPLICATES, formatTriage, noiseBand, triage } from "./qa-triage.js";
 
-const BIORENEW_A = [0.79, 0.87, 0.87];
+const ACMERENEW_A = [0.79, 0.87, 0.87];
 
 describe("noiseBand", () => {
   it("refuses to compute a band from fewer than 3 replicates", () => {
@@ -22,7 +22,7 @@ describe("noiseBand", () => {
   });
 
   it("reproduces the measured spread of an unchanged config", () => {
-    const b = noiseBand(BIORENEW_A)!;
+    const b = noiseBand(ACMERENEW_A)!;
     expect(b.n).toBe(3);
     expect(b.mean).toBeCloseTo(0.843, 3);
     // ±2sd spans roughly 76%–92% — which is why a single run per arm cannot
@@ -45,7 +45,7 @@ describe("triage — noise is checked before anything else", () => {
   it("calls a within-band failure NOISE and recommends no arms", () => {
     // 79% "fails" an 85% gate, but arm A scored exactly that with nothing
     // changed. Rebuilding here measures noise at the cost of five ingestions.
-    const t = triage({ qaScore: 0.79, threshold: 0.85, history: BIORENEW_A });
+    const t = triage({ qaScore: 0.79, threshold: 0.85, history: ACMERENEW_A });
     expect(t.verdict).toBe("noise");
     expect(t.recommendedArms).toEqual([]);
     expect(t.nextAction).toMatch(/Do not rebuild/);
@@ -66,14 +66,14 @@ describe("triage — noise is checked before anything else", () => {
   });
 
   it("proceeds when the score is genuinely below the band", () => {
-    const t = triage({ qaScore: 0.4, threshold: 0.85, history: BIORENEW_A });
+    const t = triage({ qaScore: 0.4, threshold: 0.85, history: ACMERENEW_A });
     expect(t.verdict).not.toBe("noise");
     expect(t.evidence.join(" ")).toContain("BELOW the band");
   });
 });
 
 describe("triage — corpus outranks the stack", () => {
-  const belowBand = { qaScore: 0.4, threshold: 0.85, history: BIORENEW_A };
+  const belowBand = { qaScore: 0.4, threshold: 0.85, history: ACMERENEW_A };
 
   it("names corpus coverage on the real Acme Renew numbers", () => {
     const t = triage({
@@ -121,7 +121,7 @@ describe("triage — retrieval vs generation, once the corpus is clean", () => {
   const clean = {
     qaScore: 0.4,
     threshold: 0.85,
-    history: BIORENEW_A,
+    history: ACMERENEW_A,
     coverage: { sitemapUrlCount: 29, ingestedUrlCount: 28, duplicateCount: 0 },
     corpus: { furnitureRatio: 0.1, needsRecrawl: false },
   };
@@ -157,7 +157,7 @@ describe("formatTriage", () => {
   it("says plainly when no arms are worth running", () => {
     // The expensive failure mode is a report that looks actionable when the
     // honest answer is "spending here would measure noise".
-    const t = triage({ qaScore: 0.79, threshold: 0.85, history: BIORENEW_A });
+    const t = triage({ qaScore: 0.79, threshold: 0.85, history: ACMERENEW_A });
     expect(formatTriage(t)).toContain("measure noise");
   });
 
@@ -166,7 +166,7 @@ describe("formatTriage", () => {
       triage({
         qaScore: 0.4,
         threshold: 0.85,
-        history: BIORENEW_A,
+        history: ACMERENEW_A,
         coverage: { sitemapUrlCount: 29, ingestedUrlCount: 8, duplicateCount: 4 },
       }),
     );

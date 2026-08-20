@@ -37,7 +37,7 @@ prospects:
     complianceTier: clinic-high
     score: 86
   - slug: acmemd
-    name: Dr. William Li
+    name: Dr. Rowan Pike
     url: https://acmemd.com
     anchorCustomer: "attio:deals/y"
     complianceTier: wellness-low
@@ -481,20 +481,20 @@ describe("compareProspects — direct requests outrank discovery", () => {
     ({ slug, requestedBy: "discovered", score, priority } as never);
 
   it("puts a direct request ahead of a discovered one that scores far higher", () => {
-    // buildandback scores 51 against discovered prospects in the 80s. The band
+    // acmebuild scores 51 against discovered prospects in the 80s. The band
     // is absolute — that is the whole point of the rule.
-    expect(compareProspects(direct("buildandback", 5, 51), found("mach33", 88))).toBeLessThan(0);
+    expect(compareProspects(direct("acmebuild", 5, 51), found("acmeincubator", 88))).toBeLessThan(0);
   });
 
   it("is not defeated by a high priority on the discovered side", () => {
     // A priority number could otherwise silently reorder what Michael asked for.
-    expect(compareProspects(direct("buildandback", 5, 51), found("x", 99, 9999))).toBeLessThan(0);
+    expect(compareProspects(direct("acmebuild", 5, 51), found("x", 99, 9999))).toBeLessThan(0);
   });
 
   it("runs the direct list in the order it was requested, ignoring score", () => {
-    expect(compareProspects(direct("seekinghealth", 1, 82), direct("greystone", 2, 64))).toBeLessThan(0);
+    expect(compareProspects(direct("acmesupplements", 1, 82), direct("acmerealty", 2, 64))).toBeLessThan(0);
     // Later request, higher score — still later.
-    expect(compareProspects(direct("anyaiyouwant", 6, 68), direct("buildandback", 5, 51))).toBeGreaterThan(0);
+    expect(compareProspects(direct("acmeanyai", 6, 68), direct("acmebuild", 5, 51))).toBeGreaterThan(0);
   });
 
   it("ranks discovered prospects among themselves by priority then score", () => {
@@ -504,13 +504,13 @@ describe("compareProspects — direct requests outrank discovery", () => {
 
   it("treats an unmarked prospect as discovered — the default must not jump the queue", () => {
     const legacy = { slug: "old", score: 99 } as never;
-    expect(compareProspects(direct("buildandback", 5, 51), legacy)).toBeLessThan(0);
+    expect(compareProspects(direct("acmebuild", 5, 51), legacy)).toBeLessThan(0);
   });
 
   it("sorts a direct entry with no directSeq AFTER sequenced ones, not first", () => {
     // A missing field must never promote something above what Michael ordered.
     const unsequenced = { slug: "oops", requestedBy: "direct" } as never;
-    expect(compareProspects(unsequenced, direct("anyaiyouwant", 6))).toBeGreaterThan(0);
+    expect(compareProspects(unsequenced, direct("acmeanyai", 6))).toBeGreaterThan(0);
   });
 });
 
