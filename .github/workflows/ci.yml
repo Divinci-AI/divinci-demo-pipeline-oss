@@ -145,6 +145,10 @@ jobs:
           # The replacement hashes the list and matches lowercase-alphanumeric
           # shingles, which removes all three failure modes structurally. See
           # the script header.
+          # The guard's own mechanics are tested, because its failure mode is
+          # to pass. Every case in that suite is a form the previous plaintext
+          # guard could not see.
+          python3 .github/scripts/test_check_third_party_names.py
           python3 .github/scripts/check-third-party-names.py
 
           # The originating account's workers.dev subdomain. Not a secret, but

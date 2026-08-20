@@ -44,7 +44,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 DENY_FILE = HERE / "forbidden-names.sha256"
-MAX_SHINGLE = 3
+MAX_SHINGLE = 5
 CAMEL = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
 NONALNUM = re.compile(r"[^A-Za-z0-9]+")
 
