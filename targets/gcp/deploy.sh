@@ -132,6 +132,12 @@ run gcloud builds submit --project "$GCP_PROJECT" \
 # The default pair below is 50 minutes against an hourly schedule. If you
 # shorten SCHEDULE, shorten TASK_TIMEOUT with it — the check below enforces the
 # relationship rather than trusting you to remember.
+# `${a[@]+"${a[@]}"}` at the use site, not a bare `"${a[@]}"`: under `set -u`,
+# bash 3.2 — which is what macOS ships, and what most contributors will run this
+# with — treats an EMPTY array expansion as an unbound variable and aborts. With
+# no secrets configured that killed the deploy AFTER a successful two-minute
+# image build. bash 4.4+ does not reproduce it, so this survives any test run on
+# a Linux CI box.
 SECRET_ARGS=()
 for s in $SECRETS; do SECRET_ARGS+=(--set-secrets "$s=$s:latest"); done
 
@@ -149,7 +155,7 @@ run gcloud run jobs "$VERB" "$JOB" \
   --add-volume "name=state,type=cloud-storage,bucket=$GCS_STATE_BUCKET" \
   --add-volume-mount "volume=state,mount-path=/app/state" \
   --set-env-vars "STATE_DIR=/app/state,RUN_LOCK_MAX_AGE_MS=${RUN_LOCK_MAX_AGE_MS:-7200000}" \
-  "${SECRET_ARGS[@]}"
+  ${SECRET_ARGS[@]+"${SECRET_ARGS[@]}"}
 
 # ── the schedule ────────────────────────────────────────────────────────────
 #
