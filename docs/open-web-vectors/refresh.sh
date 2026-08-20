@@ -43,15 +43,25 @@ echo "── Open Web Vectors ──"
 # ⚠️ NOT networkidle0. Both pages carry a live chat widget and a status poller,
 # so the network never goes idle and navigation times out at 45s every time.
 shot open-web-vectors '{"url":"https://divinci.ai/open-web-vectors/",
-  "viewport":{"width":1440,"height":900,"deviceScaleFactor":2},
+  "viewport":{"width":1440,"height":1200,"deviceScaleFactor":2},
   "gotoOptions":{"waitUntil":"domcontentloaded","timeout":45000},
   "waitForTimeout":9000,
+  "selector":".owv-hero",
   "screenshotOptions":{"type":"png"}}'
-# Crop away the site nav at the top and the chat bubble at the bottom, keeping
-# the hero and the live stat bar.
-sips -c 1240 2880 --cropOffset 300 0 open-web-vectors.raw.png --out ow.tmp.png >/dev/null
-sips -Z 1760 ow.tmp.png --out open-web-vectors.png >/dev/null
-rm -f open-web-vectors.raw.png ow.tmp.png
+# Captured by SELECTOR, not by a pixel crop.
+#
+# This used to be `sips -c 1240 2880 --cropOffset 300 0`, and that number was
+# secretly a function of how many lines the HEADLINE wrapped to. A rewrite on
+# 2026-08-20 took it from one line to four and pushed the live stat bar out of
+# frame — an image of the initiative with none of its numbers in it, produced by
+# a script that reported success. The next rewrite took it back to two lines,
+# which would have needed the number tuned a second time.
+#
+# `.owv-hero` is exactly the region this image should show: eyebrow, headline,
+# lead and the stat bar. Letting the element define the bounds means the copy
+# can change freely and the capture stays correct with no arithmetic.
+sips -Z 1760 open-web-vectors.raw.png --out open-web-vectors.png >/dev/null
+rm -f open-web-vectors.raw.png
 
 echo
 echo "✅ refreshed:"

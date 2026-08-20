@@ -288,7 +288,7 @@ We do appreciate contributions back — including a bug report that amounts to
 is the test this repo is built around. And the wider project it feeds is the
 [**Open Web Vectors Initiative**](https://divinci.ai/open-web-vectors/).
 
-[![The Open Web Vectors Initiative — the web is only legible to AI if someone already swallowed it. A public, per-site retrieval index: every site gets its own vector database, its own embeddings, and a chat endpoint grounded in its own words with citations back to the page. Nothing is trained on. Live counts: 1,656 sites indexed, 443,738 pages crawled, 7,022,048 chunks embedded, 3 GB of extracted text, 1,597 live chat endpoints, 224 pages for the median site.](docs/open-web-vectors/open-web-vectors.png)](https://divinci.ai/open-web-vectors/)
+[![The Open Web Vectors Initiative — the open web has no retrieval layer of its own. A public, per-site retrieval index: every site gets its own vector database, its own embeddings, and a chat endpoint grounded in its own words with citations back to the page. Nothing is trained on. Live counts: 2,588 sites indexed, 651,743 pages crawled, 12,332,710 chunks embedded, 4.5 GB of extracted text, 2,529 live chat endpoints, 249 pages for the median site.](docs/open-web-vectors/open-web-vectors.png)](https://divinci.ai/open-web-vectors/)
 
 A public, per-site retrieval index where every site gets its own vectors, its
 own embeddings and a citation-backed chat endpoint, nothing is trained on, and
