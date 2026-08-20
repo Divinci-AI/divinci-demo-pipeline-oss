@@ -120,7 +120,7 @@ export TRIGGER_TOKEN=<the bearer you set>
 
 ./run-batch.sh example.com              # dry run — shows what WOULD be sent
 ./run-batch.sh --go example.com         # send it
-curl -H "Authorization: Bearer $TRIGGER_TOKEN" "$PIPELINE_URL/status"
+curl -H "Authorization: Bearer $TRIGGER_TOKEN" "$PIPELINE_URL/status?id=<the id run-batch printed>"
 ```
 
 Prefer `run-batch.sh` over hand-rolled curl: it carries the in-flight guard. A

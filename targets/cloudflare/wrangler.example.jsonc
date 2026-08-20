@@ -1,4 +1,13 @@
-// Copy to `wrangler.jsonc` and fill in the four values marked ⬅ CHANGE ME.
+// Copy to `wrangler.jsonc` and fill in the FIVE values marked ⬅ CHANGE ME.
+//
+// Every one is a REPLACE_ME sentinel, not a working example. That is
+// deliberate, and it is the same rule the README states for secrets: a default
+// that is merely wrong fails on the first call, but a default naming a real
+// resource SUCCEEDS and gives you no signal. This file previously shipped the
+// upstream deployment's own worker, workflow and bucket names as its
+// "placeholders" — so anyone in that account who missed a CHANGE ME would have
+// deployed over the live worker and written into the live bucket. Caught by
+// deploying it.
 // `wrangler.jsonc` is gitignored, so your account's identifiers never get
 // committed.
 //
@@ -9,16 +18,17 @@
   "$schema": "node_modules/wrangler/config-schema.json",
 
   // ⬅ CHANGE ME — becomes <name>.<your-subdomain>.workers.dev
-  "name": "www-rag-pipeline",
+  "name": "REPLACE_ME-pipeline",
 
   "main": "src/index.js",
   "compatibility_date": "2026-08-01",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
 
+  // ⬅ CHANGE ME — any name; it must not collide with an existing Workflow.
   "workflows": [
     {
-      "name": "www-rag-site-pipeline",
+      "name": "REPLACE_ME-site-pipeline",
       "binding": "PIPELINE",
       "class_name": "SitePipeline"
     }
@@ -29,7 +39,7 @@
   "r2_buckets": [
     // ⬅ CHANGE ME — `npx wrangler r2 bucket create <bucket_name>` first.
     // Holds the crawl frontier, raw pages and link maps.
-    { "binding": "BUCKET", "bucket_name": "www-rag-pipeline" }
+    { "binding": "BUCKET", "bucket_name": "REPLACE_ME-bucket" }
   ],
 
   // Continuous operation. Every tick tops the fleet back up to MAX_CONCURRENT;

@@ -22,7 +22,12 @@ SCHEDULE="${SCHEDULE:-0 * * * *}"
 SA="${SERVICE_ACCOUNT:-${JOB}@${GCP_PROJECT}.iam.gserviceaccount.com}"
 
 # Secrets the job reads from Secret Manager. Each must already exist.
-SECRETS="${SECRETS:-DIVINCI_CREDENTIALS_JSON}"
+# `${VAR-default}`, NOT `${VAR:-default}`: the colon form substitutes the default
+# when the variable is EMPTY as well as unset, so `SECRETS=""` — the obvious way
+# to say "no secrets, I am smoke-testing the infrastructure" — silently became
+# DIVINCI_CREDENTIALS_JSON and the deploy died on a 404 for a secret the caller
+# had just said they did not want. Found by doing exactly that.
+SECRETS="${SECRETS-DIVINCI_CREDENTIALS_JSON}"
 
 # ── the one relationship that must hold ─────────────────────────────────────
 #
