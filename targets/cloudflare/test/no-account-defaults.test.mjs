@@ -103,3 +103,22 @@ console.log("✅ no account-specific defaults: all assertions passed");
     console.log("  ✅ no src/ import escapes this directory");
   }
 }
+
+// ── the Turso database name must be deployment-namespaced ──────────────────
+//
+// `provision` does destroy-then-create, so this name is a DESTRUCTIVE key: two
+// deployments sharing a Turso org and prefix means the second silently wipes
+// the first's corpus for that host. A hardcoded `wrp-` makes that the default.
+{
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync(new URL("../src/index.js", import.meta.url), "utf8");
+  if (/const dbName = `wrp-\$\{slug\}`/.test(src)) {
+    console.log("  ❌ dbName is hardcoded to the `wrp-` prefix — namespace it per deployment");
+    process.exitCode = 1;
+  } else if (!/TURSO_DB_PREFIX/.test(src)) {
+    console.log("  ❌ dbName does not read TURSO_DB_PREFIX");
+    process.exitCode = 1;
+  } else {
+    console.log("  ✅ Turso database name is namespaced by TURSO_DB_PREFIX");
+  }
+}

@@ -94,6 +94,7 @@ Edit `wrangler.jsonc` — four values are marked `⬅ CHANGE ME`:
 | `name` | becomes `<name>.<your-subdomain>.workers.dev` |
 | `r2_buckets[0].bucket_name` | the bucket you just created |
 | `vars.TURSO_ORG` | your Turso organisation slug |
+| `vars.TURSO_DB_PREFIX` | database-name prefix — **change it if the org is shared** (see below) |
 | `vars.WHITELABEL_ID` | the Divinci whitelabel that will own the vectors |
 
 Then the secrets:
@@ -153,6 +154,17 @@ It is unset by default and the crawler then says so out loud rather than naming
 anyone. Set it: a crawler that cannot be contacted cannot be asked to stop, and
 that is the deal [`policies/crawl-policy.md`](../../policies/crawl-policy.md)
 makes with site owners.
+
+### ⚠️ Two deployments must not share a Turso organisation under one prefix
+
+Each site's database is named `<TURSO_DB_PREFIX>-<slug>`, and provisioning does
+a **destroy-then-create** so a retried Workflow step cannot fail on a database
+its own earlier attempt made. That makes the name a destructive key: point a
+second deployment at the same org with the same prefix and crawling a host the
+first one has published **destroys that host's corpus**, silently, reporting
+success.
+
+Give every deployment its own prefix, or its own Turso organisation.
 
 ## The AI-rights gate
 
