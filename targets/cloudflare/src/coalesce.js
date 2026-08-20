@@ -33,7 +33,7 @@
 // a good example of a confidently-argued assumption that one real run refutes:
 // it was written from what the input was *supposed* to be.
 
-import { byteLen, HARD_MAX } from "../../cloudflare/src/chunk.js";
+import { byteLen, HARD_MAX } from "./chunk.js";
 
 /** Below this a chunk is not worth embedding on its own. */
 export const MIN_CHUNK_BYTES = 400;
