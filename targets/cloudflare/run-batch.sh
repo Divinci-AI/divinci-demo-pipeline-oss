@@ -55,7 +55,7 @@ for h in "${HOSTS[@]}"; do
     continue
   fi
   SEND+=("$h")
-  printf "  ✅ %-32s %s\n" "$h" "queued"
+  printf "  ✅ %-32s %s\n" "$h" "will send"
 done
 
 echo

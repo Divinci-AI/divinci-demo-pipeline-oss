@@ -13,7 +13,7 @@ Cloudflare's edge; **no laptop is in the loop** and nothing needs to stay awake.
      ▼  Browser Rendering /crawl             ~$0.0007/host
   CRAWL ──────────────► R2 (raw pages, frontier, link map)
      │
-     ▼  chunk.js (~40 lines)
+     ▼  chunk.js + coalesce.js
   CHUNK
      │
      ▼  Workers AI  @cf/google/embeddinggemma-300m (768-d)
@@ -30,6 +30,17 @@ Every step is an HTTP call or trivial string work, which is why there is no
 container fleet and no queue runner to operate.
 
 ## Why you might want this
+
+- **Chunks are coalesced before embedding.** The raw split emits one fragment
+  per nav item on HTML-derived markdown. Measured on a 98-page crawl:
+  6,265 chunks at median 126 B, **26% of them under 50 B**, versus 715 chunks at
+  median 1,978 B once coalesced — 8.8x fewer embeddings, and an index whose
+  entries are large enough to mean something.
+
+  ⚠️ **This changed on 2026-08-20.** A corpus published before that date was
+  built from the raw split; re-crawl a host to bring it onto the new shape. Left
+  alone the two coexist, which is survivable but makes scores across hosts less
+  comparable than they look.
 
 - **A retrieval index per site, not one blended index.** Each host gets its own
   database, its own embeddings and its own citations. Nothing is trained on.
@@ -120,7 +131,7 @@ export TRIGGER_TOKEN=<the bearer you set>
 
 ./run-batch.sh example.com              # dry run — shows what WOULD be sent
 ./run-batch.sh --go example.com         # send it
-curl -H "Authorization: Bearer $TRIGGER_TOKEN" "$PIPELINE_URL/status"
+curl -H "Authorization: Bearer $TRIGGER_TOKEN" "$PIPELINE_URL/status?id=<the id run-batch printed>"
 ```
 
 Prefer `run-batch.sh` over hand-rolled curl: it carries the in-flight guard. A

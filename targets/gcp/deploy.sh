@@ -22,7 +22,12 @@ SCHEDULE="${SCHEDULE:-0 * * * *}"
 SA="${SERVICE_ACCOUNT:-${JOB}@${GCP_PROJECT}.iam.gserviceaccount.com}"
 
 # Secrets the job reads from Secret Manager. Each must already exist.
-SECRETS="${SECRETS:-DIVINCI_CREDENTIALS_JSON}"
+# `${VAR-default}`, NOT `${VAR:-default}`: the colon form substitutes the default
+# when the variable is EMPTY as well as unset, so `SECRETS=""` — the obvious way
+# to say "no secrets, I am smoke-testing the infrastructure" — silently became
+# DIVINCI_CREDENTIALS_JSON and the deploy died on a 404 for a secret the caller
+# had just said they did not want. Found by doing exactly that.
+SECRETS="${SECRETS-DIVINCI_CREDENTIALS_JSON}"
 
 # ── the one relationship that must hold ─────────────────────────────────────
 #
@@ -127,6 +132,12 @@ run gcloud builds submit --project "$GCP_PROJECT" \
 # The default pair below is 50 minutes against an hourly schedule. If you
 # shorten SCHEDULE, shorten TASK_TIMEOUT with it — the check below enforces the
 # relationship rather than trusting you to remember.
+# `${a[@]+"${a[@]}"}` at the use site, not a bare `"${a[@]}"`: under `set -u`,
+# bash 3.2 — which is what macOS ships, and what most contributors will run this
+# with — treats an EMPTY array expansion as an unbound variable and aborts. With
+# no secrets configured that killed the deploy AFTER a successful two-minute
+# image build. bash 4.4+ does not reproduce it, so this survives any test run on
+# a Linux CI box.
 SECRET_ARGS=()
 for s in $SECRETS; do SECRET_ARGS+=(--set-secrets "$s=$s:latest"); done
 
@@ -144,7 +155,7 @@ run gcloud run jobs "$VERB" "$JOB" \
   --add-volume "name=state,type=cloud-storage,bucket=$GCS_STATE_BUCKET" \
   --add-volume-mount "volume=state,mount-path=/app/state" \
   --set-env-vars "STATE_DIR=/app/state,RUN_LOCK_MAX_AGE_MS=${RUN_LOCK_MAX_AGE_MS:-7200000}" \
-  "${SECRET_ARGS[@]}"
+  ${SECRET_ARGS[@]+"${SECRET_ARGS[@]}"}
 
 # ── the schedule ────────────────────────────────────────────────────────────
 #

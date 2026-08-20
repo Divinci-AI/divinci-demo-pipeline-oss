@@ -74,3 +74,32 @@ const ok = (c, m) => { if (!c) { console.log("  ❌ " + m); fail++; } else conso
 console.log();
 if (fail) { console.log(`❌ ${fail} extraction assertion(s) failed`); process.exit(1); }
 console.log("✅ no account-specific defaults: all assertions passed");
+
+// ── the worker must bundle from a STANDALONE copy of this directory ─────────
+//
+// `coalesce.js` moved here from targets/local, and its import of chunk.js kept
+// the old `../../cloudflare/src/chunk.js` path. From this directory that
+// ACCIDENTALLY resolves — `../..` is targets/, so it lands back here — and
+// every test passed. wrangler's bundler failed on it, because a deployment
+// copies this directory somewhere with no `targets/` above it.
+//
+// A relative import that escapes this directory is therefore a deploy-time
+// break that no test run can see. Assert none exists.
+{
+  const { readdirSync, readFileSync } = await import("node:fs");
+  const dir = new URL("../src/", import.meta.url);
+  const bad = [];
+  for (const f of readdirSync(dir)) {
+    if (!f.endsWith(".js")) continue;
+    const src = readFileSync(new URL(f, dir), "utf8");
+    for (const m of src.matchAll(/from\s+"(\.\.\/[^"]+)"/g)) {
+      if (m[1].startsWith("../")) bad.push(`${f} imports ${m[1]}`);
+    }
+  }
+  if (bad.length) {
+    console.log("  ❌ src/ imports outside this directory:\n     " + bad.join("\n     "));
+    process.exitCode = 1;
+  } else {
+    console.log("  ✅ no src/ import escapes this directory");
+  }
+}

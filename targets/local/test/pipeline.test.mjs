@@ -1,5 +1,5 @@
 // Chunk coalescing, the sync contract, and session resolution.
-import { coalesceChunks, MIN_CHUNK_BYTES } from "../src/coalesce.mjs";
+import { coalesceChunks, MIN_CHUNK_BYTES } from "../../cloudflare/src/coalesce.js";
 import { batches, contentHash, MAX_BATCH, pushAll, SyncError, retryAfterMs } from "../src/sync.mjs";
 import { resolveSession, NotAuthenticatedError } from "../src/session.mjs";
 import { byteLen, HARD_MAX } from "../../cloudflare/src/chunk.js";

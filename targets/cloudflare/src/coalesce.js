@@ -13,12 +13,27 @@
 // a 7-character chunk embeds to a vector that is nearest-neighbour to noise,
 // and 170 of them cost 170 embeddings and 170 rows to say very little.
 //
-// ⚠️ This does NOT belong in `chunk.js`. That module is shared verbatim with
-// the Cloudflare target, whose input really is markdown, and changing it would
-// silently re-chunk that corpus into a different shape from every corpus
-// already published by it. The fix belongs where the odd input is.
+// ⚠️ It still does NOT belong inside `chunk.js` — that module is the raw split,
+// and keeping the two separate is what lets a caller choose. But this file used
+// to live in the local target only, arguing that the Cloudflare pipeline did
+// not need it "whose input really is markdown".
+//
+// MEASURED 2026-08-20, and that argument was wrong. Browser Rendering's
+// markdown of a real site carries the same nav, footer and link lists as any
+// other HTML-derived text. On a 98-page crawl the Cloudflare pipeline emitted:
+//
+//     6,265 chunks   median 126 B   45% under 100 B   26% under 50 B
+//
+// and the same set through this function gives:
+//
+//       715 chunks   median 1,978 B          8.8x fewer embeddings
+//
+// A quarter of that index was fragments too small to carry meaning, each one
+// costing an embedding, a row, and a nearest-neighbour slot. The old comment is
+// a good example of a confidently-argued assumption that one real run refutes:
+// it was written from what the input was *supposed* to be.
 
-import { byteLen, HARD_MAX } from "../../cloudflare/src/chunk.js";
+import { byteLen, HARD_MAX } from "./chunk.js";
 
 /** Below this a chunk is not worth embedding on its own. */
 export const MIN_CHUNK_BYTES = 400;

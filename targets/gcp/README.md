@@ -169,3 +169,25 @@ resources involved.
 documented `gcloud` surface and its plan mode is exercised, but the applied path
 has not been run on a real GCP account by the authors. Treat the first
 `--go` as the real test, and please report what breaks.
+
+## Verified on a real project (2026-08-20)
+
+Deployed to a live GCP project and executed. What was confirmed end to end:
+
+| | |
+|---|---|
+| Cloud Build → Artifact Registry | ✅ 1m26s |
+| Job created, Scheduler created | ✅ |
+| **GCS FUSE mount persists state** | ✅ the container's writes under `/app/state` are in the bucket after the execution ends |
+| `HOME` inside the mount | ✅ `home/.config/divinci/` and `home/.npm/` land in the bucket, so a rotated refresh token survives the tick |
+| Loop halts cleanly with no credential | ✅ exits 20 with `auth: FAILED — no credential file … run divinci auth login` |
+
+⏱️ **An execution takes 2-3 minutes to START.** Cloud Run reports
+`ResourcesAvailable: True`, `ContainerReady: True`, `Started: Unknown`,
+`Waiting for execution to start.` for that whole window, and emits **no
+container logs at all** — the volume attach happens before your process does.
+
+That is normal. It reads exactly like a hung mount, and during this
+verification it was misread as one; the execution completed normally minutes
+later. Do not start debugging IAM on the strength of it. Wait for the
+`Completed` condition to become `True` or `False` before concluding anything.
