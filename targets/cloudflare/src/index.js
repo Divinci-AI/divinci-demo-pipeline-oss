@@ -131,7 +131,19 @@ export class SitePipeline extends WorkflowEntrypoint {
     // site's production database. The plan requires both pipelines running in
     // parallel until this one is proven, so they must not be able to collide.
     // Rename only at cutover, once the laptop daemon is decommissioned.
-    const dbName = `wrp-${slug}`;
+    // ⚠️ NAMESPACED BY DEPLOYMENT, and it must be. `provision` below does a
+    // destroy-then-create for replay idempotency, so two deployments sharing a
+    // Turso organisation do not merely collide on this name — the second one
+    // SILENTLY DESTROYS the first one's database for that host, corpus and all,
+    // and reports success.
+    //
+    // Found while smoke-testing this target against the same Turso org as a
+    // live deployment. That run created `wrp-divinci-ai`; had the live one
+    // already published that host, the smoke test would have wiped it. It had
+    // not, verified against the live deployment's own R2 seed marker — which is
+    // luck, not a control.
+    const dbPrefix = this.env.TURSO_DB_PREFIX || "wrp";
+    const dbName = `${dbPrefix}-${slug}`;
     const rawKey = `sites/${slug}/raw.json`;
     const chunkKey = `sites/${slug}/chunks.json`;
 

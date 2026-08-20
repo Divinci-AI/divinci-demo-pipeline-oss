@@ -71,6 +71,11 @@
     // sites landed in a stranger's account. The Worker refuses to tick and
     // /health reports what is missing.
 
+    // Prefix for this deployment's Turso database names. Change it if this
+    // organisation is shared with ANY other deployment: provisioning does a
+    // destroy-then-create, so a shared name means the other deployment's
+    // corpus for that host is silently destroyed.
+    "TURSO_DB_PREFIX": "wrp",
     "TURSO_ORG": "",        // ⬅ CHANGE ME — your Turso organisation slug
     "WHITELABEL_ID": "",    // ⬅ CHANGE ME — the Divinci whitelabel that owns the vectors
 
