@@ -1,5 +1,6 @@
 import { WorkflowEntrypoint } from "cloudflare:workers";
 import { chunkMarkdown } from "./chunk.js";
+import { coalesceChunks } from "./coalesce.js";
 import { registerVector, divinci } from "./divinci.js";
 import { checkAiRights } from "./ai-rights.js";
 import { recordPublish, listEvents, pruneEvents, buildSnapshot, reportActivity, writePendingCount, readPendingCount } from "./activity.js";
@@ -367,7 +368,10 @@ export class SitePipeline extends WorkflowEntrypoint {
       const rows = [];
       const seen = new Set(); // dedup by text, matching ingest_okf
       for (const p of pages) {
-        for (const text of chunkMarkdown(p.markdown)) {
+        // Coalesce PER PAGE, never across pages: merging the tail of one page
+        // into the head of the next would produce a chunk whose `url` citation
+        // is wrong for half its text, and citations are the point.
+        for (const text of coalesceChunks(chunkMarkdown(p.markdown))) {
           if (seen.has(text)) continue;
           seen.add(text);
           rows.push({ url: p.url, text, category: "" });

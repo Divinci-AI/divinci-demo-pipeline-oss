@@ -14,7 +14,7 @@ import { crawlSite, DEFAULT_UA } from "./crawl.mjs";
 // two different chunkings of the same pages. One implementation is the only way
 // to guarantee that; a copy would drift.
 import { chunkMarkdown } from "../../cloudflare/src/chunk.js";
-import { coalesceChunks } from "./coalesce.mjs";
+import { coalesceChunks } from "../../cloudflare/src/coalesce.js";
 import { preflight, embedBatch, MODEL, DIM } from "./embed.mjs";
 import { resolveSession, describeSession, NotAuthenticatedError } from "./session.mjs";
 import { init, finalize, pushAll, contentHash } from "./sync.mjs";
