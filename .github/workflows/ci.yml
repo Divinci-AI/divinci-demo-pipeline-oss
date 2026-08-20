@@ -153,8 +153,18 @@ jobs:
 
           # The originating account's workers.dev subdomain. Not a secret, but
           # it names whose infrastructure this was, and a fork copying a
-          # fixture would point at it.
-          if git grep -nPI 'divinci-ai\.workers\.dev' -- . ':!.github/**'; then
+          # FIXTURE would point at it — which is the thing being prevented.
+          #
+          # `demo-<slug>-landing` is exempt, and the distinction is the same one
+          # the name guard draws: a hyperlink to a live, published demo is not a
+          # fixture. Those URLs ARE the product being shown, they are already
+          # public, and a fork that copies a README link gets a working demo
+          # rather than a broken pointer at someone else's account.
+          #
+          # Narrow on purpose. Only this naming pattern is exempt, so a config
+          # or test that quietly points at the origin account still fails.
+          if git grep -nPI 'divinci-ai\.workers\.dev' -- . ':!.github/**' \
+               | grep -vP 'demo-[a-z0-9-]+-landing\.divinci-ai\.workers\.dev'; then
             echo "::error::the originating account's workers.dev subdomain is committed"
             exit 1
           fi
