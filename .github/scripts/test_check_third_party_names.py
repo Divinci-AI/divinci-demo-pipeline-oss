@@ -26,7 +26,8 @@ def sha(name: str) -> str:
 
 class GuardCase(unittest.TestCase):
     def run_guard(self, content: str, deny: list[str] | None = None,
-                  filename: str = "sample.md"):
+                  filename: str | None = "sample.md",
+                  consent: list[str] | None = None):
         """Run the guard in a throwaway git repo containing one file."""
         with tempfile.TemporaryDirectory() as d:
             d = Path(d)
@@ -39,7 +40,12 @@ class GuardCase(unittest.TestCase):
                 [sha(FAKE), sha(FAKE2), sha(FAKE4)] if deny is None else deny)
             (d / ".github/scripts/forbidden-names.sha256").write_text(
                 "\n".join(entries) + "\n")
-            (d / filename).write_text(content)
+            (d / ".github/scripts/consented-names.sha256").write_text(
+                "# test fixture\n"
+                + "\n".join(f"2026-01-01  {h}  # consented" for h in (consent or []))
+                + "\n")
+            if filename is not None:
+                (d / filename).write_text(content)
             env = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
                    "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}
             subprocess.run(["git", "init", "-q"], cwd=d, check=True, env=env)
@@ -100,7 +106,12 @@ class GuardCase(unittest.TestCase):
         # A guard that is handed no files must not report success. Survived a
         # mutation run until this existed: the vacuity branch was claimed in a
         # commit message and tested by nothing.
-        r = self.run_guard("", filename="logo.png")
+        # NOTE: an image is no longer "nothing". Since the guard checks
+        # FILENAMES it legitimately considers a .png, so the vacuous case is a
+        # tree with no tracked files at all. The original version of this test
+        # used a lone logo.png and stopped being about vacuity the moment
+        # filename scanning landed.
+        r = self.run_guard("", filename=None)
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("scanned no files", r.stdout + r.stderr)
 
@@ -108,6 +119,39 @@ class GuardCase(unittest.TestCase):
         # else every hash in it would match itself and the guard is always red
         r = self.run_guard("// clean")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+
+class ConsentAndFilenames(unittest.TestCase):
+    """A brand featured on purpose must be nameable; nothing else changes."""
+
+    def test_a_consented_shingle_is_allowed(self):
+        r = GuardCase.run_guard(GuardCase(), f"we feature {FAKE} here",
+                                consent=[sha(FAKE)])
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def test_consent_does_not_leak_to_other_names(self):
+        """Consenting one brand must not quietly permit a different one — the
+        carve-out is per-shingle, not per-file."""
+        r = GuardCase.run_guard(GuardCase(), f"and also {FAKE2}", consent=[sha(FAKE)])
+        self.assertEqual(r.returncode, 1)
+
+    def test_a_forbidden_name_in_a_FILENAME_is_caught(self):
+        """The realistic image case: the brand is in the file name, and the
+        guard cannot read pixels."""
+        r = GuardCase.run_guard(GuardCase(), "no names in here",
+                                filename=f"{FAKE.lower()}-demo.png")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("FILENAME", r.stdout + r.stderr)
+
+    def test_a_consented_FILENAME_is_allowed(self):
+        r = GuardCase.run_guard(GuardCase(), "no names in here",
+                                filename=f"{FAKE.lower()}-demo.png", consent=[sha(FAKE)])
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def test_a_missing_consent_file_consents_to_nothing(self):
+        """Absent file must mean nothing is allowed, not everything."""
+        r = GuardCase.run_guard(GuardCase(), f"const x = '{FAKE}'")
+        self.assertEqual(r.returncode, 1)
 
 
 if __name__ == "__main__":

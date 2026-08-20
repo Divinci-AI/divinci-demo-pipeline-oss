@@ -44,6 +44,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 DENY_FILE = HERE / "forbidden-names.sha256"
+CONSENT_FILE = HERE / "consented-names.sha256"
 MAX_SHINGLE = 5
 CAMEL = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
 NONALNUM = re.compile(r"[^A-Za-z0-9]+")
@@ -83,6 +84,21 @@ def digest(name: str) -> str:
     return hashlib.sha256(normalise(name).encode()).hexdigest()
 
 
+def load_consent() -> set[str]:
+    """Shingles this repository is allowed to name, because it names them on
+    purpose. Absent file = nothing consented, which is the safe direction."""
+    if not CONSENT_FILE.exists():
+        return set()
+    out = set()
+    for line in CONSENT_FILE.read_text().splitlines():
+        line = line.split("#", 1)[0].strip()
+        if not line:
+            continue
+        # `date  sha256` — the date is for the human, the hash is the entry.
+        out.add(line.split()[-1])
+    return out
+
+
 def load_deny() -> set[str]:
     if not DENY_FILE.exists():
         sys.exit(f"missing {DENY_FILE}")
@@ -112,11 +128,36 @@ def main() -> int:
         return 0
 
     deny = load_deny()
+    consent = load_consent()
     self_rel = str(Path(__file__).resolve())
     hits: list[tuple[str, int, str]] = []
-    scanned = 0
+    scanned = 0     # files whose CONTENTS were read
+    considered = 0  # files looked at at all, including image filenames
+    own = {self_rel, str(DENY_FILE.resolve()), str(CONSENT_FILE.resolve())}
     for f in tracked_files():
-        if f.endswith(SKIP_SUFFIX) or str(Path(f).resolve()) == self_rel:
+        # The guard's own script and its two hash files. Excluded from the
+        # COUNT as well as the check, so "did this run look at anything?" is a
+        # question about the repository rather than about the guard itself.
+        if str(Path(f).resolve()) in own:
+            continue
+        # ── the PATH itself ────────────────────────────────────────────────
+        #
+        # A brand inside a PNG is invisible to this guard — it reads text, not
+        # pixels, and no amount of care changes that. What it CAN see is the
+        # filename, which is where the name usually is anyway
+        # (`aquillius-demo.png`), and the alt text, which is already scanned as
+        # part of the markdown that carries it.
+        #
+        # So this closes the realistic case and not the general one. The general
+        # one is documented rather than pretended away: a name rendered only
+        # inside the image stays invisible.
+        considered += 1
+        for sh in shingles(pieces(f)):
+            h = hashlib.sha256(sh.encode()).hexdigest()
+            if h in deny and h not in consent:
+                hits.append((f, 0, h[:12]))
+                break
+        if f.endswith(SKIP_SUFFIX):
             continue
         try:
             text = Path(f).read_text(encoding="utf-8")
@@ -126,17 +167,22 @@ def main() -> int:
         for lineno, line in enumerate(text.splitlines(), 1):
             for sh in shingles(pieces(line)):
                 h = hashlib.sha256(sh.encode()).hexdigest()
-                if h in deny:
+                if h in deny and h not in consent:
                     hits.append((f, lineno, h[:12]))
                     break
-    if scanned == 0:
-        print("::error::scanned no files — the guard passed without checking anything")
-        return 1
+    # Hits are reported BEFORE the vacuity check. A tree of only images has no
+    # readable CONTENTS, so a `scanned == 0` check that ran first would mask a
+    # real filename hit behind "I checked nothing" — a false alarm hiding a true
+    # one. Vacuity is therefore about files CONSIDERED, not files read.
     if hits:
         print(f"::error::{len(hits)} line(s) name a real third party. "
               "Rename to an acme-* fixture; the hash identifies which entry matched.")
         for f, lineno, h in hits:
-            print(f"  {f}:{lineno}  (forbidden-name {h})")
+            where = "  (in the FILENAME)" if lineno == 0 else ""
+            print(f"  {f}:{lineno}  (forbidden-name {h}){where}")
+        return 1
+    if considered == 0:
+        print("::error::scanned no files — the guard passed without checking anything")
         return 1
     print(f"ok — {scanned} files, no forbidden name in {len(deny)} entries")
     return 0
