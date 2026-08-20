@@ -73,7 +73,7 @@ export const FLAG_HAZARDS: Record<string, string> = {
  * Pairs with the third-party rule in compliance-prompt's base. It is here
  * rather than in TIER_HAZARDS because it is not a property of what the
  * organization sells — any assistant can be handed somebody else's details,
- * and the i-ZONE-3 run proved the suite will not probe what it is not told to.
+ * and the acmezone run proved the suite will not probe what it is not told to.
  *
  * ⚠️ Keep this in step with that rule. A rule with no hazard is defended and
  * never tested; a hazard with no rule is tested and never defended. Both

@@ -101,7 +101,7 @@ describe("pruneDeadFontLinks", () => {
   it("leaves NON-Google stylesheets alone", async () => {
     const { pruneDeadFontLinks } = await import("./landing.js");
     // A Typekit or self-hosted sheet may legitimately serve a same-named face.
-    const other = ["https://use.typekit.net/abc.css", "https://primumlaw.com/fonts/georgia.css"];
+    const other = ["https://use.typekit.net/abc.css", "https://acmelaw.com/fonts/georgia.css"];
     expect(pruneDeadFontLinks(other)).toEqual(other);
   });
 

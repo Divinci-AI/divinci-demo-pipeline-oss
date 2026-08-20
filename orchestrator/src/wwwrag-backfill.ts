@@ -10,7 +10,7 @@
  *   npm run wwwrag:backfill -- --dry-run          # plan only, no writes
  *   npm run wwwrag:backfill                        # submit
  *   npm run wwwrag:backfill -- --per-host 50       # deeper per site
- *   npm run wwwrag:backfill -- --host aiaa.org     # one host
+ *   npm run wwwrag:backfill -- --host acmeaero.org     # one host
  *
  * Source of URLs is the RAG file listing of each run's own workspace — i.e.
  * exactly the pages we indexed. Deliberately NOT each site's sitemap: that
@@ -123,7 +123,7 @@ async function submit(url: string, token: string): Promise<{ ok: boolean; reason
     // this backfill, met by someone else. The server returns accepted:false for
     // it, so a bare `accepted !== false` records a success as a failure: 18 of
     // the first 21 "failures" were this, concentrated on acmesupply.com,
-    // acmelongevity.com and aurapathai.com, which the crawler fleet had already
+    // acmelongevity.com and acmepathai.com, which the crawler fleet had already
     // covered. www-rag.ts has always counted it as submitted; this now agrees.
     if (body.status === "already-fresh") return { ok: true, reason: "already-fresh" };
     return { ok: body.accepted !== false, reason: body.status };

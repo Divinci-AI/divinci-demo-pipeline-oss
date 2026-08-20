@@ -166,7 +166,7 @@ describe("the in-page probe", () => {
 
 /**
  * alignAiMark's selector went stale and the failure was a console.warn nobody
- * read. Observed on acmesecurity and leadwithimpact.
+ * read. Observed on acmesecurity and acmeimpact.
  */
 describe("alignAiMark keeps up with the template", () => {
   const landing = readFileSync(new URL("./landing.ts", import.meta.url), "utf8");
@@ -336,7 +336,7 @@ describe("the probe must not read a stale edge", () => {
   });
 });
 
-// Aquillius extracts `primary` and `accent` as the SAME orange (#f96230), so
+// Acme Advisors extracts `primary` and `accent` as the SAME orange (#f96230), so
 // the header drew its AI mark in the exact colour of the bar behind it. The
 // check reported "contrast 20.97:1 ✅" throughout — that figure is the WHITE
 // WORDMARK's, and nothing had ever measured the AI.

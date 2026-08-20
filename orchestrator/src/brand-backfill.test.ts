@@ -9,7 +9,7 @@ import { backfillBrandDraft, repairDoubledAiSuffix, repairRedundantOgSubtitle, B
  * nothing for them.
  *
  * The backfill exists to close that — and its one hard requirement is that it
- * never overwrites a human. Several drafts are hand-tuned (AuraPath's wordmark
+ * never overwrites a human. Several drafts are hand-tuned (AcmePath's wordmark
  * is Fraunces italic 500 at `opsz 24`, set by hand after the extractor got it
  * wrong), and replacing a correction with a fresh guess is a worse failure than
  * missing the field.
@@ -91,15 +91,15 @@ describe("backfillBrandDraft", () => {
  */
 describe("repairDoubledAiSuffix", () => {
   it("collapses the doubled suffix that reached the shared card", () => {
-    const d: Record<string, unknown> = { productName: "AuraPath AI AI" };
-    expect(repairDoubledAiSuffix(d)).toBe("AuraPath AI");
-    expect(d.productName).toBe("AuraPath AI");
+    const d: Record<string, unknown> = { productName: "AcmePath AI AI" };
+    expect(repairDoubledAiSuffix(d)).toBe("AcmePath AI");
+    expect(d.productName).toBe("AcmePath AI");
   });
 
   it("leaves a correct name untouched and reports no change", () => {
-    const d: Record<string, unknown> = { productName: "Greystone AI" };
+    const d: Record<string, unknown> = { productName: "Acme Realty AI" };
     expect(repairDoubledAiSuffix(d)).toBeUndefined();
-    expect(d.productName).toBe("Greystone AI");
+    expect(d.productName).toBe("Acme Realty AI");
   });
 
   it("does not touch an AI that is not the trailing pair", () => {
@@ -116,8 +116,8 @@ describe("repairDoubledAiSuffix", () => {
 describe("repairRedundantOgSubtitle", () => {
   it("drops the brand name the tagline already carries", () => {
     const d: Record<string, unknown> = {
-      ogTagline: "AuraPath AI — answered 24/7.",
-      ogSubtitle: "AI-powered answers from AuraPath AI, in any language.",
+      ogTagline: "AcmePath AI — answered 24/7.",
+      ogSubtitle: "AI-powered answers from AcmePath AI, in any language.",
     };
     expect(repairRedundantOgSubtitle(d)).toBe("AI-powered answers, in any language.");
   });
@@ -127,14 +127,14 @@ describe("repairRedundantOgSubtitle", () => {
     // loses information rather than removing a repetition.
     const d: Record<string, unknown> = {
       ogTagline: "Answered 24/7.",
-      ogSubtitle: "AI-powered answers from AuraPath AI, in any language.",
+      ogSubtitle: "AI-powered answers from AcmePath AI, in any language.",
     };
     expect(repairRedundantOgSubtitle(d)).toBeUndefined();
   });
 
   it("never touches a hand-written subtitle", () => {
     const d: Record<string, unknown> = {
-      ogTagline: "AuraPath AI — answered 24/7.",
+      ogTagline: "AcmePath AI — answered 24/7.",
       ogSubtitle: "Ask anything about our curriculum.",
     };
     expect(repairRedundantOgSubtitle(d)).toBeUndefined();
@@ -142,7 +142,7 @@ describe("repairRedundantOgSubtitle", () => {
 
   it("is idempotent", () => {
     const d: Record<string, unknown> = {
-      ogTagline: "AuraPath AI — answered 24/7.",
+      ogTagline: "AcmePath AI — answered 24/7.",
       ogSubtitle: "AI-powered answers, in any language.",
     };
     expect(repairRedundantOgSubtitle(d)).toBeUndefined();

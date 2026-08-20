@@ -16,8 +16,8 @@ import { polishFoundation } from "./foundation-polish.js";
 import { runClaudeSync } from "./claude-cli.js";
 
 export interface FoundationKit {
-  org: string;            // "MD Spine Care"
-  productName: string;    // "MD Spine Care AI"
+  org: string;            // "Acme Spine Care"
+  productName: string;    // "Acme Spine Care AI"
   tagline: string;        // hero headline
   valueProp: string;      // one/two-sentence subhead
   palette: { primary: string; accent: string; mid: string; cream: string; soft: string; text: string };

@@ -166,7 +166,7 @@ const claude = (prompt: string): Promise<string> => runClaude(prompt);
  * The demo-link block that goes INTO the email.
  *
  * Carries the preview credentials when there are any. Until 2026-08-06 it did
- * not, and mach33's draft read "It's live now:" above a URL that answers 401 —
+ * not, and acmeincubator's draft read "It's live now:" above a URL that answers 401 —
  * the password existed in state.json and on the review-board task, one artifact away
  * from the only place it was needed. Copy-paste the email and the prospect gets
  * a browser password prompt and nothing else.

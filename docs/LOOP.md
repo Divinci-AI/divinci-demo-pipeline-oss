@@ -121,7 +121,7 @@ First live auto-approval, 2026-08-07T01:52Z:
 
 ```
 gate1 AUTO-APPROVED — score 76 ≥ 70; tier wellness-low; 394 planned page(s) ≤ 400;
-all 4 source(s) on www.precisionnutrition.com; no robots.txt
+all 4 source(s) on www.acmeprecision.com; no robots.txt
 ```
 
 Note that a `complianceFlags` entry does **not** block. A flag adds prompt rules
@@ -238,7 +238,7 @@ exact name, then by a *unique* prefix. The first production tick created a
 second "Demo — The Acme Clinic" alongside the hand-named "Demo — The Stone
 Clinic (Dr. Kevin R. Stone)" — half a prospect's history under each. Prefix
 matching now reuses the qualified one, and refuses when a prefix is ambiguous
-("Demo — Dr. William" must not adopt "Demo — Dr. William Li"). If a board name
+("Demo — Dr. William" must not adopt "Demo — Dr. Rowan Pike"). If a board name
 cannot be derived from the prospect name, pin it explicitly rather than letting
 a near-miss create a twin.
 
@@ -377,7 +377,7 @@ Two things are deliberate in what gets written:
 
 ⚠️ **Tier taxonomy gap.** The four tiers are health-shaped, so a non-health
 prospect has no honest home and discovery reaches for `wellness-low`, which
-claims "general wellness content". For Space Foundation that label is simply
+claims "general wellness content". For Acme Space Fdn that label is simply
 false. Behaviour is still right — a `financial-advice` flag promotes the tier to
 the strict base — but the label lies, and a fifth tier is worth adding before
 this taxonomy is used to justify anything.
@@ -421,7 +421,7 @@ behind is invisible.
 | og.png was never built | SPA fallback served `200 text/html` |
 | corpus.webm's upload blipped | same |
 | copy step echoed the template back | "Replace this with the founder's bio" on a live page |
-| no person could be identified | "The Space Finance Group — Founder" |
+| no person could be identified | "The Acme Finance Group — Founder" |
 | nav is `hidden md:flex` | no navigation at all below 768px, on every demo ever sent |
 | a template copy key was added | every demo silently reverted to "Acme Expert AI" branding |
 

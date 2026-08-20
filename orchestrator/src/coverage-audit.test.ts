@@ -10,7 +10,7 @@ import {
 } from "./coverage-audit.js";
 
 /** The shipped acmerenew.com corpus, as measured 2026-08-15. */
-const BIORENEW_INGESTED_TITLES = [
+const ACMERENEW_INGESTED_TITLES = [
   "URL: https://acmerenew.com/ 2026-8-14 12:55",
   "URL: https://acmerenew.com/about 2026-8-14 12:58",
   "URL: https://acmerenew.com/about-kimberly-pierson 2026-8-14 12:58",
@@ -27,7 +27,7 @@ const BIORENEW_INGESTED_TITLES = [
   "URL: https://acmerenew.com/symptoms/fatigue-low-energy 2026-8-14 12:58",
 ];
 
-const BIORENEW_SITEMAP = [
+const ACMERENEW_SITEMAP = [
   "https://acmerenew.com",
   "https://acmerenew.com/about",
   "https://acmerenew.com/about-kimberly-pierson",
@@ -184,8 +184,8 @@ describe("robots.txt sitemap discovery", () => {
 describe("auditCoverage", () => {
   it("catches the Acme Renew corpus: 8 of 22 pages, four-way duplicates", () => {
     const a = auditCoverage({
-      sitemapUrls: BIORENEW_SITEMAP,
-      fileTitles: BIORENEW_INGESTED_TITLES,
+      sitemapUrls: ACMERENEW_SITEMAP,
+      fileTitles: ACMERENEW_INGESTED_TITLES,
     });
     expect(a.verdict).toBe("under-crawled");
     expect(a.ingestedUrls).toHaveLength(8);
@@ -197,7 +197,7 @@ describe("auditCoverage", () => {
   });
 
   it("reports the duplicate ingests, worst first", () => {
-    const a = auditCoverage({ sitemapUrls: BIORENEW_SITEMAP, fileTitles: BIORENEW_INGESTED_TITLES });
+    const a = auditCoverage({ sitemapUrls: ACMERENEW_SITEMAP, fileTitles: ACMERENEW_INGESTED_TITLES });
     expect(a.duplicates[0].count).toBe(4);
     expect(a.duplicates.map((d) => d.url)).toEqual(
       expect.arrayContaining([

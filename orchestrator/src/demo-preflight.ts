@@ -9,7 +9,7 @@
  *   og.png was never built            → SPA fallback served 200 text/html
  *   corpus.webm upload blipped        → SPA fallback served 200 text/html
  *   copy step echoed the template     → "Replace this with the founder's bio"
- *   no person could be identified     → "The Space Finance Group — Founder"
+ *   no person could be identified     → "The Acme Finance Group — Founder"
  *   nav is `hidden md:flex`           → no navigation at all below 768px
  *
  * WHY THIS IS SEPARATE FROM THE DESIGN REVIEW. That is a vision model asked for

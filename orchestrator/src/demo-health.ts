@@ -222,7 +222,7 @@ export async function checkDemo(
     // The worker serves `not_found_handling = "single-page-application"`, so a
     // MISSING asset returns 200 with the HTML shell — a broken hero or a dead
     // video well is indistinguishable from a working one by status code alone.
-    // mach33 shipped with /brand/corpus.webm returning `200 text/html` after a
+    // acmeincubator shipped with /brand/corpus.webm returning `200 text/html` after a
     // transient R2 upload failure, and the design review did not notice: an
     // empty video reads as a design choice.
     //

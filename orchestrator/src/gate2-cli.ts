@@ -21,7 +21,7 @@
  * backlog unmeasured would rebuild the exact hole the gate was cut to close.
  *
  *   npm run gate2                     # list everything parked at Gate 2
- *   npm run gate2 -- --approve sarvam anyaiyouwant
+ *   npm run gate2 -- --approve sarvam acmeanyai
  *   npm run gate2 -- --approve-all --min-score 0.8
  *   npm run gate2 -- --json
  */

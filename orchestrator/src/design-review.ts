@@ -63,7 +63,7 @@ against that text:
   (A real review once reported "ADVERBIAL QA" as a typo; the page said
   "adversarial QA".)
 - Do not report placeholder or wrong URLs/copy unless the string appears there.
-  (The same review reported a placeholder "research.org/mach33-ai" that existed
+  (The same review reported a placeholder "research.org/acmeincubator-ai" that existed
   nowhere on the page.)
 - Do not report a missing button, link or CTA if its label appears in the text.
   (The same review called a CTA missing while the page carried one.)
@@ -107,7 +107,7 @@ async function shot(
     // A demo is preview-gated with HTTP basic auth until Gate 3 approves it, so
     // a reviewer without the credentials photographs the 401 challenge and
     // reports, with total confidence, that the page is "completely
-    // inaccessible". mach33 scored 2 critical findings that way on a landing
+    // inaccessible". acmeincubator scored 2 critical findings that way on a landing
     // page serving 200s on /, /og.png and /embed/.
     //
     // A review that cannot see the artifact must not grade it, and the fix is
@@ -139,7 +139,7 @@ async function shot(
 /**
  * The page's rendered text, for grounding.
  *
- * A vision model grading screenshots reads pixels, and on a clean mach33 page it
+ * A vision model grading screenshots reads pixels, and on a clean acmeincubator page it
  * produced one CRITICAL and two specific, confident, WRONG findings: a typo that
  * was an OCR misread, a placeholder URL that appeared nowhere, and a missing CTA
  * that was present in the markup. Three of five findings were fiction.

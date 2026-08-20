@@ -89,7 +89,7 @@ describe("batching and junk filtering", () => {
   });
 
   it("drops WordPress archives and plugin custom post types", async () => {
-    // primumlaw ingested 701 URLs of which 307 were these — 251 /tag/ archives
+    // acmelaw ingested 701 URLs of which 307 were these — 251 /tag/ archives
     // plus op_global_element, op_typography_preset, elementor-hf, author and
     // category. Rescraping them spends the whole budget refreshing junk.
     const { dropJunkPaths } = await import("./furniture-backfill-cli.js");
@@ -145,7 +145,7 @@ describe("the batch wait must settle, not just start", () => {
 
 describe("a transient error costs one batch, not the corpus", () => {
   it("retries a failed batch before giving up on it", async () => {
-    // hughston-clinic died on batch 3 of 9 with a bare `fetch failed` — token
+    // acmesports-clinic died on batch 3 of 9 with a bare `fetch failed` — token
     // still valid, API healthy moments later — and the remaining 380 URLs went
     // unrepaired because the throw escaped to the per-prospect catch.
     const { readFileSync } = await import("node:fs");

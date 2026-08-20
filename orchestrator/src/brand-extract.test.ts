@@ -16,10 +16,10 @@ function png(w: number, h: number): Buffer {
  * The hero lockup renders `[logo] AI` and assumes the logo carries the brand's
  * NAME. True for a wordmark, false for a mark — and the extractor's fallback
  * chain ends at apple-touch-icon / og:image, which are square app icons. That
- * is how AuraPath's hero came to read "⟨A⟩ AI" with "AuraPath" nowhere on it.
+ * is how AcmePath's hero came to read "⟨A⟩ AI" with "AcmePath" nowhere on it.
  */
 describe("logoIsMark", () => {
-  it("calls AuraPath's actual 1024x1024 app icon a mark", () => {
+  it("calls AcmePath's actual 1024x1024 app icon a mark", () => {
     expect(logoIsMark(png(1024, 1024), "png")).toBe(true);
   });
 
@@ -56,13 +56,13 @@ describe("logoIsMark", () => {
 });
 
 /**
- * `${org} AI` produced "AuraPath AI AI" — og:site_name already ended in AI.
+ * `${org} AI` produced "AcmePath AI AI" — og:site_name already ended in AI.
  * It reached the copy prompts, the chat byline and the example transcript.
  */
 describe("aiProductName / brandNameWithoutAiSuffix", () => {
   it("does not double a suffix the brand already has", () => {
-    expect(aiProductName("AuraPath AI")).toBe("AuraPath AI");
-    expect(aiProductName("Greystone")).toBe("Greystone AI");
+    expect(aiProductName("AcmePath AI")).toBe("AcmePath AI");
+    expect(aiProductName("Acme Realty")).toBe("Acme Realty AI");
   });
 
   it("only matches a TRAILING AI — the suffix is appended at the end", () => {
@@ -74,8 +74,8 @@ describe("aiProductName / brandNameWithoutAiSuffix", () => {
   });
 
   it("strips the suffix for the lockup, where AI is drawn separately", () => {
-    expect(brandNameWithoutAiSuffix("AuraPath AI")).toBe("AuraPath");
-    expect(brandNameWithoutAiSuffix("Greystone")).toBe("Greystone");
+    expect(brandNameWithoutAiSuffix("AcmePath AI")).toBe("AcmePath");
+    expect(brandNameWithoutAiSuffix("Acme Realty")).toBe("Acme Realty");
   });
 
   it("never strips a name down to nothing", () => {
@@ -103,11 +103,11 @@ describe("withSansFallback", () => {
  * is missing, use a grotesque" — the opposite of what the brand chose.
  */
 describe("withGenericFallback", () => {
-  it("preserves a serif generic — AuraPath's heading stack", () => {
-    const auraPath = '"Fraunces", "Tiempos", Charter, Georgia, serif';
-    expect(withGenericFallback(auraPath)).toBe(auraPath);
+  it("preserves a serif generic — AcmePath's heading stack", () => {
+    const acmepath = '"Fraunces", "Tiempos", Charter, Georgia, serif';
+    expect(withGenericFallback(acmepath)).toBe(acmepath);
     // The body-font helper would have appended a SANS fallback to a serif stack.
-    expect(withSansFallback(auraPath)).not.toBe(auraPath);
+    expect(withSansFallback(acmepath)).not.toBe(acmepath);
   });
 
   it("preserves a sans generic just the same", () => {
@@ -177,7 +177,7 @@ describe("buildPalette", () => {
   // Measured off https://www.acmelongevity.com/ 2026-08-15. A dark-green and
   // gold clinic came back as gold-and-purple: `primary` took the gold CTA and
   // `accent` fell through to the UA's unstyled-link blue.
-  const DRLONGEVITYRX: RawColors = {
+  const ACMERX: RawColors = {
     bg: {
       "#1a2e20": 2250940, "#f5f0e8": 2155962, "#ffffff": 1516537,
       "#fafaf7": 1089600, "#000000": 921600, "#2c2c2c": 866276,
@@ -189,10 +189,10 @@ describe("buildPalette", () => {
     linkColor: "#0000ee",
   };
 
-  const DRLONGEVITYRX_WITH_BODY: RawColors = { ...DRLONGEVITYRX, bodyBg: "#f5f0e8" };
+  const ACMERX_WITH_BODY: RawColors = { ...ACMERX, bodyBg: "#f5f0e8" };
 
   it("gives the dark green the structural slot and the gold CTA the accent", () => {
-    const p = buildPalette(DRLONGEVITYRX);
+    const p = buildPalette(ACMERX);
     // NOT the gold: a button is an accent, and the dark green covers the most
     // area on the page. Reversing these two is what shipped a gold demo.
     expect(p.primary).toBe("#1a2e20");
@@ -204,7 +204,7 @@ describe("buildPalette", () => {
     // evidence of an absent brand color rather than a brand color. It reached
     // `accent`, and `bubble` is derived from accent — so every citation chip
     // and assistant bubble rendered purple.
-    const p = buildPalette(DRLONGEVITYRX);
+    const p = buildPalette(ACMERX);
     for (const v of Object.values(p)) expect(v.toLowerCase()).not.toBe("#0000ee");
     // `bubble` is derived from `accent`, so it must be a tint of the GOLD.
     const hue = (h: string) => {
@@ -217,18 +217,18 @@ describe("buildPalette", () => {
   it("keeps the brand's warm off-white rather than substituting a cooler one", () => {
     // #f5f0e8 has luminance 0.94, under the old 0.96 cutoff, so it was thrown
     // away for a generic blue-grey and the cream site came back cold.
-    expect(buildPalette(DRLONGEVITYRX).cream).toBe("#f5f0e8");
+    expect(buildPalette(ACMERX).cream).toBe("#f5f0e8");
   });
 
   it("takes body text from the most-USED dark color, not the darkest", () => {
     // #000000 appears on 8 elements; #2c2c2c on 555.
-    expect(buildPalette(DRLONGEVITYRX).text).toBe("#2c2c2c");
+    expect(buildPalette(ACMERX).text).toBe("#2c2c2c");
   });
 
   // Measured off https://acmecyber.com/ 2026-08-16 — a genuinely dark
   // site (body #04090e, panels #091219, cyan #00d4ff, ink #ddeeff) whose demo
   // came back as a WHITE page whose text color was the site's own background.
-  const DODCYBER: RawColors = {
+  const ACMECYBER: RawColors = {
     bg: { "#091219": 1042310, "#070e16": 593628, "#04090e": 95220, "#00d4ff": 26500 },
     text: { "#ddeeff": 106, "#678193": 39, "#00d4ff": 36, "#5c809c": 24, "#ffb700": 8 },
     bodyBg: "#04090e",
@@ -237,7 +237,7 @@ describe("buildPalette", () => {
   };
 
   it("keeps a dark brand dark instead of inventing a white page", () => {
-    const p = buildPalette(DODCYBER);
+    const p = buildPalette(ACMECYBER);
     expect(lum(p.cream)).toBeLessThan(0.1);   // the PAGE is the site's own near-black
     expect(lum(p.text)).toBeGreaterThan(0.6); // and the ink is light
     expect(p.accent).toBe("#00d4ff");
@@ -245,15 +245,15 @@ describe("buildPalette", () => {
 
   it("never uses the site's own background as its ink", () => {
     // The exact shipped bug: text === #04090e === bodyBg.
-    const p = buildPalette(DODCYBER);
-    expect(p.text.toLowerCase()).not.toBe(DODCYBER.bodyBg);
+    const p = buildPalette(ACMECYBER);
+    expect(p.text.toLowerCase()).not.toBe(ACMECYBER.bodyBg);
   });
 
   it("gives a dark page buttons you can actually see", () => {
     // `dark`/`mid` carry the solid chips. Derived from `primary` they came out
     // #10202d on a #091219 page — invisible. On a dark page they must be
     // shades of the ACCENT, the only token with contrast to spend.
-    const p = buildPalette(DODCYBER);
+    const p = buildPalette(ACMECYBER);
     const ratio = (a: string, b: string) => {
       const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
       return (hi + 0.05) / (lo + 0.05);
@@ -266,7 +266,7 @@ describe("buildPalette", () => {
     // acmelongevity.com is a CREAM site whose single largest painted region is
     // a dark-green hero band (2.25M px² vs cream's 2.16M). Area alone calls it
     // dark and inverts a design that was already correct.
-    const p = buildPalette(DRLONGEVITYRX_WITH_BODY);
+    const p = buildPalette(ACMERX_WITH_BODY);
     expect(p.cream).toBe("#f5f0e8");
     expect(p.text).toBe("#2c2c2c");
   });
@@ -274,7 +274,7 @@ describe("buildPalette", () => {
   it("assumes LIGHT when bodyBg is absent", () => {
     // Drafts extracted before bodyBg existed have no way to answer the
     // question, and the safe answer is the behaviour they already shipped.
-    const noBody: RawColors = { ...DODCYBER, bodyBg: undefined };
+    const noBody: RawColors = { ...ACMECYBER, bodyBg: undefined };
     expect(lum(buildPalette(noBody).cream)).toBeGreaterThan(0.9);
   });
 
@@ -291,10 +291,10 @@ describe("buildPalette", () => {
 // rendered nothing, because its <use> pointed at a sprite symbol that lives in
 // the page, not in the file. Only measuring the painted result caught it.
 describe("usableInlineSvg", () => {
-  const REAL_PETER_ATTIA = '<svg class="open" width="24" height="24" aria-hidden="true" role="img" focusable="false"><use href="#utility-plus"></use></svg>';
+  const REAL_LONGEVITY_SITE = '<svg class="open" width="24" height="24" aria-hidden="true" role="img" focusable="false"><use href="#utility-plus"></use></svg>';
 
   it("rejects the exact glyph that shipped a blank logo", () => {
-    expect(usableInlineSvg(REAL_PETER_ATTIA)).toBe(false);
+    expect(usableInlineSvg(REAL_LONGEVITY_SITE)).toBe(false);
   });
 
   it("rejects anything the author marked aria-hidden — decorative by declaration", () => {
@@ -331,12 +331,12 @@ describe("usableInlineSvg", () => {
   });
 });
 
-// The izone3 logo, verbatim, as it was extracted and served on 2026-08-14.
+// The acmezone logo, verbatim, as it was extracted and served on 2026-08-14.
 // HTTP 200, image/svg+xml, 316 correct bytes — and naturalWidth 0 in every
 // browser, which produced ten "image never loaded" blocking defects across two
 // viewports and read as the preflight being over-strict. It was not: the file
 // genuinely could not be decoded.
-const REAL_IZONE3 = `<svg viewBox="0 0 24 24" fill="none">
+const REAL_ACMEZONE = `<svg viewBox="0 0 24 24" fill="none">
       <path d="M 12 4 L 18.93 16 L 5.07 16 Z"></path>
       <path d="M 15.47 10 L 18.07 8.5"></path>
       <path d="M 8.53 10 L 5.93 8.5"></path>
@@ -348,7 +348,7 @@ describe("normalizeExtractedSvg", () => {
   it("injects the namespace an inline svg was allowed to omit", () => {
     // Inline in HTML the parser supplies the namespace. Written to a .svg and
     // served as image/svg+xml it is parsed as XML, where it is mandatory.
-    expect(normalizeExtractedSvg(REAL_IZONE3)).toContain(
+    expect(normalizeExtractedSvg(REAL_ACMEZONE)).toContain(
       'xmlns="http://www.w3.org/2000/svg"',
     );
   });
@@ -359,14 +359,14 @@ describe("normalizeExtractedSvg", () => {
   });
 
   it("does not add a second namespace on a repeat pass", () => {
-    const once = normalizeExtractedSvg(REAL_IZONE3);
+    const once = normalizeExtractedSvg(REAL_ACMEZONE);
     expect(normalizeExtractedSvg(once)).toBe(once);
     expect(once.match(/xmlns=/g)).toHaveLength(1);
   });
 
   it("keeps the artwork byte-for-byte apart from the injected attribute", () => {
     // The fix must not "clean up" the customer's mark — only make it loadable.
-    expect(normalizeExtractedSvg(REAL_IZONE3).replace(' xmlns="http://www.w3.org/2000/svg"', "")).toBe(REAL_IZONE3);
+    expect(normalizeExtractedSvg(REAL_ACMEZONE).replace(' xmlns="http://www.w3.org/2000/svg"', "")).toBe(REAL_ACMEZONE);
   });
 });
 
@@ -394,11 +394,11 @@ describe("usableInlineSvg: marks painted only by the page stylesheet", () => {
   });
 });
 
-describe("usableInlineSvg: the real izone3 mark", () => {
+describe("usableInlineSvg: the real acmezone mark", () => {
   it("rejects it — currentColor is not paint in a standalone file", () => {
     // The whole chain in one assertion. Rejecting falls through to logoUrl /
     // apple-touch-icon, which is a real image, per this module's rule that no
     // logo beats a blank one.
-    expect(usableInlineSvg(REAL_IZONE3)).toBe(false);
+    expect(usableInlineSvg(REAL_ACMEZONE)).toBe(false);
   });
 });

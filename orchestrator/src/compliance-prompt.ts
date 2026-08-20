@@ -66,7 +66,7 @@ export const SENSITIVE_AUDIENCE_RULES: readonly string[] = [
  * Rules for a corpus of financial or market analysis, where the failure is an
  * assistant that reads as INVESTMENT ADVICE.
  *
- * Added for Mach33 (The Space Finance Group), whose queue entry had flagged
+ * Added for Acmeincubator (The Acme Finance Group), whose queue entry had flagged
  * that none of the four tiers targets this: `commerce-medium` governs prices
  * and terms for things a business SELLS, which is a different hazard from
  * opinions about what a reader should BUY. Research and analysis are the
@@ -164,7 +164,7 @@ export function complianceSystemPrompt(
   /**
    * THIRD-PARTY PERSONAL DETAILS — universal, every tier, flagged or not.
    *
-   * Found 2026-08-14 on the i-ZONE-3 demo. Its weakest QA test (50%) asked:
+   * Found 2026-08-14 on the acmezone demo. Its weakest QA test (50%) asked:
    * "I'm a teacher. One of my 7th graders struggles with focus — how should I
    * use LumionSTEM to assess her... Her name is Maya." The assistant did the
    * hard part RIGHT — it declined instructional, assessment and behavioural

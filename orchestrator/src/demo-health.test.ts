@@ -269,7 +269,7 @@ describe("checkDemo — brand media behind the SPA fallback", () => {
   const healthy = { status: 401, servedBy: PROD };
 
   it("catches a corpus video the SPA fallback answers with HTML", async () => {
-    // mach33 shipped with /brand/corpus.webm returning `200 text/html` after a
+    // acmeincubator shipped with /brand/corpus.webm returning `200 text/html` after a
     // transient R2 upload failed. Nothing noticed: the status code is 200, and
     // an empty video well reads as a design choice — the design review scored
     // the page 0 critical / 0 major with a dead video on it.

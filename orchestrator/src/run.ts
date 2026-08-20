@@ -1286,9 +1286,9 @@ function priorQaScores(prospectSlug: string, currentRun: string): number[] {
  * is no reason to defer it, and every reason to fail while the corpus is still
  * the cheapest thing in the run.
  *
- * Measured shipping demos before this moved: Acme Renew 28%, Greystone 18.8%.
+ * Measured shipping demos before this moved: Acme Renew 28%, Acme Realty 18.8%.
  * Two of two audited. `pagesCrawled` read healthy for both because it counts
- * pages VISITED, and Greystone's 81 duplicate ingests padded the total.
+ * pages VISITED, and Acme Realty's 81 duplicate ingests padded the total.
  *
  * Idempotent and best-effort: safe to call twice, and never fails a run that is
  * otherwise fine.
@@ -2123,9 +2123,9 @@ function draftLandingBrand(extracted?: ExtractedBrand, indexedCount?: number, br
   // `demo-` prefix namespaces demo workers so a prospect slug can never collide
   // with (and clobber) a real production worker on `wrangler deploy`.
   const workerName = `demo-${manifest.prospect}-landing`;
-  // Split "MD Spine Care (Dr. Alex Rivera)" → org (brand identity / chat name)
+  // Split "Acme Spine Care (Dr. Alex Rivera)" → org (brand identity / chat name)
   // + person (bio + headshot match). Keeps the doctor out of the AI's name so
-  // it reads "MD Spine Care AI", not "… (Dr. …) AI", and doesn't repeat 3×.
+  // it reads "Acme Spine Care AI", not "… (Dr. …) AI", and doesn't repeat 3×.
   const m = manifest.prospectName.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
   const org = (m ? m[1] : manifest.prospectName).trim();
   const person = m ? m[2].trim() : undefined;
@@ -2191,8 +2191,8 @@ function draftLandingBrand(extracted?: ExtractedBrand, indexedCount?: number, br
     starters: manifest.evalQueries.slice(0, 3),
     ogTagline: `${org} — answered 24/7.`,
     // No brand name here: ogTagline directly above already carries it, and the
-    // card renders them one under the other — "AuraPath AI — answered 24/7." /
-    // "AI-powered answers from AuraPath AI, in any language." states it twice
+    // card renders them one under the other — "AcmePath AI — answered 24/7." /
+    // "AI-powered answers from AcmePath AI, in any language." states it twice
     // in two lines, on top of the wordmark in the lockup above. Three times on
     // one card.
     ogSubtitle: "AI-powered answers, in any language.",
@@ -2277,7 +2277,7 @@ async function landing(): Promise<void> {
   // got. Same permanence trap as the brand fields — generation lives inside the
   // draft-creation block below, so a failure at first build (a Vertex hiccup, a
   // budget guard, a transient 5xx) is permanent, and the section renders empty
-  // on every rebuild forever after. AuraPath had neither; chriskresser has a
+  // on every rebuild forever after. AcmePath had neither; acmewhitfield has a
   // hero and no video.
   //
   // Opt-in because it spends real Vertex money, and additive only: a demo that
@@ -2915,7 +2915,7 @@ async function outreach(): Promise<void> {
 
   // Refresh the preflight onto an EXISTING task.
   //
-  // The description is written once, at creation. mach33's Gate 3 task predates
+  // The description is written once, at creation. acmeincubator's Gate 3 task predates
   // the preflight entirely, so without this a re-run measures the demo, logs
   // the result, and leaves the task — the thing a human actually reads — saying
   // nothing about it. Fenced so a re-run replaces the block instead of stacking
