@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { checkDemo, findDemos, summarize, FAILING_VERDICTS, type Probe } from "./demo-health.js";
+import { checkDemo, findDemos, summarize, selectChatProbeSlice, liveProbe, CHAT_PROBE_COVERAGE_TICKS, FAILING_VERDICTS, type Probe } from "./demo-health.js";
 import type { RunState } from "./types.js";
 
 const LANDING = "https://demo-x-landing.example-account.workers.dev";
@@ -351,5 +351,163 @@ describe("checkDemo — brand media behind the SPA fallback", () => {
       }),
     );
     expect(r.detail).toContain("not an image");
+  });
+});
+
+/**
+ * The gap that let the 2026-08-18 outage run for 24 hours unreported. The
+ * landing worker answered 200, the release bootstrapped, the card was fine —
+ * and every visitor was being refused. This monitor said `ok`.
+ */
+describe("chat-path probe", () => {
+  const demo = {
+    prospect: "acme",
+    run: "2026-08-19-001",
+    state: {
+      landingUrl: "https://demo-acme.example.workers.dev",
+      releaseId: "6a7cc1dbcd7b8307f952898a",
+      apiUrl: "https://api.divinci.app",
+    } as any,
+  };
+  const base: Probe = {
+    head: async () => 200,
+    bootstrap: async () => true,
+    asset: async () => ({ contentType: "image/png", bytes: 20_000 }),
+    html: async () => "<html></html>",
+  };
+
+  it("reports the demo dark when the chat endpoint refuses a visitor", async () => {
+    const r = await checkDemo(demo, { ...base, chat: async () => ({ kind: "blocked", status: 429, retryAfterSeconds: 83020 }) }, { chat: true });
+    expect(r.verdict).toBe("chat-blocked");
+    expect(FAILING_VERDICTS).toContain(r.verdict);
+    // A refusal measured in hours is a ban, and the detail has to say so —
+    // "rate limited" sends the reader to wait instead of to the Redis key.
+    expect(r.detail).toMatch(/BAN/);
+  });
+
+  it("does not call it a ban when the refusal is short", async () => {
+    const r = await checkDemo(demo, { ...base, chat: async () => ({ kind: "blocked", status: 429, retryAfterSeconds: 900 }) }, { chat: true });
+    expect(r.verdict).toBe("chat-blocked");
+    expect(r.detail).not.toMatch(/BAN/);
+  });
+
+  it("passes a healthy demo, where the handler rejects the probe body", async () => {
+    const r = await checkDemo(demo, { ...base, chat: async () => ({ kind: "ok", status: 400 }) }, { chat: true });
+    expect(r.verdict).toBe("ok");
+  });
+
+  it("does NOT fail a release that is gated or requires a signature", async () => {
+    // Both are correct configurations. Calling them faults would fire this
+    // monitor on demos that are working exactly as designed.
+    for (const why of ["release runs the Free-Chat Gate", "release requires a signed request"]) {
+      const r = await checkDemo(demo, { ...base, chat: async () => ({ kind: "unprobeable", status: 403, why }) }, { chat: true });
+      expect(r.verdict, why).toBe("ok");
+    }
+  });
+
+  it("is silent unless the caller opts in, and unless the probe implements it", async () => {
+    let called = 0;
+    const counting: Probe = { ...base, chat: async () => { called++; return { kind: "ok", status: 400 }; } };
+    await checkDemo(demo, counting, {});
+    expect(called).toBe(0);
+    // A probe with no chat() must not report health it never measured — it
+    // simply skips, exactly as the optional html() does.
+    const r = await checkDemo(demo, base, { chat: true });
+    expect(r.verdict).toBe("ok");
+  });
+
+  it("never runs when the release is already dark — `dark` is the truer verdict", async () => {
+    let called = 0;
+    const r = await checkDemo(
+      demo,
+      { ...base, bootstrap: async () => false, chat: async () => { called++; return { kind: "blocked", status: 429 }; } },
+      { chat: true },
+    );
+    expect(r.verdict).toBe("dark");
+    expect(called).toBe(0);
+  });
+});
+
+describe("selectChatProbeSlice — the rotation is a BUDGET, not a preference", () => {
+  const fleet = Array.from({ length: 87 }, (_, i) => i);
+
+  it("covers every demo exactly once across a full cycle", () => {
+    const seen = new Set<number>();
+    for (let t = 0; t < CHAT_PROBE_COVERAGE_TICKS; t++)
+      for (const d of selectChatProbeSlice(fleet, t)) {
+        expect(seen.has(d), `demo ${d} probed twice in one cycle`).toBe(false);
+        seen.add(d);
+      }
+    expect(seen.size).toBe(fleet.length);
+  });
+
+  it("keeps a tick well under the per-day ceiling the API enforces", () => {
+    // 600 requests/day per client address, shared with every other script on
+    // this host. A slice that blew this would make the monitor trip the limiter
+    // it exists to watch and report the whole fleet as blocked.
+    const perTick = selectChatProbeSlice(fleet, 0).length;
+    expect(perTick * 24).toBeLessThan(600);
+  });
+
+  it("handles an empty fleet and a negative tick without throwing", () => {
+    expect(selectChatProbeSlice([], 3)).toEqual([]);
+    expect(selectChatProbeSlice(fleet, -1).length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * ⚠️ The classifier itself, not a stand-in for it.
+ *
+ * The checkDemo tests above inject a fake `chat()` returning a ready-made
+ * verdict, so they prove what checkDemo DOES with an answer — and nothing about
+ * whether the real probe produces the right answer. Mutating the 403 handling
+ * in `liveProbe.chat` left all of them green. These close that.
+ */
+describe("liveProbe.chat — reading the API's answer", () => {
+  const originalFetch = globalThis.fetch;
+  const reply = (status: number, body = "") => {
+    globalThis.fetch = (async () =>
+      new Response(body, { status, headers: status === 429 ? { "retry-after": "83020" } : {} })) as typeof fetch;
+  };
+  afterEach(() => { globalThis.fetch = originalFetch; });
+
+  it("400 is HEALTHY — every guard passed and the handler rejected the probe body", async () => {
+    reply(400, '{"message":"bad form data"}');
+    expect(await liveProbe.chat!("https://api.example", "rel")).toEqual({ kind: "ok", status: 400 });
+  });
+
+  it("429 is blocked, and carries Retry-After so a ban can be told from a rate limit", async () => {
+    reply(429);
+    expect(await liveProbe.chat!("https://api.example", "rel"))
+      .toEqual({ kind: "blocked", status: 429, retryAfterSeconds: 83020 });
+  });
+
+  it("403 gate_required is NOT a fault — that release simply has another path", async () => {
+    reply(403, '{"error":"gate_required","message":"This release uses the Free-Chat Gate."}');
+    expect((await liveProbe.chat!("https://api.example", "rel")).kind).toBe("unprobeable");
+  });
+
+  it("403 landing_page_sig_missing is NOT a fault — it is hardening working", async () => {
+    reply(403, '{"error":"landing_page_sig_missing"}');
+    expect((await liveProbe.chat!("https://api.example", "rel")).kind).toBe("unprobeable");
+  });
+
+  it("any OTHER 403 is a refusal — an unrecognised denial must not be waved through", async () => {
+    reply(403, '{"error":"something_new"}');
+    expect((await liveProbe.chat!("https://api.example", "rel")).kind).toBe("blocked");
+  });
+
+  it("5xx is an error, and so is a 200 — this body should never earn one", async () => {
+    reply(503);
+    expect((await liveProbe.chat!("https://api.example", "rel")).kind).toBe("error");
+    reply(200, '{"transcript":[]}');
+    // A 200 here means the endpoint's contract moved under us. Reporting it as
+    // healthy would silently retire this whole check.
+    expect((await liveProbe.chat!("https://api.example", "rel")).kind).toBe("error");
+  });
+
+  it("a network failure is an error, never a pass", async () => {
+    globalThis.fetch = (async () => { throw new Error("ECONNRESET"); }) as typeof fetch;
+    expect(await liveProbe.chat!("https://api.example", "rel")).toEqual({ kind: "error" });
   });
 });
