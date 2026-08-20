@@ -12,6 +12,27 @@ build a white-label RAG (and optionally fine-tuned) model demo from it, and
 deliver a working "we built this for you" link — with human gates on corpus
 approval and demo review, and hard spend caps via Kill Switch Agent Guard.
 
+## What it produces
+
+Three demos this pipeline built, live right now. Each one is a company's own
+public pages, crawled and turned into an assistant that answers **from those
+pages and cites them** — the brand, the copy, the starter questions and the
+compliance footer are all derived per company, not templated by hand.
+
+| | | |
+|:--:|:--:|:--:|
+| [<img src="docs/demos/drfuhrman-ai.webp" width="290" alt="Dr. Fuhrman AI landing page: a chat assistant answering from Dr. Fuhrman's books and lectures, with suggested questions about a healthier lifestyle, the Nutritarian diet and insulin sensitivity.">](https://drfuhrman.ai/) | [<img src="docs/demos/applied-biocode-ai.webp" width="290" alt="Applied BioCode AI landing page: an assistant answering from Applied BioCode's published materials about Barcoded Magnetic Bead technology and multiplex molecular panels, with an educational-information-only disclaimer.">](https://demo-apbiocode-landing.divinci-ai.workers.dev/) | [<img src="docs/demos/aquillius-ai.webp" width="290" alt="Aquillius AI landing page: an assistant answering a question about lab and office space, with five numbered source citations shown above the answer.">](https://demo-aquillius-landing.divinci-ai.workers.dev/) |
+| **[Dr. Fuhrman AI](https://drfuhrman.ai/)** <br><sub>Every book. Every lecture.</sub> | **[Applied BioCode AI](https://demo-apbiocode-landing.divinci-ai.workers.dev/)** <br><sub>Diagnostics, with a disclaimer the tier requires.</sub> | **[Aquillius AI](https://demo-aquillius-landing.divinci-ai.workers.dev/)** <br><sub>Answers with numbered citations.</sub> |
+
+The middle one is worth a second look: that disclaimer is not decoration. Its
+prospect is `clinic-high` in the compliance tier system, so the assistant's
+scope, its refusals and that footer are generated from the tier — see
+[`policies/`](policies). The right-hand one shows the citation chips every
+answer carries back to the source page.
+
+All three are featured with the companies' permission. The pipeline never
+contacts anyone on its own — outreach is the one step behind a hard human gate.
+
 Start with [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 **Running it somewhere other than a laptop?** See

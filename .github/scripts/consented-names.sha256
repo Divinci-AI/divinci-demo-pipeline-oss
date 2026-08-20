@@ -1,0 +1,21 @@
+# Brands this repository is ALLOWED to name, because they are featured here
+# deliberately and with permission.
+#
+# WHY THIS IS PLAINTEXT WHEN forbidden-names.sha256 IS NOT
+# The forbidden list is hashed because publishing it would disclose a prospect
+# pipeline. This list has the opposite property: every name on it appears in the
+# README in plain sight, on purpose. Hashing it would disclose nothing and hide
+# the one thing a reviewer needs to check — WHO we claim to have permission from.
+#
+# An entry is a CARVE-OUT, not a deletion. The name stays in the forbidden list;
+# this file allows the specific shingles that brand needs. So consenting
+# "Fuhrman" lets the brand appear and still refuses every other real name.
+#
+# Adding an entry is a claim that someone agreed. Date it and say who.
+#
+#   date        shingle-sha256                                                    brand / reason
+2026-08-20  0cab1ee1ad64fb1a71ee3d4aef80e99a90e502b69e1c27a82e918fd9c847500c  # Applied BioCode AI — featured with permission
+2026-08-20  271b75f16c54ce987371bf9ffabad072e358aa93c988be2bd10e68c64e9c9be5  # Dr. Fuhrman AI — launched customer, featured with permission
+2026-08-20  5a132217b4872e1d5db664895401f1f3cc1f0e75613cb9e50fceeecd9eae40da  # Applied BioCode — demo slug
+2026-08-20  99f39db1563d07ae45065d429d419a7d1d5f22569b41e262ea0d9ad708ca03fd  # drfuhrman.ai — the live product domain
+2026-08-20  9df0ad4e2156718ec04d14e9797cf1188690bcd59d6720410090a02aa387c305  # Aquillius AI — featured with permission
