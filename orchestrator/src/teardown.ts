@@ -171,8 +171,14 @@ export function workerNameFor(
  *     is not evidence. Hand-built demos deployed outside the pipeline have no
  *     state file, and collecting them would delete a live page nothing here
  *     knows about.
+ *
+ * A worker already collected is excluded via `landingWorkerDeletedAt`, or every
+ * later run would re-issue a doomed delete for it forever (wrangler exits 1
+ * with code 10090 on a missing Worker). The rule is ALL referencing runs must
+ * carry the stamp, not any: a prospect re-run after collection recreates the
+ * same worker name, and "any" would exclude that new worker permanently.
  */
-export function findDeletableWorkers<T extends { demoExpiresAt?: string; demoTornDownAt?: string; landingWorkerName?: string; landingUrl?: string }>(
+export function findDeletableWorkers<T extends { demoExpiresAt?: string; demoTornDownAt?: string; landingWorkerName?: string; landingUrl?: string; landingWorkerDeletedAt?: string }>(
   states: T[],
   today: string,
 ): string[] {
@@ -191,6 +197,7 @@ export function findDeletableWorkers<T extends { demoExpiresAt?: string; demoTor
   };
   return [...referenced.entries()]
     .filter(([, runs]) => runs.every((s) => !stillServing(s)))
+    .filter(([, runs]) => !runs.every((s) => s.landingWorkerDeletedAt))
     .map(([w]) => w)
     .sort();
 }
@@ -306,6 +313,30 @@ async function purgeDemoAssets(prospect: string): Promise<number> {
 }
 
 /**
+ * A Cloudflare Worker name we are willing to pass to a DELETE.
+ *
+ * The name comes off disk (`state.json`), and it is spread into an argv array
+ * for a destructive command. execFile takes no shell, so there is no injection
+ * here — but an argv element beginning with `-` is read by wrangler as a FLAG,
+ * and a corrupt or hand-edited state could otherwise steer the delete. This is
+ * an allowlist for that reason, not a formatting nicety.
+ */
+export function isSafeWorkerName(name: string): boolean {
+  return /^[a-z0-9][a-z0-9-]{0,62}$/.test(name);
+}
+
+/**
+ * Did the delete fail only because the Worker is already gone?
+ *
+ * That is the state we wanted, so it counts as success — otherwise a worker
+ * removed by hand is retried on every run for ever. Cloudflare returns 10090
+ * ("This Worker does not exist on this account") and wrangler exits 1.
+ */
+export function isWorkerAlreadyGone(message: string): boolean {
+  return /\b10090\b/.test(message) || /does not exist on this account/i.test(message);
+}
+
+/**
  * Delete a landing Worker.
  *
  * Uses `wrangler` with the ambient Cloudflare token scrubbed, exactly as the R2
@@ -319,9 +350,15 @@ async function purgeDemoAssets(prospect: string): Promise<number> {
  * assumption that it only relaxes the dependency check.
  */
 async function deleteLandingWorker(name: string): Promise<void> {
+  if (!isSafeWorkerName(name)) throw new Error(`refusing to delete unsafe worker name ${JSON.stringify(name)}`);
   const CF = { ...process.env };
   delete CF.CLOUDFLARE_API_TOKEN; delete CF.CLOUDFLARE_EMAIL; delete CF.CLOUDFLARE_ACCOUNT_ID;
-  await execFileP("npx", ["wrangler", "delete", name, "--force"], { env: CF, timeout: 120_000 });
+  try {
+    await execFileP("npx", ["wrangler", "delete", name, "--force"], { env: CF, timeout: 120_000 });
+  } catch (err) {
+    const msg = `${(err as Error).message}${(err as { stderr?: string }).stderr ?? ""}`;
+    if (!isWorkerAlreadyGone(msg)) throw err;
+  }
 }
 
 /**
@@ -332,8 +369,8 @@ async function deleteLandingWorker(name: string): Promise<void> {
  * the same invocation.
  */
 async function collectWorkers(): Promise<void> {
-  const states = allStates().map((d) => d.state);
-  const deletable = findDeletableWorkers(states, today);
+  const all = allStates();
+  const deletable = findDeletableWorkers(all.map((d) => d.state), today);
   if (!deletable.length) {
     console.log("[teardown] no landing workers to collect.");
     return;
@@ -346,6 +383,16 @@ async function collectWorkers(): Promise<void> {
     }
     try {
       await deleteLandingWorker(name);
+      // Stamp EVERY run that names this worker. Missing one leaves the set
+      // partially stamped, which correctly re-attempts next run rather than
+      // silently skipping — but writing them all is what stops the retry.
+      const stampedAt = new Date().toISOString();
+      for (const { statePath, state } of all) {
+        if (workerNameFor(state) !== name || state.landingWorkerDeletedAt) continue;
+        state.landingWorkerDeletedAt = stampedAt;
+        state.log?.push({ at: stampedAt, msg: `teardown: landing worker ${name} deleted` });
+        writeFileSync(statePath, JSON.stringify(state, null, 2) + "\n");
+      }
       console.log(`  ✓ deleted worker ${name}`);
     } catch (err) {
       // Never fatal: a worker deleted by hand, or a transient API error, must

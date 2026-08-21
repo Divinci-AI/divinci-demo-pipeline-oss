@@ -216,6 +216,8 @@ export interface RunState {
   demoExpiresAt?: string;
   /** Outreach — set once the teardown job has deprecated the demo release. */
   demoTornDownAt?: string;
+  /** Set once teardown has deleted the landing Worker, so it is not retried. */
+  landingWorkerDeletedAt?: string;
   log: { at: string; msg: string }[];
 }
 
