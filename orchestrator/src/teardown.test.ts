@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { findSupersededDemos, profileFor, argFlag } from "./teardown.js";
+import { findSupersededDemos, profileFor, argFlag, findDeletableWorkers, workerNameFor } from "./teardown.js";
 
 const run = (over: Record<string, unknown> = {}) => ({
   prospect: "acme",
@@ -113,5 +113,94 @@ describe("argFlag", () => {
 
   it("returns undefined when absent", () => {
     expect(argFlag("--profile", ["--superseded"])).toBeUndefined();
+  });
+});
+
+describe("findDeletableWorkers — the worker must outlive every run that still serves", () => {
+  const w = (over: Record<string, unknown> = {}) => ({
+    prospect: "acme",
+    run: "2026-06-15-001",
+    landingWorkerName: "demo-acme-landing",
+    demoExpiresAt: "2026-01-01",
+    ...over,
+  });
+  const TODAY = "2026-08-21";
+
+  it("collects a worker whose only run is expired", () => {
+    expect(findDeletableWorkers([w()], TODAY)).toEqual(["demo-acme-landing"]);
+  });
+
+  it("collects a worker whose only run was torn down", () => {
+    const got = findDeletableWorkers([w({ demoExpiresAt: "2026-12-01", demoTornDownAt: "2026-08-10T00:00:00Z" })], TODAY);
+    expect(got).toEqual(["demo-acme-landing"]);
+  });
+
+  // ⛔ THE MUTATION THAT MATTERS. The worker is named per PROSPECT, so an older
+  // superseded run and the live run replacing it share one script. Collecting
+  // per-run — i.e. dropping the `.every()` and acting on the expired run alone
+  // — takes the live demo dark. Any re-run prospect is in exactly this state.
+  it("does NOT collect a shared worker while a newer run is still serving", () => {
+    const got = findDeletableWorkers(
+      [w(), w({ run: "2026-08-07-001", demoExpiresAt: "2026-10-16" })],
+      TODAY,
+    );
+    expect(got).toEqual([]);
+  });
+
+  it("collects the shared worker once BOTH runs are finished", () => {
+    const got = findDeletableWorkers(
+      [w(), w({ run: "2026-08-07-001", demoExpiresAt: "2026-08-20" })],
+      TODAY,
+    );
+    expect(got).toEqual(["demo-acme-landing"]);
+  });
+
+  it("treats a run with no expiry date as still serving", () => {
+    // Fail-safe: we cannot show it is finished, so we must not delete its page.
+    expect(findDeletableWorkers([w({ demoExpiresAt: undefined })], TODAY)).toEqual([]);
+  });
+
+  it("collects a worker expiring exactly today, matching the deprecation pass", () => {
+    // findDueDemos() deprecates on `demoExpiresAt <= today`, so a demo expiring
+    // today has its release taken out of service on this same run. The worker
+    // must use the identical boundary or the page outlives its own chat by a
+    // day — deliberately pinned, because the two selectors are the kind of pair
+    // that drifts.
+    expect(findDeletableWorkers([w({ demoExpiresAt: TODAY })], TODAY)).toEqual(["demo-acme-landing"]);
+  });
+
+  it("never invents a worker no run references", () => {
+    // Hand-built demos deployed outside the pipeline have no state file.
+    // Absence of evidence is not evidence — a human reports them, not this.
+    expect(findDeletableWorkers([{ demoExpiresAt: "2026-01-01" }], TODAY)).toEqual([]);
+  });
+
+  it("keeps prospects independent", () => {
+    const got = findDeletableWorkers(
+      [w(), w({ prospect: "beta", landingWorkerName: "demo-beta-landing", demoExpiresAt: "2026-12-01" })],
+      TODAY,
+    );
+    expect(got).toEqual(["demo-acme-landing"]);
+  });
+});
+
+describe("workerNameFor", () => {
+  it("prefers the recorded worker name", () => {
+    expect(workerNameFor({ landingWorkerName: "demo-acme-landing", landingUrl: "https://other.example" }))
+      .toBe("demo-acme-landing");
+  });
+
+  it("falls back to parsing the URL for runs written before the field existed", () => {
+    // Any workers.dev subdomain — the account subdomain is not hard-coded.
+    expect(workerNameFor({ landingUrl: "https://demo-acme-landing.example-org.workers.dev" }))
+      .toBe("demo-acme-landing");
+  });
+
+  it("returns undefined for a custom-domain URL it cannot attribute", () => {
+    expect(workerNameFor({ landingUrl: "https://demo.acme.com" })).toBeUndefined();
+  });
+
+  it("returns undefined when there is no landing page at all", () => {
+    expect(workerNameFor({})).toBeUndefined();
   });
 });

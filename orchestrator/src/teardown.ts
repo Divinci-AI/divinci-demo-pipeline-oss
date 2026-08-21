@@ -133,6 +133,69 @@ export function findSupersededDemos<T extends { prospect: string; run: string; l
 }
 
 /**
+ * The Cloudflare Worker serving a run's landing page.
+ *
+ * `landingWorkerName` is authoritative; the URL is parsed only for older runs
+ * written before that field existed.
+ */
+export function workerNameFor(
+  state: { landingWorkerName?: string; landingUrl?: string },
+): string | undefined {
+  if (state.landingWorkerName) return state.landingWorkerName;
+  const m = /^https:\/\/([a-z0-9-]+)\.[a-z0-9-]+\.workers\.dev/i.exec(state.landingUrl ?? "");
+  return m ? m[1] : undefined;
+}
+
+/**
+ * Which landing WORKERS may be deleted — the step teardown never had.
+ *
+ * Deprecating the release takes the demo's CHAT out of service. The landing
+ * page is a SEPARATE Cloudflare Worker serving its own bundled assets, and
+ * nothing ever deleted it — so every demo ever built stayed a live script, and
+ * Cloudflare caps Workers per account (500 on the Paid plan). Left alone, a
+ * pipeline that builds demos continuously walks into that ceiling.
+ *
+ * ⛔ The worker is named per PROSPECT (`demo-<prospect>-landing`), NOT per run
+ * — exactly like the R2 asset prefix above, and with the same hazard. When a
+ * prospect is re-run, the old run and the new one share one worker, so deleting
+ * on a per-run basis takes the LIVE demo dark the moment the older superseded
+ * run is collected. A worker is therefore deleted only when NO run still
+ * entitles it to serve.
+ *
+ * "Still entitled" is deliberately generous, because the cost of the two
+ * mistakes is not symmetric: a worker kept too long costs one script slot, a
+ * worker deleted too early takes a prospect's live demo dark mid-outreach.
+ *   - a run with no expiry date recorded counts as ALIVE (we cannot show it is
+ *     finished, so we do not act on it)
+ *   - a worker no run mentions at all is NEVER returned — absence of evidence
+ *     is not evidence. Hand-built demos deployed outside the pipeline have no
+ *     state file, and collecting them would delete a live page nothing here
+ *     knows about.
+ */
+export function findDeletableWorkers<T extends { demoExpiresAt?: string; demoTornDownAt?: string; landingWorkerName?: string; landingUrl?: string }>(
+  states: T[],
+  today: string,
+): string[] {
+  const referenced = new Map<string, T[]>();
+  for (const s of states) {
+    const w = workerNameFor(s);
+    if (!w) continue;
+    const list = referenced.get(w);
+    if (list) list.push(s);
+    else referenced.set(w, [s]);
+  }
+  const stillServing = (s: T): boolean => {
+    if (s.demoTornDownAt) return false;
+    if (!s.demoExpiresAt) return true; // unknown end date — never act on it
+    return s.demoExpiresAt > today;
+  };
+  return [...referenced.entries()]
+    .filter(([, runs]) => runs.every((s) => !stillServing(s)))
+    .map(([w]) => w)
+    .sort();
+}
+
+/**
  * Flags that target the environment a given demo actually lives on.
  *
  * Teardown used to invoke the CLI bare, which silently means "whatever the
@@ -242,6 +305,56 @@ async function purgeDemoAssets(prospect: string): Promise<number> {
   return purged;
 }
 
+/**
+ * Delete a landing Worker.
+ *
+ * Uses `wrangler` with the ambient Cloudflare token scrubbed, exactly as the R2
+ * purge above does: the orchestrator env carries no CLOUDFLARE_API_TOKEN, so a
+ * REST call would fail closed, while wrangler's stored OAuth session is what
+ * the pipeline already deploys and purges with.
+ *
+ * `--force` is required and does double duty — it is also what makes the
+ * command non-interactive. Verified against a throwaway worker with stdin
+ * closed: it deletes and exits 0 without prompting. Do not drop it on the
+ * assumption that it only relaxes the dependency check.
+ */
+async function deleteLandingWorker(name: string): Promise<void> {
+  const CF = { ...process.env };
+  delete CF.CLOUDFLARE_API_TOKEN; delete CF.CLOUDFLARE_EMAIL; delete CF.CLOUDFLARE_ACCOUNT_ID;
+  await execFileP("npx", ["wrangler", "delete", name, "--force"], { env: CF, timeout: 120_000 });
+}
+
+/**
+ * Collect the landing Workers of demos that are finished.
+ *
+ * Runs AFTER the deprecation pass and re-reads state from disk, so a run torn
+ * down moments ago is already counted as finished and its worker collected in
+ * the same invocation.
+ */
+async function collectWorkers(): Promise<void> {
+  const states = allStates().map((d) => d.state);
+  const deletable = findDeletableWorkers(states, today);
+  if (!deletable.length) {
+    console.log("[teardown] no landing workers to collect.");
+    return;
+  }
+  console.log(`[teardown] ${deletable.length} landing worker(s) to delete${dryRun ? " (dry-run)" : ""}`);
+  for (const name of deletable) {
+    if (dryRun) {
+      console.log(`  would delete worker: ${name}`);
+      continue;
+    }
+    try {
+      await deleteLandingWorker(name);
+      console.log(`  ✓ deleted worker ${name}`);
+    } catch (err) {
+      // Never fatal: a worker deleted by hand, or a transient API error, must
+      // not stop the rest of the sweep.
+      console.error(`  ✗ FAILED deleting worker ${name}: ${(err as Error).message.split("\n")[0]}`);
+    }
+  }
+}
+
 /** All run states on disk, with their paths — the input to either selector. */
 function allStates(): DueDemo[] {
   const out: DueDemo[] = [];
@@ -278,6 +391,10 @@ async function main(): Promise<void> {
   }
   if (!due.length) {
     console.log(`[teardown] ${today}: no ${superseded ? "superseded" : "expired"} demos due.`);
+    // Still sweep: a run torn down on an earlier pass (before worker collection
+    // existed, or whose delete failed) leaves a worker nothing else will ever
+    // collect.
+    await collectWorkers();
     return;
   }
   console.log(`[teardown] ${today}: ${due.length} ${superseded ? "superseded" : "expired"} demo(s)${dryRun ? " (dry-run)" : ""}`);
@@ -330,6 +447,7 @@ async function main(): Promise<void> {
       console.error(`  ✗ FAILED ${label}: ${(err as Error).message.split("\n")[0]}`);
     }
   }
+  await collectWorkers();
 }
 
 // Only when RUN as a script — never on import.
