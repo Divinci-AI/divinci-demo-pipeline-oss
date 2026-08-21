@@ -331,6 +331,13 @@ export function isSafeWorkerName(name: string): boolean {
  * That is the state we wanted, so it counts as success — otherwise a worker
  * removed by hand is retried on every run for ever. Cloudflare returns 10090
  * ("This Worker does not exist on this account") and wrangler exits 1.
+ *
+ * ⚠️ This reads wrangler's ERROR TEXT, so it is coupled to the pinned wrangler
+ * version in package.json. That pin is what makes the coupling safe: an
+ * unpinned `npx wrangler` can change under you between two runs, and a
+ * reworded message would silently turn every already-gone worker back into a
+ * permanent retry. When bumping wrangler, re-check both branches against the
+ * new output.
  */
 export function isWorkerAlreadyGone(message: string): boolean {
   return /\b10090\b/.test(message) || /does not exist on this account/i.test(message);
