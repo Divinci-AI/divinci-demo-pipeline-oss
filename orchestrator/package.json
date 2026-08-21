@@ -30,6 +30,7 @@
   },
   "dependencies": {
     "playwright": "^1.60.0",
+    "wrangler": "4.125.0",
     "yaml": "^2.9.0"
   }
 }
