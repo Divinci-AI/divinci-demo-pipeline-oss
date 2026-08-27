@@ -115,6 +115,20 @@ succeeds against somebody else's account. See
 | `DEMO_ASSETS_R2_BASE` | that bucket's public `https://pub-….r2.dev` base |
 | `VERTEX_PROJECT` | the GCP project Vertex AI generation is billed to |
 
+Outreach adds three more, and they have no defaults for a stronger reason than
+the others: each names **who sent a commercial email and how to make it stop**.
+A default would be the identity of whoever this repository was extracted from,
+so a fork's mail would identify a company that did not send it and offer an
+opt-out reaching someone unable to honour it — both false, and both passing
+every structural check on the way out. Unset, the footer is refused and the
+draft carries a problem line until it is fixed.
+
+| Variable | What it names |
+|---|---|
+| `OUTREACH_SENDER_LEGAL_NAME` | the legal entity the email is from |
+| `OUTREACH_POSTAL_ADDRESS` | its physical postal address (CAN-SPAM requires one) |
+| `OUTREACH_OPTOUT_ADDRESS` | a mailbox a human actually reads opt-outs in |
+
 Endpoints that address the **Divinci platform itself** — `DIVINCI_API_URL`,
 `DIVINCI_WEB_URL`, `DIVINCI_EMBED_URL` — do default, to the public production
 hosts, because those are the same for everyone. Override them to point at a

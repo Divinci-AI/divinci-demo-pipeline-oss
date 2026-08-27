@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { brandObjectLiteral, applyBrandConfig, npmInstallEnv, misattributedBioBodies, defaultAiNudge, defaultHeaderAiNudge, type LandingBrandDraft } from "./landing.js";
+import { brandObjectLiteral, applyBrandConfig, reconcileAdvertisedHost, npmInstallEnv, misattributedBioBodies, defaultAiNudge, defaultHeaderAiNudge, type LandingBrandDraft } from "./landing.js";
 
 const draft: LandingBrandDraft = {
   siteName: "Acme Spine Care",
@@ -241,5 +241,50 @@ describe("a measured logo drop supersedes the guessed AI nudge", () => {
   it("still zeroes for a text lockup regardless of any drop", () => {
     expect(defaultAiNudge(true, 0.09)).toEqual({ base: 0, md: 0 });
     expect(defaultAiNudge(true, undefined)).toEqual({ base: 0, md: 0 });
+  });
+});
+
+describe("the advertised host is bound to the host actually deployed to", () => {
+  // Only `urlFor` matters here; the rest of LandingHost does network I/O.
+  const cloudflare = { urlFor: (slug: string) => `https://${slug}.example-account.workers.dev` };
+  const vercel = { urlFor: (slug: string) => `https://${slug}.vercel.app` };
+
+  it("leaves a draft alone when it already names the right host", () => {
+    const r = reconcileAdvertisedHost(draft, cloudflare);
+    expect(r.draft).toBe(draft); // same object — nothing to reconcile
+    expect(r.changedFrom).toBeUndefined();
+  });
+
+  it("rewrites a stale domain to the host being deployed to", () => {
+    // brand-draft.json is written once, at gate time, and only when absent.
+    // Deploying to a different host afterwards leaves it naming somewhere the
+    // demo does not live.
+    const r = reconcileAdvertisedHost(draft, vercel);
+    expect(r.draft.domain).toBe("https://demo-acmespine-landing.vercel.app");
+    expect(r.changedFrom).toBe(draft.domain);
+  });
+
+  it("names the stale value, because 'reconciled the host' diagnoses nothing", () => {
+    const r = reconcileAdvertisedHost(draft, vercel);
+    // An operator needs to see WHICH two hosts disagreed.
+    expect(r.changedFrom).toMatch(/workers\.dev/);
+    expect(r.draft.domain).toMatch(/vercel\.app/);
+  });
+
+  it("does not mutate the draft it was given", () => {
+    const before = draft.domain;
+    reconcileAdvertisedHost(draft, vercel);
+    expect(draft.domain).toBe(before);
+  });
+
+  // The defect this pairs with: og:url came from host.urlFor() while the
+  // footer's demoHost was recomputed from the Cloudflare subdomain, so one
+  // page advertised two different hosts. demoHost must DERIVE from the
+  // reconciled domain, never be built beside it.
+  it("demoHost derives from the reconciled domain, not from a hardcoded host", () => {
+    const { draft: reconciled } = reconcileAdvertisedHost(draft, vercel);
+    const cfg = brandObjectLiteral(reconciled);
+    expect(cfg).toContain("demo-acmespine-landing.vercel.app");
+    expect(cfg).not.toContain("workers.dev");
   });
 });

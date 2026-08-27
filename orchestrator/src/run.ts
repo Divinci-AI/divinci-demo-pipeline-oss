@@ -87,6 +87,7 @@ const TRIAGE_END = "<!-- divinci:qa-triage:end -->";
 
 const DRAFT_MARK = "<!-- divinci:outreach-draft:begin -->";
 const DRAFT_END = "<!-- divinci:outreach-draft:end -->";
+import { ensureComplianceFooter, complianceProblems } from "./outreach-compliance.js";
 import { parseQueue } from "./intake.js";
 import { validateManifest, type Manifest, type RunState } from "./types.js";
 import { lazyEnv } from "./require-env.js";
@@ -3131,12 +3132,39 @@ async function injectDemoLink(outreachDir: string): Promise<void> {
     const placeholder = /\[demo link[^\]]*\]/;
     email = placeholder.test(email) ? email.replace(placeholder, block) : `${email.trimEnd()}\n\n${block}\n`;
   }
+  /**
+   * Compliance footer, below the demo link — opt-out plus postal address.
+   *
+   * Injected rather than prompted, for the same reason as the demo link: a
+   * drafting rule the model may or may not follow is not a guarantee, and here
+   * the thing not guaranteed is a legal obligation rather than a formatting
+   * preference.
+   *
+   * The throw is caught DELIBERATELY. `complianceFooter` refuses to invent a
+   * sender identity, postal address or opt-out route, which is correct — but
+   * crashing the whole run would take the pipeline down over a missing env
+   * var, and the draft is reviewed by a human at Gate 3 before anything is
+   * sent. So an absence becomes a problem line on the artifact, reported below
+   * with the other final-artifact checks, on every draft until it is fixed.
+   *
+   * ⚠️ That reasoning depends on a human reading each draft. It does NOT
+   * transfer to bulk sending, where nobody does.
+   */
+  try {
+    email = ensureComplianceFooter(email);
+  } catch (err) {
+    log(`outreach: ⚠ compliance footer NOT injected — ${err instanceof Error ? err.message : String(err)}`);
+  }
+
   writeFileSync(emailPath, email);
   log(`outreach: injected demo link (${link}, expires ${expires})${readiness.ready ? "" : ` — ⚠ ${readiness.reason}`}`);
 
   // Check the FINAL artifact, not the prompt's output: injection is what makes
-  // the link openable, so this can only be judged after it.
+  // the link openable — and the footer present — so this can only be judged
+  // after both.
   for (const p of emailLinkProblems(email, { password: state.landingBasicAuthPassword }))
+    log(`outreach: ⚠ email draft — ${p}`);
+  for (const p of complianceProblems(email))
     log(`outreach: ⚠ email draft — ${p}`);
 }
 

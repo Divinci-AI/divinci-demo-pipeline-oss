@@ -27,7 +27,7 @@ import { explainEnTsMismatch } from "./copy-gen.js";
 import { personSurnames } from "./headshot-finder.js";
 import { isSystemFont } from "./brand-extract.js";
 import { lazyEnv } from "./require-env.js";
-import { resolveLandingHost, WORKERS_SUBDOMAIN as HOST_SUBDOMAIN } from "./landing-host.js";
+import { resolveLandingHost, type LandingHost } from "./landing-host.js";
 
 const execFileP = promisify(execFile);
 
@@ -344,7 +344,20 @@ export function brandObjectLiteral(d: LandingBrandDraft): string {
     // (logo.svg / favicon.svg ARE shipped, so those defaults stay.)
     media: { logo: d.logoFile ? `/brand/${d.logoFile}` : "/brand/logo.svg", favicon: "/brand/favicon.svg", ...(d.heroImageUrl ? { heroImage: d.heroImageUrl } : {}), ...(d.corpusVideoUrl ? { corpusVideo: d.corpusVideoUrl } : {}), logoIsLight: d.logoIsLight ?? false, logoIsMark: d.logoIsMark ?? false, logoIsTextWordmark: !d.logoFile, ...(typeof d.logoBaselineDrop === "number" ? { logoBaselineDrop: d.logoBaselineDrop } : {}), ogTagline: d.ogTagline, ogSubtitle: d.ogSubtitle },
     referral: { source: d.referralSource },
-    deploy: { workerName: d.workerName, demoHost: `${d.workerName}.${HOST_SUBDOMAIN()}` },
+    /**
+     * ⚠️ `demoHost` DERIVES from the domain rather than being computed beside
+     * it. These were two independent constructions of the same host, which is
+     * how a page came to advertise one host in its canonical/og:url and
+     * another in its footer with nothing to notice.
+     *
+     * The stricter form matters here because this repo has more than one
+     * landing host: `identity.domain` is reconciled against the RESOLVED
+     * host's `urlFor()` in `buildAndDeployLanding`, so a Vercel deploy gets
+     * `slug.vercel.app` in both fields. Recomputing from the Cloudflare
+     * subdomain here would reintroduce a workers.dev host on a page that is
+     * not on Cloudflare at all.
+     */
+    deploy: { workerName: d.workerName, demoHost: new URL(d.domain).host },
     // Hide aspirational sections in demos — we don't generate native-app /
     // offline media, so they'd render as empty wells. (Template default shows
     // them; demos opt out.)
@@ -1508,13 +1521,63 @@ export interface DeployResult {
  * template's neutral placeholders), then hands the built site to the
  * configured LandingHost. Everything above that hand-off is host-agnostic.
  */
+/**
+ * Bind a draft's advertised domain to the host actually being deployed to.
+ *
+ * Extracted so the decision is unit-testable: `buildAndDeployLanding` clones a
+ * repo and shells out to a build, so a regression here could not be caught
+ * inside it. This is pure, and the branch above delegates rather than
+ * re-deciding.
+ *
+ * Returns `changedFrom` rather than a boolean so the caller can name the stale
+ * value in its warning — "reconciled the host" tells an operator nothing about
+ * which two hosts disagreed.
+ */
+export function reconcileAdvertisedHost(
+  draftAsWritten: LandingBrandDraft,
+  host: Pick<LandingHost, "urlFor">,
+): { draft: LandingBrandDraft; changedFrom?: string } {
+  const advertised = host.urlFor(draftAsWritten.workerName);
+  if (draftAsWritten.domain === advertised) return { draft: draftAsWritten };
+  return { draft: { ...draftAsWritten, domain: advertised }, changedFrom: draftAsWritten.domain };
+}
+
 export async function buildAndDeployLanding(
   landingDir: string,
-  draft: LandingBrandDraft,
+  draftAsWritten: LandingBrandDraft,
   kvNamespaceId: string,
   opts: { generatedHomepageHtml?: string } = {},
 ): Promise<DeployResult> {
   const siteDir = await ensureSiteClone(landingDir);
+
+  /**
+   * Reconcile the advertised host against the one we are ACTUALLY deploying to.
+   *
+   * `brand-draft.json` is written once, at gate time, and only when absent. Its
+   * `domain` is a snapshot of where the demo was going to live on the day it
+   * was drafted — so changing the host afterwards (or drafting under a
+   * different `LANDING_HOST`) silently invalidates it, and the page ships a
+   * canonical and og:url naming a host that may not exist.
+   *
+   * og:url is what a link preview reads. A demo link shared into Slack, email
+   * or LinkedIn would preview a dead host — for a sales artifact whose only job
+   * is to be opened by a stranger, the worst place to be wrong.
+   *
+   * Fixing the DRAFTING code cannot fix this: the draft is already on disk.
+   * The reconciliation belongs where the host is actually known, which is here.
+   *
+   * ⚠️ The parameter is `draftAsWritten` and the reconciled value is bound to
+   * `draft`, so that none of the 40-odd later references can reach the stale
+   * domain by accident. Do not rename it back.
+   */
+  const resolvedHost = resolveLandingHost(process.env);
+  const { draft, changedFrom } = reconcileAdvertisedHost(draftAsWritten, resolvedHost);
+  if (changedFrom)
+    console.warn(
+      `landing: reconciled advertised host — draft said ${changedFrom}, ` +
+        `deploying to ${draft.domain} (${resolvedHost.name}). The draft's domain is a ` +
+        `snapshot from gate time; the deploy is what a visitor reaches.`,
+    );
 
   // Splice the customer brand into the template's brand.config.ts (keeps its
   // BrandConfig interface + FREE_MESSAGE_QUOTA intact).
@@ -1621,7 +1684,7 @@ export async function buildAndDeployLanding(
   // everything a specific host needs to know lives behind this interface.
   const { noEmailGate, demoQuota, freeBeforeEmail, clientBeforeEmail, clientQuota } =
     resolveChatGate(process.env);
-  const host = resolveLandingHost(process.env);
+  const host = resolvedHost;
   const hostCfg = {
     slug: draft.workerName,
     apiBase: draft.apiBase,
