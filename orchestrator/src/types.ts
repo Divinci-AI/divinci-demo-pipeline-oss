@@ -46,6 +46,17 @@ export interface ManifestSource {
   crawl?: CrawlSpec;
 }
 
+/**
+ * A `document` source is ONE published file (PDF/Office), ingested by upload.
+ *
+ * It is not crawlable: a text crawl walks HTML links and never opens the PDF
+ * behind one. It therefore carries no `crawl` block, is never clamped by the
+ * page budget, and counts 1 via `estPages`.
+ */
+export function isDocumentSource(s: Pick<ManifestSource, "type">): boolean {
+  return s.type === "document";
+}
+
 export interface Manifest {
   prospect: string;
   prospectName: string;

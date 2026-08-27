@@ -25,7 +25,7 @@ import { parse as parseYaml } from "yaml";
 import { safeGet, isSameSite } from "./net-guard.js";
 import { runClaude } from "./claude-cli.js";
 import { untrustedBlock } from "./prompt-safety.js";
-import { validateManifest, type Manifest, type ComplianceFlag, type ComplianceTier } from "./types.js";
+import { validateManifest, isDocumentSource, type Manifest, type ManifestSource, type ComplianceFlag, type ComplianceTier } from "./types.js";
 
 const execFileP = promisify(execFile);
 
@@ -476,6 +476,27 @@ export function looksLikeSpa(html: string): boolean {
   return words < 200 && scripts >= 1;
 }
 
+/**
+ * Pages fetched purely to find linked documents when a sitemap already told us
+ * the page list. Twelve is enough to reach a /resources or /downloads index
+ * and its first page of children; recon must stay a survey.
+ */
+const DOC_SWEEP_MAX_FETCHES = 12;
+
+/**
+ * Ceiling on document sources in one manifest.
+ *
+ * Documents are ingested one upload at a time and each is a whole file rather
+ * than a page, so an unbounded list is the one way this lane could quietly
+ * outspend the crawl it sits beside. Twenty-five covers every site measured so
+ * far (the largest, bermanmedicallasers.com, publishes nine).
+ */
+export const MAX_DOCUMENT_SOURCES = 25;
+
+/** Paths that tend to hold a company's PDFs, swept first. */
+const DOC_SURFACE_PATH_RE =
+  /\/(resource|resources|download|downloads|ebook|ebooks|guide|guides|library|whitepaper|white-paper|paper|papers|brochure|brochures|catalog|catalogue|publication|publications|report|reports|flipbook|flipbooks|literature|documentation|docs|media|press|manual|manuals|datasheet|spec|specs)(\/|$)/i;
+
 /** Fast, content-free survey of a prospect's site. Never throws. */
 export async function reconSite(url: string): Promise<SiteRecon> {
   const origin = (() => {
@@ -603,6 +624,32 @@ export async function reconSite(url: string): Promise<SiteRecon> {
     }
     sitemapUrls = [...pages];
     discovery = sitemapUrls.length > 1 ? "shallow-crawl" : "none";
+  } else {
+    /**
+     * DOCUMENT SURFACE SWEEP (sitemap mode).
+     *
+     * `harvest` above runs on the HOMEPAGE ONLY, so a site whose PDFs live
+     * behind /resources/ reports zero documents and the manifest is authored
+     * as though the company published nothing but web pages.
+     *
+     * Live case, 2026-08-24: this recon found 2 linked PDFs on
+     * bermanmedicallasers.com (both homepage-linked). The server's own
+     * onboarding recon, which fetches beyond the homepage, found NINE — the
+     * eBooks and flipbooks that are the best material the company publishes.
+     * The demo shipped without them and the run reported success.
+     *
+     * Bounded, resource-shaped paths first: this is a survey, not the crawl.
+     */
+    const seenPage = new Set([url]);
+    const candidates = [
+      ...sitemapUrls.filter((u) => DOC_SURFACE_PATH_RE.test(u)),
+      ...sitemapUrls.filter((u) => !DOC_SURFACE_PATH_RE.test(u)),
+    ].filter((u) => !seenPage.has(u) && (seenPage.add(u), true));
+
+    for (const pageUrl of candidates.slice(0, DOC_SWEEP_MAX_FETCHES)) {
+      const html = await get(pageUrl, site);
+      if (html) harvest(html, pageUrl);
+    }
   }
 
   const notes: string[] = [];
@@ -650,7 +697,11 @@ export function buildManifestPrompt(input: ManifestGenInput): string {
     '      "type": "website|docs-site|blog|catalog|press", "destination": "rag",',
     '      "rationale": "why this belongs in the corpus",',
     '      "license": "public web, robots-allowed", "estPages": 120,',
-    '      "crawl": { "multi": true, "sitemap": true, "limit": 120 } } ],',
+    '      "crawl": { "multi": true, "sitemap": true, "limit": 120 } },',
+    '    { "id": "kebab-id", "url": "https://…/guide.pdf", "tier": "T1",',
+    '      "type": "document", "destination": "rag",',
+    '      "rationale": "why this document belongs in the corpus",',
+    '      "license": "public web, robots-allowed", "estPages": 1 } ],',
     '  "evalQueries": ["…"],',
     '  "chat": { "starters": ["…","…","…"], "welcomeMessage": "…",',
     '            "threadPrefix": ["…"], "msgPrefix": "…" }',
@@ -664,6 +715,12 @@ export function buildManifestPrompt(input: ManifestGenInput): string {
     `- The SUM of crawl.limit across sources must not exceed ${budget}.`,
     "- Prefer 2-5 sources that carve the site into meaningful sections (using the",
     "  path shapes below) over one undifferentiated whole-site crawl.",
+    '- A "document" source is ONE file (PDF/Office), url = the file itself, and',
+    "  carries NO crawl block. Crawling cannot reach these: a text crawl walks",
+    "  HTML links and never opens the PDF behind one.",
+    `- Propose a document source for each listed document worth answering from,`,
+    `  up to ${MAX_DOCUMENT_SOURCES}. Skip the ones that are not knowledge — order forms, blank`,
+    "  templates, price lists that duplicate a page you already crawl.",
     recon.likelySpa
       ? '- The homepage appears to be JS-rendered: set "scraper": "@cloudflare/browser-rendering" on each source.'
       : "- The site renders server-side; leave the scraper unset (the default is faster).",
@@ -701,6 +758,20 @@ export function buildManifestPrompt(input: ManifestGenInput): string {
     `- pages discovered: ${recon.sitemapUrls.length} (via ${recon.discovery})`,
     `- JS-rendered: ${recon.likelySpa}`,
     `- linked documents (PDF/Office): ${recon.documents.length}`,
+    /**
+     * The URLs, not just the tally. Until 2026-08-27 this prompt showed the
+     * COUNT and nothing else, so the only honest thing the model could do with
+     * "linked documents: 2" was mention it in a rationale — there was no way to
+     * author a source for a file whose address it had never been told. Every
+     * PDF on every prospect site was invisible to this pipeline by
+     * construction.
+     */
+    ...(recon.documents.length
+      ? [
+        "- document URLs (author \"document\" sources from these):",
+        ...recon.documents.slice(0, MAX_DOCUMENT_SOURCES).map((u) => `    ${u}`),
+      ]
+      : []),
     `- linked audio/video files: ${recon.mediaFiles.length}`,
     `- platform embeds (YouTube/Vimeo): ${recon.embeds.length}`,
     ...(recon.note ? [`- note: ${recon.note}`] : []),
@@ -747,7 +818,7 @@ export function assembleManifest(input: ManifestGenInput, proposal: unknown): Ma
     throw new Error(`prospect url is not parseable: ${prospect.url}`);
   }
 
-  const cleaned = sources.map((s, i) => {
+  const cleaned: ManifestSource[] = sources.map((s, i): ManifestSource => {
     const url = String(s.url ?? "");
     let sourceHost: string;
     try {
@@ -762,11 +833,35 @@ export function assembleManifest(input: ManifestGenInput, proposal: unknown): Ma
       throw new Error(
         `sources[${i}]: ${sourceHost} is not on the prospect's domain (${host}) — refusing off-domain source`,
       );
+    const type = String(s.type ?? "website");
+
+    /**
+     * A document source is ONE file, and must NOT be given a crawl spec.
+     *
+     * The clamp below walks `crawl.limit` and drops any source left at zero —
+     * so a document that inherited a crawl block would be silently deleted the
+     * moment the page budget ran out, which is the failure this whole lane
+     * exists to end. It counts 1 against the budget via `estPages`, which is
+     * also what validateManifest sums.
+     */
+    if (type === "document") {
+      return {
+        id: String(s.id ?? `doc-${i + 1}`),
+        url,
+        tier: "T1" as const,
+        type,
+        destination: "rag" as const,
+        rationale: String(s.rationale ?? "document published by the prospect"),
+        license: String(s.license ?? "public web, robots-allowed"),
+        estPages: 1,
+      };
+    }
+
     return {
       id: String(s.id ?? `src-${i + 1}`),
       url,
       tier: "T1" as const,
-      type: String(s.type ?? "website"),
+      type,
       destination: "rag" as const,
       rationale: String(s.rationale ?? "prospect's own public pages"),
       license: String(s.license ?? "public web, robots-allowed"),
@@ -782,12 +877,21 @@ export function assembleManifest(input: ManifestGenInput, proposal: unknown): Ma
 
   // Clamp to budget rather than failing: the model routinely proposes a plan a
   // few pages over, and validateManifest would reject the whole run for it.
-  let remaining = budget;
-  for (const s of cleaned) {
-    s.crawl.limit = Math.max(0, Math.min(s.crawl.limit, remaining));
+  //
+  // Documents are reserved FIRST, capped, and never clamped. They are the
+  // scarce half of a corpus — a company publishes a handful of PDFs and
+  // thousands of pages — so letting a generous crawl limit consume the budget
+  // ahead of them gets the trade exactly backwards.
+  const documents = cleaned.filter(isDocumentSource).slice(0, MAX_DOCUMENT_SOURCES);
+  const crawls = cleaned.filter((s) => !isDocumentSource(s));
+
+  let remaining = Math.max(0, budget - documents.length);
+  for (const s of crawls) {
+    if (!s.crawl) continue;
+    s.crawl.limit = Math.max(0, Math.min(s.crawl.limit ?? 0, remaining));
     remaining -= s.crawl.limit;
   }
-  const kept = cleaned.filter((s) => s.crawl.limit > 0);
+  const kept = [...crawls.filter((s) => (s.crawl?.limit ?? 0) > 0), ...documents];
   if (kept.length === 0) throw new Error(`crawl budget ${budget} left no room for any source`);
 
   const chat = (p.chat ?? {}) as Record<string, unknown>;

@@ -47,6 +47,7 @@ import {
   draftOutreachAssets,
   emailLinkProblems,
 } from "./outreach-assets.js";
+import { ingestDocument } from "./document-ingest.js";
 import { autoApproveGate1 } from "./gate1-auto.js";
 import { formatDefects, measureUntilStable } from "./demo-preflight.js";
 import { checkClaims, claimedPageCount } from "./claims-check.js";
@@ -756,12 +757,49 @@ function queueClusterFor(slug: string): string | undefined {
   }
 }
 
+/**
+ * The prospect's own hostname, taken from the manifest's first parseable
+ * source. Every source is already proven on-domain by `assembleManifest`, so
+ * the first one is as authoritative as any.
+ */
+function prospectHost(): string | undefined {
+  for (const src of manifest.sources) {
+    try {
+      return new URL(src.url).hostname;
+    } catch {
+      /* try the next source */
+    }
+  }
+  return undefined;
+}
+
+/**
+ * ONE WORKSPACE PER SITE.
+ *
+ * This used to create unconditionally, keyed only on `state.workspaceId` in
+ * THIS run's directory — so a second run for the same prospect made a second
+ * workspace, and nothing outside this repo could find either of them. Measured
+ * 2026-08-27: 17 of 177 prospects already had two demo workspaces that way, and
+ * 33 of 183 hosts had another workspace from the self-serve scan funnel or the
+ * WWW-RAG crawler for the same site.
+ *
+ * `--host` makes the server's create find-or-create on `onboardingHost`, which
+ * is the key all four creators now share. A server that does not yet have that
+ * change ignores the field and behaves exactly as before.
+ */
 async function createWorkspace(): Promise<void> {
   if (state.workspaceId) return log(`workspace exists: ${state.workspaceId}`);
   await guardCheck();
   const title = `Demo — ${manifest.prospectName}`;
+  const host = prospectHost();
+  if (!host) log("workspace: no parseable host in the manifest — creating without a site key");
   const res = await dv(
-    ["workspace", "create", "--title", title, "--description", `Demo factory run ${runId} (${manifest.anchorCustomer})`],
+    [
+      "workspace", "create",
+      "--title", title,
+      "--description", `Demo factory run ${runId} (${manifest.anchorCustomer})`,
+      ...(host ? ["--host", host] : []),
+    ],
     { profile: args.profile }
   );
   const id =
@@ -771,7 +809,11 @@ async function createWorkspace(): Promise<void> {
   if (!id) fail(`could not determine workspace id from output:\n${res.raw}`);
   state.workspaceId = id;
   save(); // persist immediately — a crash here must not orphan the workspace
-  log(`created workspace ${id} ("${title}")`);
+  // Reuse is reported, never assumed: an existing workspace may hold a prior
+  // run's corpus, and that is worth seeing in the log before ingest adds to it.
+  if (/Reused the existing workspace/i.test(res.raw))
+    log(`reused the existing workspace ${id} for ${host} — nothing was created`);
+  else log(`created workspace ${id} ("${title}")`);
 }
 
 async function createVector(): Promise<void> {
@@ -808,6 +850,39 @@ async function ingest(): Promise<void> {
     if (remaining <= 0)
       fail(`crawl budget exhausted (${manifest.budgets.crawlPages} pages) before source ${src.id}`);
     const limit = Math.min(src.crawl?.limit ?? src.estPages, remaining);
+
+    /**
+     * Document sources (one published PDF/Office file each).
+     *
+     * Download + upload rather than crawl: a text crawl walks HTML links and
+     * never opens the PDF behind one, which is why every demo before
+     * 2026-08-27 was text-only regardless of what the prospect published.
+     * Counts one "page" against the crawl budget, as a video does.
+     */
+    if (src.type === "document") {
+      log(`ingest ${src.id} (${src.tier}, document): ${src.url}`);
+      try {
+        const doc = await ingestDocument(src.url, state.vectorId!, {
+          workspace: state.workspaceId,
+          profile: args.profile,
+          title: src.rationale.slice(0, 120) || undefined,
+        });
+        state.pagesCrawled += 1;
+        state.ingested.push(src.id);
+        save();
+        log(`ingested document "${doc.title}" (${Math.round(doc.bytes / 1024)}KB)`);
+      } catch (err) {
+        /**
+         * One bad document must not fail the run — but it must not pass
+         * silently either. The source is left UNMARKED so a re-run retries it,
+         * and the reason is logged verbatim: "served an HTML page, not a
+         * document" is a dead link on the prospect's site, which is worth
+         * knowing before we send them a demo built from it.
+         */
+        log(`document FAILED ${src.url}: ${(err as Error).message.split("\n")[0]}`);
+      }
+      continue;
+    }
 
     // Video sources (YouTube video/playlist/channel): captions-first via
     // yt-dlp, audio+platform-Whisper fallback. Each video counts as one
