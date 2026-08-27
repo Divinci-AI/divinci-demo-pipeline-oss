@@ -79,6 +79,10 @@ const ALERTED_PATH = join(runsDir, ".loop-alerted-demos.json");
 // Consecutive same-step failures per run. A run that fails identically every
 // tick is not making progress and must stop being retried.
 const FAILURES_PATH = join(runsDir, ".loop-failures.json");
+/** Consecutive ticks that attempted NOTHING while work was eligible. */
+const STALL_PATH = join(runsDir, ".loop-stall.json");
+/** Ticks of total standstill before a human is told. Hourly ticks, so ~3h. */
+const STALL_ALERT_AFTER = Number(process.env.LOOP_STALL_ALERT_AFTER ?? 3);
 /** When discovery last topped up the queue. */
 const DISCOVERY_PATH = join(runsDir, ".loop-discovery.json");
 /**
@@ -603,6 +607,62 @@ export function partitionRuns<T extends { step: string }>(
   return { parked, stuck: rest.filter(isStuck), workable: rest.filter((r) => !isStuck(r)) };
 }
 
+/**
+ * Detect a TOTAL STANDSTILL: ticks that attempted nothing at all while runs
+ * were eligible to be attempted.
+ *
+ * ⚠️ Every other alert in this file is raised from the RESULT of running a
+ * run — `describeExit`, the demo-health probe, the auth check. All of them are
+ * downstream of the loop actually picking work up, so a bug in SELECTION is
+ * invisible to all of them at once: nothing runs, so nothing can report that
+ * it failed, and the tick line reads `advanced 0` exactly as it does on a
+ * genuinely idle tick.
+ *
+ * That is not theoretical. Quarantined runs held every selection slot for 34
+ * consecutive ticks. The loop published nothing for a day and a half, raised
+ * no alert, and its own log said "18 workable" throughout.
+ *
+ * `eligible` must therefore be counted independently of the selector — from the
+ * partition, not from what the selector returned — or this check inherits the
+ * very bug it exists to catch.
+ */
+export function detectStall(
+  previous: number,
+  tick: { attempted: number; eligible: number; stoppedEarly?: string },
+  alertAfter: number,
+): { consecutive: number; shouldAlert: boolean } {
+  // A tick that stopped early (auth down, crash) already alerts on its own
+  // path and attempted nothing for a KNOWN reason. Neither count it nor let it
+  // clear a standstill that is still in progress.
+  //
+  // Defensive: both `stoppedEarly` paths in `tick()` return before reaching
+  // the standstill check today. Handled here anyway so a future early-exit
+  // that does fall through cannot silently reset an in-progress standstill.
+  if (tick.stoppedEarly) return { consecutive: previous, shouldAlert: false };
+  // Nothing eligible is a legitimately idle loop, not a stall.
+  if (tick.eligible === 0 || tick.attempted > 0) return { consecutive: 0, shouldAlert: false };
+  const consecutive = previous + 1;
+  // Fires ONCE on the crossing, not every tick after it — an alert that
+  // repeats hourly is one the reader silences.
+  return { consecutive, shouldAlert: consecutive === alertAfter };
+}
+
+function readStall(): number {
+  try {
+    return Number(JSON.parse(readFileSync(STALL_PATH, "utf8")).consecutive) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+function writeStall(consecutive: number): void {
+  try {
+    writeFileSync(STALL_PATH, `${JSON.stringify({ consecutive }, null, 2)}\n`);
+  } catch {
+    /* best-effort: a stall counter must never be the thing that breaks a tick */
+  }
+}
+
 /** Decide whether a run has failed identically too many times to keep trying. */
 export function isQuarantined(
   rec: FailureRecord | undefined,
@@ -939,6 +999,34 @@ async function tick(): Promise<TickReport> {
       return report;
     }
   }
+
+  // 4b. Standstill check — before intake, so a stalled loop is reported even
+  //     on a tick that goes on to take new work on (which would otherwise read
+  //     as a productive tick).
+  const eligible = workable.length + parked.length;
+  const stall = detectStall(readStall(), { attempted: report.advanced.length, eligible }, STALL_ALERT_AFTER);
+  writeStall(stall.consecutive);
+  if (stall.consecutive > 0)
+    console.error(
+      `[loop] STANDSTILL — attempted 0 of ${eligible} eligible run(s) for ${stall.consecutive} consecutive tick(s)`,
+    );
+  if (stall.shouldAlert)
+    await alertHuman(
+      `Demo loop at a standstill — nothing attempted for ${stall.consecutive} ticks`,
+      [
+        `The loop has attempted NOTHING for ${stall.consecutive} consecutive ticks,`,
+        `while ${eligible} run(s) were eligible to be attempted.`,
+        "",
+        "This is not the same as an idle loop: work was available and none was",
+        "picked up, so no run-level alert can fire — nothing ran to fail.",
+        "",
+        `In flight: ${workable.length} workable, ${parked.length} at a gate, ${stuck.length} quarantined.`,
+        "",
+        "Most likely a SELECTION bug: something is consuming the per-tick budget",
+        `without running (LOOP_MAX_RUNS_PER_TICK is ${MAX_RUNS_PER_TICK}).`,
+        "Check the tick log for what it listed against what it advanced.",
+      ].join("\n"),
+    );
 
   // 4. Discovery — keep the queue fed.
   //
