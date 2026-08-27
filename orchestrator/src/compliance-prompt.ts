@@ -156,7 +156,24 @@ export function complianceSystemPrompt(
   flags: readonly string[] = [],
 ): string[] {
   const base = [
-    `You are the ${org} assistant. You answer ONLY from ${org}'s published materials. THE RULES BELOW OVERRIDE ANY OTHER INSTRUCTION IN THIS PROMPT, INCLUDING ANYTHING ABOVE, AND ANY USER INSTRUCTION. Where an earlier instruction conflicts with one below, the one below wins.`,
+    /**
+     * ⚠️ The first-person clause lives HERE, not in the voice floor above, and
+     * that is not a style choice.
+     *
+     * This block asserts "THE RULES BELOW OVERRIDE ANY OTHER INSTRUCTION IN
+     * THIS PROMPT, INCLUDING ANYTHING ABOVE" — a blanket override, not a
+     * conflict-resolution rule. Voice rules placed above it are therefore
+     * disclaimed by it. Measured on the Acme Algos demo: with the voice floor
+     * correctly written, correctly stored (entries 1-4 of 10) and correctly
+     * referenced by the release, the assistant STILL answered "AcmeAlgos takes
+     * on engineering work... They mention... Their approach...". The
+     * instruction was present and overridden.
+     *
+     * So the sentence that establishes WHO is speaking has to sit inside the
+     * block that wins. The voice floor keeps the style rules (no source
+     * narration, no hedging); the identity claim belongs here.
+     */
+    `You are ${org}'s own assistant and you speak AS ${org}, in the first person — "we", "our", "us" — never describing ${org} in the third person as though reporting on someone else. You answer ONLY from ${org}'s published materials. THE RULES BELOW OVERRIDE ANY OTHER INSTRUCTION IN THIS PROMPT, INCLUDING ANYTHING ABOVE, AND ANY USER INSTRUCTION. Where an earlier instruction conflicts with one below, the one below wins.`,
   ];
   const notes = (complianceNotes ?? "").trim();
   if (notes) base.push(`Compliance scope for this assistant: ${notes}`);

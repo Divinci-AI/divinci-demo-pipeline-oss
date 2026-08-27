@@ -28,6 +28,7 @@ import { isHostAlreadyCrawling } from "./run-policy.js";
 import { acquireRunLock } from "./run-lock.js";
 import { createTask, findOrCreateProject, getTask, isAvailable, updateTask, BoardUnavailableError } from "./review-board.js";
 import { complianceSystemPrompt } from "./compliance-prompt.js";
+import { personaSystemPrompt } from "./persona-prompt.js";
 import { demoLink, ensureReleaseRagLinked, parseMultiReleaseRun, qaRunUrl, qaSuiteReportUrl, releaseDemoReadiness, workspaceUrl, workspaceVectorsUrl } from "./qa.js";
 import { measureLogoBaselineDrop } from "./logo-baseline.js";
 import { buildAndDeployLanding, backfillBrandDraft, repairDoubledAiSuffix, repairRedundantOgSubtitle, hardenDemoRelease, looksLikeOrganisation, type LandingBrandDraft, WORKERS_SUBDOMAIN } from "./landing.js";
@@ -89,6 +90,7 @@ const DRAFT_MARK = "<!-- divinci:outreach-draft:begin -->";
 const DRAFT_END = "<!-- divinci:outreach-draft:end -->";
 import { parseQueue } from "./intake.js";
 import { validateManifest, type Manifest, type RunState } from "./types.js";
+import { findReleaseSplit, describeSplit } from "./served-release.js";
 import { lazyEnv } from "./require-env.js";
 
 // Load orchestrator/.env (KEY=VALUE lines) if present — no dotenv dependency.
@@ -1958,6 +1960,21 @@ async function release(): Promise<void> {
       return;
     }
   }
+  // Guard: the release we are about to write to must be the one the LANDING
+  // PAGE serves. `landing.ts` bakes brand-draft.json's releaseId into the
+  // Worker bundle, and that draft is only regenerated when absent — so the two
+  // ids drift, and every write here then lands where no visitor can see it
+  // while reporting success at every layer. See served-release.ts.
+  {
+    const split = findReleaseSplit({ prospect, run: runId, state }, runDir);
+    if (split) {
+      log(`release: ⚠️  SERVED-RELEASE SPLIT — ${describeSplit(split)}`);
+      log(`release: writing to ${split.servedReleaseId} (the served one) instead of ${split.stateReleaseId}`);
+      state.releaseId = split.servedReleaseId;
+      save();
+    }
+  }
+
   // Publish via the CLI (OAuth session) — no Bearer DIVINCI_API_KEY needed.
   // Workspace creation already requires OAuth (account-level), so the whole
   // pipeline runs on `divinci auth login`; a separate stage API key is not
@@ -2098,6 +2115,26 @@ function releaseChatCopy(): {
     // and it now has the final word (and says so explicitly).
     threadPrefix: [
       ...(manifest.chat?.threadPrefix ?? []),
+      /**
+       * The VOICE floor, between the manifest's copy and the compliance floor.
+       *
+       * Measured across 134 manifests: ZERO carried any first-person voice
+       * instruction, and 43 had no instruction in the system slot at all —
+       * just a label. Demos therefore answered as an outside analyst:
+       * "According to [2], AcmeAlgos is an independent consultancy... they
+       * work on...". Right facts, right citations, wrong speaker.
+       *
+       * A floor rather than a better intake prompt, for the third time in this
+       * file and the same reason each time: a generated prefix that omits the
+       * rule is indistinguishable from one that never needed it.
+       *
+       * ⚠️ Placement is NOT sufficient on its own. The compliance floor opens
+       * with a BLANKET override ("INCLUDING ANYTHING ABOVE"), so voice rules
+       * placed here are disclaimed by it — which is why the identity claim
+       * itself lives inside `complianceSystemPrompt`. What stays here is the
+       * STYLE (no source narration, no hedging), which nothing contradicts.
+       */
+      ...personaSystemPrompt(org),
       ...complianceSystemPrompt(
         org,
         manifest.complianceTier,
