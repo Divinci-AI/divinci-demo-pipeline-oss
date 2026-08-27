@@ -42,7 +42,14 @@ const runsDir = join(repoRoot, "runs");
 const json = process.argv.includes("--json");
 
 function icon(v: DemoHealth["verdict"]): string {
-  return { ok: "✓", open: "🔓", dark: "✗", unreachable: "✗", "gate-broken": "⚠", "no-unfurl": "🔗" }[v];
+  // Typed as a total map on purpose: adding a verdict without deciding how it
+  // renders should be a compile error, not a blank column in the report.
+  const icons: Record<DemoHealth["verdict"], string> = {
+    ok: "✓", open: "🔓", dark: "✗", unreachable: "✗",
+    "gate-broken": "⚠", "no-unfurl": "🔗",
+    "chat-blocked": "🚫", "chat-error": "✗",
+  };
+  return icons[v];
 }
 
 async function main(): Promise<void> {
