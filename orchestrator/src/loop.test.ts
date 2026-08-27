@@ -6,6 +6,7 @@ import {
   findActiveRuns,
   countRunsStartedToday,
   describeExit,
+  detectStall,
   selectRunsToAdvance,
   isParked,
   runKey,
@@ -649,5 +650,52 @@ describe("reconcileDemoAlerts — the chat probe's rotating slice must not clear
     const runEntry = "run:acme/2026-08-18-001:failed (exit 1)";
     const { alerted } = reconcileDemoAlerts(new Set([runEntry]), [demo("acme", "ok")], new Set([key("acme")]));
     expect([...alerted]).toEqual([runEntry]);
+  });
+});
+
+describe("detectStall", () => {
+  const AFTER = 3;
+
+  it("does not fire on an idle loop — nothing eligible is not a stall", () => {
+    let n = 0;
+    for (let t = 0; t < 10; t++) {
+      const r = detectStall(n, { attempted: 0, eligible: 0 }, AFTER);
+      expect(r.shouldAlert).toBe(false);
+      n = r.consecutive;
+    }
+    expect(n).toBe(0);
+  });
+
+  it("fires when work was eligible and nothing was attempted", () => {
+    // The measured outage: 18 workable + 58 parked eligible, 0 attempted.
+    let n = 0;
+    const fired: number[] = [];
+    for (let t = 1; t <= 6; t++) {
+      const r = detectStall(n, { attempted: 0, eligible: 76 }, AFTER);
+      if (r.shouldAlert) fired.push(t);
+      n = r.consecutive;
+    }
+    // Exactly once, on the crossing — an alert that repeats hourly gets muted.
+    expect(fired).toEqual([AFTER]);
+  });
+
+  it("resets as soon as anything is attempted", () => {
+    const r = detectStall(9, { attempted: 1, eligible: 76 }, AFTER);
+    expect(r).toEqual({ consecutive: 0, shouldAlert: false });
+  });
+
+  it("a tick that stopped early neither counts nor clears", () => {
+    // Auth being down alerts on its own path; it must not mask an in-progress
+    // standstill by resetting the counter either.
+    const r = detectStall(2, { attempted: 0, eligible: 76, stoppedEarly: "auth: expired" }, AFTER);
+    expect(r).toEqual({ consecutive: 2, shouldAlert: false });
+  });
+
+  it("counts eligibility independently of what the selector returned", () => {
+    // The whole point: if `eligible` were derived from the selector's output,
+    // a selector returning nothing would report nothing eligible and this
+    // check would inherit the bug it exists to catch.
+    const r = detectStall(AFTER - 1, { attempted: 0, eligible: 1 }, AFTER);
+    expect(r.shouldAlert).toBe(true);
   });
 });
