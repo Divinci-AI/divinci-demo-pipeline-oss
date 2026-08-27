@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { checkAuth, readCredentials, sameApiBase, minutesUntil } from "./auth-preflight.js";
+import { checkAuth, readCredentials, sameApiBase, minutesUntil, probeCause } from "./auth-preflight.js";
 
 const dirs: string[] = [];
 function credFile(contents: unknown): string {
@@ -178,5 +178,46 @@ describe("credential fixtures (shape the preflight relies on)", () => {
   it("a profile with no refresh token cannot renew unattended", () => {
     const p = credFile(creds({ refreshToken: undefined }));
     expect(readCredentials(p)?.profiles?.default.refreshToken).toBeUndefined();
+  });
+});
+
+describe("probeCause", () => {
+  // Node's execFile error: "Command failed: <cmd>" then the child's stderr.
+  const NODE_STYLE = [
+    "Command failed: divinci workspace list --no-color --json",
+    "Error: Request failed with status code 401 Unauthorized",
+    "    at handleError (/x/y.js:12:9)",
+  ].join("\n");
+
+  it("names the cause instead of the command", () => {
+    // The whole point: this string must let a reader tell an expired session
+    // from an unreachable API without opening anything else.
+    expect(probeCause(NODE_STYLE)).toBe("Error: Request failed with status code 401 Unauthorized");
+  });
+
+  it("never returns the useless first line when a real one exists", () => {
+    expect(probeCause(NODE_STYLE)).not.toMatch(/^Command failed:/i);
+  });
+
+  it("falls back to the command line when there is no stderr at all", () => {
+    const only = "Command failed: divinci workspace list --no-color --json";
+    expect(probeCause(only)).toBe(only);
+  });
+
+  it("handles an empty message without throwing", () => {
+    expect(probeCause("")).toBe("no output");
+  });
+
+  it("truncates a runaway stderr so one failure cannot flood the log", () => {
+    const long = `Command failed: x\n${"y".repeat(5000)}`;
+    const out = probeCause(long, 100);
+    expect(out).toHaveLength(101); // 100 + the ellipsis
+    expect(out.endsWith("…")).toBe(true);
+  });
+
+  it("skips blank lines between the command and the cause", () => {
+    expect(probeCause("Command failed: x\n\n   \nECONNREFUSED 127.0.0.1:443")).toBe(
+      "ECONNREFUSED 127.0.0.1:443",
+    );
   });
 });

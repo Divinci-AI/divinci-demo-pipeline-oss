@@ -332,13 +332,26 @@ export function countRunsStartedToday(today: string, dir = runsDir): number {
  * tick, so once the backlog exceeds N the tail is never touched again — a run
  * whose gate was approved would sit approved forever. Rotating by last-attempt
  * guarantees every run gets its turn.
+ *
+ * ⛔ `isSkipped` is REQUIRED, and it must be applied HERE rather than by the
+ * caller after selection. A run the loop refuses to run does not get an
+ * attempt stamp, so it keeps sorting first — it holds its selection slot
+ * FOREVER. Once the skipped set reaches `limit`, every slot is held by a run
+ * that will not move and the loop's throughput is exactly zero, while the log
+ * still cheerfully reports N runs "workable".
+ *
+ * That is not hypothetical: with 23 quarantined runs and a limit of 14, the
+ * pipeline advanced NOTHING for 34 consecutive hourly ticks and published no
+ * demo, including one whose gate a human had approved.
  */
 export function selectRunsToAdvance(
   runs: ActiveRun[],
   attempts: Record<string, string>,
   limit: number,
+  isSkipped: (run: ActiveRun) => boolean,
 ): ActiveRun[] {
   return [...runs]
+    .filter((r) => !isSkipped(r))
     .sort((a, b) => {
       const ka = attempts[runKey(a)] ?? "";
       const kb = attempts[runKey(b)] ?? "";
@@ -860,17 +873,27 @@ async function tick(): Promise<TickReport> {
     `[loop] ${all.length} run(s): ${workable.length} workable, ${parked.length} awaiting a human` +
       (stuck.length ? `, ${stuck.length} quarantined (need a fix; not holding a slot)` : ""),
   );
-  for (const run of selectRunsToAdvance(all, attempts, MAX_RUNS_PER_TICK)) {
-    // Quarantine: stop re-running a run that fails the same way every tick.
-    if (isQuarantined(failures[runKey(run)], run.step)) {
-      report.quarantined ??= [];
-      report.quarantined.push(`${runKey(run)} (${run.step}, ${failures[runKey(run)].count} consecutive failures)`);
-      console.error(
-        `[loop] QUARANTINED ${runKey(run)} — failed at '${run.step}' ` +
-          `${failures[runKey(run)].count}× consecutively. Fix it and clear ${FAILURES_PATH} to resume.`,
-      );
-      continue;
-    }
+  // Quarantine is reported from the PARTITION, not from the selection, and so
+  // reports every quarantined run exactly once per tick. Reporting it from
+  // inside the selection loop both under-reported (only the ones that fit in
+  // the tick budget) and hid the starvation: 14 QUARANTINED lines and
+  // `advanced 0` reads as "the loop is busy with broken runs" when what it
+  // actually means is that the tick budget was entirely consumed by them.
+  for (const run of stuck) {
+    const rec = failures[runKey(run)];
+    report.quarantined ??= [];
+    report.quarantined.push(`${runKey(run)} (${run.step}, ${rec?.count ?? 0} consecutive failures)`);
+  }
+  if (stuck.length)
+    console.error(
+      `[loop] ${stuck.length} run(s) QUARANTINED, skipped and NOT holding a tick slot: ` +
+        `${stuck.map((r) => `${runKey(r)}(${r.step})`).join(", ")}. ` +
+        `Fix them and clear ${FAILURES_PATH} to resume.`,
+    );
+
+  for (const run of selectRunsToAdvance(all, attempts, MAX_RUNS_PER_TICK, (r) =>
+    isQuarantined(failures[runKey(r)], r.step),
+  )) {
     if (DRY) {
       report.advanced.push({ prospect: run.prospect, run: run.run, from: run.step, outcome: "(dry-run) would advance" });
       continue;

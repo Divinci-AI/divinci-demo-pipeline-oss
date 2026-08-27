@@ -31,14 +31,15 @@ export default defineConfig({
     // Worker limits. The dry-run smoke test spawns a real `tsx src/run.ts`
     // subprocess, so an unbounded pool multiplies actual processes rather than
     // just threads.
+    //
+    // ⚠️ These are TOP-LEVEL options. Vitest 4 removed `test.poolOptions`, and
+    // an unknown key there is not an error — it is ignored. So the bound that
+    // this comment describes was silently NOT in effect: the only visible sign
+    // was a `DEPRECATED` line in the run output, which reads as advice about a
+    // future version rather than as "your limit is off right now".
     isolate: true,
     pool: "threads",
-    poolOptions: {
-      threads: {
-        singleThread: false,
-        maxThreads: 2,
-        minThreads: 1,
-      },
-    },
+    maxWorkers: 2,
+    minWorkers: 1,
   },
 });

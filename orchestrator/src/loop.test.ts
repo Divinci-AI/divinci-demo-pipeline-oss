@@ -121,9 +121,9 @@ describe("selectRunsToAdvance", () => {
     // runs 1-6 forever, so a run whose gate a human approved sits approved.
     const all = runs(12);
     const attempts: Record<string, string> = {};
-    const firstTick = selectRunsToAdvance(all, attempts, 6);
+    const firstTick = selectRunsToAdvance(all, attempts, 6, () => false);
     for (const r of firstTick) attempts[runKey(r)] = "2026-08-04T00:00:00.000Z";
-    const secondTick = selectRunsToAdvance(all, attempts, 6);
+    const secondTick = selectRunsToAdvance(all, attempts, 6, () => false);
 
     const overlap = secondTick.filter((r) => firstTick.some((f) => runKey(f) === runKey(r)));
     expect(overlap).toHaveLength(0);
@@ -134,7 +134,7 @@ describe("selectRunsToAdvance", () => {
     const attempts: Record<string, string> = {};
     const seen = new Set<string>();
     for (let t = 0; t < 2; t++) {
-      const picked = selectRunsToAdvance(all, attempts, 6);
+      const picked = selectRunsToAdvance(all, attempts, 6, () => false);
       picked.forEach((r, i) => {
         seen.add(runKey(r));
         // Distinct timestamps so ordering is deterministic.
@@ -150,13 +150,55 @@ describe("selectRunsToAdvance", () => {
       [runKey(all[0])]: "2026-08-04T00:00:00.000Z",
       [runKey(all[1])]: "2026-08-04T00:00:01.000Z",
     };
-    expect(runKey(selectRunsToAdvance(all, attempts, 1)[0])).toBe(runKey(all[2]));
+    expect(runKey(selectRunsToAdvance(all, attempts, 1, () => false)[0])).toBe(runKey(all[2]));
   });
 
   it("returns everything when under the limit", () => {
-    expect(selectRunsToAdvance(runs(3), {}, 6)).toHaveLength(3);
+    expect(selectRunsToAdvance(runs(3), {}, 6, () => false)).toHaveLength(3);
+  });
+
+  // The outage this exists to prevent, reproduced at its real numbers.
+  //
+  // Skipped runs never get an attempt stamp, so they sort first forever. When
+  // the loop filtered them AFTER selection, 23 quarantined runs against a
+  // limit of 14 held every slot and the pipeline advanced NOTHING for 34
+  // consecutive hourly ticks while reporting 18 runs "workable".
+  it("a skipped run must not hold a tick slot, however many there are", () => {
+    const all = runs(41); // 23 quarantined + 18 workable, as measured
+    const quarantined = new Set(all.slice(0, 23).map(runKey));
+    const skipped = (r: ActiveRun) => quarantined.has(runKey(r));
+
+    const picked = selectRunsToAdvance(all, {}, 14, skipped);
+
+    expect(picked).toHaveLength(14);
+    expect(picked.filter(skipped)).toHaveLength(0);
+  });
+
+  // Starvation is not a one-tick property: the stamp is only written for runs
+  // that actually ran, so a broken filter re-selects the same skipped set
+  // every tick. Advance several ticks and require real throughput.
+  it("keeps advancing across ticks with a large quarantined backlog", () => {
+    const all = runs(41);
+    const quarantined = new Set(all.slice(0, 23).map(runKey));
+    const skipped = (r: ActiveRun) => quarantined.has(runKey(r));
+    const attempts: Record<string, string> = {};
+    const seen = new Set<string>();
+
+    for (let t = 0; t < 3; t++) {
+      const picked = selectRunsToAdvance(all, attempts, 14, skipped);
+      expect(picked.length).toBeGreaterThan(0);
+      picked.forEach((r, i) => {
+        seen.add(runKey(r));
+        attempts[runKey(r)] = `2026-08-2${t}T00:${String(i).padStart(2, "0")}:00.000Z`;
+      });
+    }
+
+    // Every non-quarantined run got its turn, and no quarantined one ever did.
+    expect(seen.size).toBe(18);
+    expect([...seen].filter((k) => quarantined.has(k))).toHaveLength(0);
   });
 });
+
 
 describe("describeExit", () => {
   it("treats a parked gate as normal — it must not alert anyone", () => {

@@ -3,6 +3,27 @@ import { promisify } from "node:util";
 
 const execFileP = promisify(execFile);
 
+type NodeExecError = Error & {
+  stdout?: string;
+  stderr?: string;
+  killed?: boolean;
+  signal?: NodeJS.Signals | null;
+};
+
+/**
+ * Default wall-clock budget for one `divinci` invocation.
+ *
+ * Was a hardcoded 10 minutes, which a large crawl cannot fit: a 245-page
+ * ingest against a flaky network is routinely longer, and the kill looked like
+ * an application failure rather than a deadline. The ingest call sites that had
+ * already been bumped by hand use 30 minutes, so that is now the floor for
+ * everything; override per-process with DIVINCI_CLI_TIMEOUT_MS.
+ */
+export const DEFAULT_CLI_TIMEOUT_MS = (() => {
+  const raw = Number(process.env.DIVINCI_CLI_TIMEOUT_MS);
+  return Number.isFinite(raw) && raw > 0 ? raw : 30 * 60 * 1000;
+})();
+
 export interface CliResult {
   raw: string;
   json?: unknown;
@@ -46,12 +67,25 @@ export async function dv(args: string[], opts: CliOpts = {}): Promise<CliResult>
   if (opts.workspace) full.push("--workspace", opts.workspace);
   if (opts.profile) full.push("--profile", opts.profile);
 
+  const timeoutMs = opts.timeoutMs ?? DEFAULT_CLI_TIMEOUT_MS;
   const { stdout, stderr } = await execFileP("divinci", full, {
-    timeout: opts.timeoutMs ?? 10 * 60 * 1000,
+    timeout: timeoutMs,
     maxBuffer: 32 * 1024 * 1024,
-  }).catch((err: Error & { stdout?: string; stderr?: string }) => {
+  }).catch((err: NodeExecError) => {
+    // A `timeout` kill arrives as SIGTERM with killed=true, and Node's own
+    // message ("Command failed: …") never mentions the timeout. The loop logs
+    // a failure as `→ failed (exit N) — <last stderr line>`, so before this
+    // the cause was replaced by whatever the CLI happened to print last. On
+    // 2026-08-23 that was an unrelated `spawn ks ENOENT` advisory, and three
+    // runs killed by this 10-minute default were diagnosed as a missing
+    // binary. Say "timed out" first, where a tail cannot lose it.
+    const timedOut = err.killed === true && err.signal === "SIGTERM";
+    const cause = timedOut
+      ? `TIMED OUT after ${Math.round(timeoutMs / 1000)}s (SIGTERM, exit 143) — ` +
+        `raise DIVINCI_CLI_TIMEOUT_MS or pass a larger timeoutMs`
+      : err.message;
     throw new Error(
-      `divinci ${args.join(" ")} failed: ${err.message}\n${err.stderr ?? ""}\n${err.stdout ?? ""}`
+      `divinci ${args.join(" ")} failed: ${cause}\n${err.stderr ?? ""}\n${err.stdout ?? ""}`
     );
   });
 
@@ -140,6 +174,9 @@ export function extractObjectId(raw: string): string | undefined {
   return raw.match(/\b[0-9a-f]{24}\b/)?.[0];
 }
 
+/** Set once `guardCheck` has reported a missing `ks`; see the catch below. */
+let warnedKsMissing = false;
+
 /**
  * Kill Switch Agent Guard check — called before every spend step.
  * Hard-fails when the guard is paused or its verdict escalates past "warn";
@@ -158,9 +195,27 @@ export async function guardCheck(): Promise<void> {
     });
     status = JSON.parse(stdout);
   } catch (err) {
-    console.warn(
-      `guard: WARNING — could not verify ks guard status (${(err as Error).message?.split("\n")[0]}); proceeding`
-    );
+    // `ks` not being installed is a standing configuration fact, not an event.
+    // Warning on every spend step printed it hundreds of times per tick and —
+    // because it is the LAST thing on stderr before a step's own failure — the
+    // loop's `→ failed (exit N) — <last stderr line>` format attached it to
+    // unrelated failures. On 2026-08-23 three runs killed by the CLI timeout
+    // were reported as `spawn ks ENOENT` and diagnosed as a missing binary.
+    // Say it once per process, and label it as not-installed rather than as a
+    // failed check. A genuine error (ks present but broken) still warns every
+    // time, because that one IS an event.
+    const message = (err as Error).message?.split("\n")[0] ?? "unknown error";
+    const notInstalled = (err as NodeJS.ErrnoException).code === "ENOENT";
+    if (!notInstalled) {
+      console.warn(`guard: WARNING — ks guard status check failed (${message}); proceeding`);
+    } else if (!warnedKsMissing) {
+      warnedKsMissing = true;
+      console.warn(
+        "guard: NOTE — `ks` is not installed, so kill-switch verdicts cannot be " +
+          "read; spend steps proceed unguarded. Install the kill-switch CLI to " +
+          "re-enable the check. (Reported once per process.)"
+      );
+    }
     return;
   }
   const verdict = status.verdict ?? "unknown";

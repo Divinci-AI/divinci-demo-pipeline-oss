@@ -163,13 +163,14 @@ export async function checkAuth(
   } catch (err) {
     const msg = (err as Error).message ?? "";
     const expired = /session expired|auth login|401|unauthor/i.test(msg);
+    const cause = probeCause(msg);
     return {
       ...base,
       ok: false,
       needsHuman: expired,
       reason: expired
-        ? `session cannot be renewed (\`divinci auth login\` required): ${msg.split("\n")[0]}`
-        : `auth probe failed: ${msg.split("\n")[0]}`,
+        ? `session cannot be renewed (\`divinci auth login\` required): ${cause}`
+        : `auth probe failed: ${cause}`,
     };
   }
 
@@ -188,4 +189,29 @@ export function formatVerdict(v: AuthVerdict): string {
   if (v.ok)
     return `auth: ok — profile "${v.profile}" (${v.email ?? "?"}) → ${v.apiUrl ?? "?"}, valid ${v.minutesRemaining ?? "?"} min`;
   return `auth: FAILED — ${v.reason}`;
+}
+
+/**
+ * The line worth printing out of a failed `execFile` error.
+ *
+ * Node builds the message as `Command failed: <cmd>` followed by the child's
+ * stderr, so taking `.split("\n")[0]` — as this did — keeps the ONE line that
+ * carries no information and discards the diagnosis. Every auth failure in the
+ * loop log therefore read `Command failed: divinci workspace list --no-color
+ * --json`, which is true of every possible cause and distinguishes none of
+ * them.
+ *
+ * That is not a cosmetic complaint. The classification directly above tests the
+ * WHOLE message, so the loop already knew whether the session was expired or
+ * merely unreachable — and then printed a reason that could not tell the reader
+ * which. That turned a one-line diagnosis into a hunt.
+ *
+ * Keeps the command line only when there is nothing else, so a failure with no
+ * stderr still says something.
+ */
+export function probeCause(message: string, maxLen = 300): string {
+  const lines = message.split("\n").map((l) => l.trim()).filter(Boolean);
+  const detail = lines.find((l) => !/^command failed:/i.test(l));
+  const chosen = detail ?? lines[0] ?? "no output";
+  return chosen.length > maxLen ? `${chosen.slice(0, maxLen)}…` : chosen;
 }
