@@ -94,6 +94,16 @@ import { validateManifest, type Manifest, type RunState } from "./types.js";
 import { findReleaseSplit, describeSplit } from "./served-release.js";
 import { lazyEnv } from "./require-env.js";
 
+/**
+ * Model chain applied to every demo release. Kept in step with the WWW-RAG
+ * pipeline; change both together.
+ */
+const DEMO_PRIMARY_ASSISTANT = "@cf/deepseek-ai/deepseek-v4-flash-0731";
+const DEMO_FALLBACK_ASSISTANTS = [
+  "@cf/google/gemma-4-26b-a4b-it",
+  "gemini-2.5-flash-lite",
+];
+
 // Load orchestrator/.env (KEY=VALUE lines) if present — no dotenv dependency.
 // Real environment variables win over .env values.
 {
@@ -1974,6 +1984,42 @@ async function release(): Promise<void> {
       state.releaseId = split.servedReleaseId;
       save();
     }
+  }
+
+  // Every demo release gets an explicit model chain: a Cloudflare-hosted
+  // primary with two fallbacks, the last of which is Gemini.
+  //
+  // WITHOUT a chain a release is SINGLE-MODEL — if its provider has an outage
+  // the demo answers nothing, and it fails quietly, because a failed generation
+  // is written into the transcript and the request still returns 200. A
+  // spend-cap outage at one provider on 2026-08-27 darkened an entire fleet of
+  // single-model releases exactly this way.
+  //
+  // Gemini sits LAST deliberately: the primary must not depend on the provider
+  // whose outage motivates having a chain at all.
+  //
+  // Set HERE rather than at create time on purpose — this release may have been
+  // DISCOVERED (above) rather than created, and a discovered release carries
+  // whatever the workspace default was. Applying it after the id is resolved
+  // covers both paths, and re-applying the same chain is a no-op.
+  //
+  // ⚠️ Every id must be REGISTERED and DEPLOYED in the server's assistant
+  // catalog, or the release save fails its validator with
+  // "assistant: bad form data".
+  try {
+    await dv(
+      ["release", "update", state.releaseId!,
+        "--assistant", DEMO_PRIMARY_ASSISTANT,
+        "--fallback-assistants", JSON.stringify(
+          DEMO_FALLBACK_ASSISTANTS.map((id) => ({ id, finetune: false })),
+        )],
+      { workspace: state.workspaceId, profile: args.profile, timeoutMs: 120_000 },
+    );
+    log(`release: model chain set (${DEMO_PRIMARY_ASSISTANT} + ${DEMO_FALLBACK_ASSISTANTS.length} fallback(s))`);
+  } catch (e) {
+    // Not fatal — a demo on the workspace default still answers. But say so
+    // loudly: the failure mode this guards against is silent.
+    log(`release: ⚠️  could not set the model chain (${(e as Error).message.split("\n")[0]}) — this release is SINGLE-MODEL and will go dark if its provider fails`);
   }
 
   // Publish via the CLI (OAuth session) — no Bearer DIVINCI_API_KEY needed.
