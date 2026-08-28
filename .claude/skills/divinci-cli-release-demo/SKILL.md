@@ -90,12 +90,20 @@ here, not in a demo you have already sent someone.
 ## 5. Release
 
 ```sh
-divinci release create --name "Example demo" --assistant-id <toolId>
+divinci release create --name "Example demo" --assistant-id @cf/deepseek-ai/deepseek-v4-flash-0731
 divinci release list
 divinci release get <releaseId>
 divinci release update <releaseId> --help      # attach the RAG vector
 divinci release publish <releaseId>            # DRAFT -> live
 ```
+
+The recommended demo assistant is `@cf/deepseek-ai/deepseek-v4-flash-0731`
+(Cloudflare Workers AI DeepSeek V4 Flash) — it is the platform's current
+default for new demo releases, is not subject to the AI Studio spend cap that
+has bitten Gemini-backed releases, and answers from the attached RAG vector
+without a fine-tune. Any registered id works; pass `--fallback-assistants`
+on `release update` to add an ordered fallback chain (e.g. Gemma 4, then a
+Gemini model) so a single provider outage does not take the demo down.
 
 A release is a **draft** until published. `publish` is the step that makes it
 reachable, so treat it as the moment the demo becomes public.
