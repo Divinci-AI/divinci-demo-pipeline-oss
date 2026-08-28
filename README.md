@@ -235,8 +235,28 @@ cd orchestrator
 npm run loop -- --dry-run          # decide everything, change nothing
 npm run intake -- --next           # take the top of research/prospect-queue.yaml
 npm run loop                       # one real tick
+npm run yield                      # per-source funnel: is a source worth polling?
+npm run discover:web -- --dry-run  # propose partners from the live web
 ../launchd/install.sh install      # schedule it (hourly)
 ```
+
+**Where prospects come from, and whether each source earns its place.** Every
+queue entry carries a `source`, validated against a registered list in
+`orchestrator/src/provenance.ts` — free text is refused, because a typo splits
+one source's yield across two buckets and it then reads as two mediocre sources
+instead of one good one. `npm run yield` prints the funnel per source, and the
+loop prints it every tick: a report you have to remember to ask for is one
+nobody reads until they already suspect something.
+
+Entries written before provenance existed are **not** backfilled. Absence is the
+honest record; they are inferred at read time as `model-recall:backfilled`, a
+label whose own name says it is an assumption, and inferred rows are never
+merged into a measured bucket.
+
+⚠️ The table also reports each cohort's **median age**, because the funnel is not
+age-neutral — outreach is the last gate, so a young cohort looks identical to a
+failed one. That column is there to make "these cohorts are not comparable yet"
+visible at the point of reading rather than in a caveat someone has to remember.
 
 **What the loop will and will not do on its own.** Gates 1 (corpus) and 2 (demo
 review) are **advisory by default**: they run, stamp who approved and when, and

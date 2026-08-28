@@ -20,7 +20,9 @@
     "discover": "tsx src/discover-cli.ts",
     "gate2": "tsx src/gate2-cli.ts",
     "wwwrag:backfill": "tsx src/wwwrag-backfill.ts",
-    "metrics": "tsx src/metrics-cli.ts"
+    "metrics": "tsx src/metrics-cli.ts",
+    "yield": "tsx src/source-yield-cli.ts",
+    "discover:web": "tsx src/discover-web-cli.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
