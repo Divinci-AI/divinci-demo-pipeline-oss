@@ -26,8 +26,15 @@ import { safeGet, isSameSite } from "./net-guard.js";
 import { runClaude } from "./claude-cli.js";
 import { untrustedBlock } from "./prompt-safety.js";
 import { validateManifest, isDocumentSource, type Manifest, type ManifestSource, type ComplianceFlag, type ComplianceTier } from "./types.js";
+import { isSource, SOURCES, type Source } from "./provenance.js";
 
 const execFileP = promisify(execFile);
+
+/** Which rubric a prospect was scored against — see QueuedProspect.icp. */
+export type Icp = "customer" | "partner";
+
+/** Default share of STARTED runs that may be partners. See selectNextProspect. */
+export const DEFAULT_PARTNER_SHARE = Number(process.env.PARTNER_INTAKE_SHARE ?? 0.25);
 
 export interface QueuedProspect {
   slug: string;
@@ -52,6 +59,33 @@ export interface QueuedProspect {
    * direct one at any priority.
    */
   requestedBy?: "direct" | "discovered";
+  /**
+   * WHICH mechanism produced this prospect — see provenance.ts.
+   *
+   * Separate from `requestedBy`, which is a priority band. Origin drives yield
+   * accounting only, so registering a new source can never reorder the queue.
+   * Absent on entries written before provenance existed; `sourceOf()` infers
+   * those and marks them as inferred rather than guessing silently.
+   */
+  source?: Source;
+  /**
+   * Which question this prospect was scored against.
+   *
+   * `customer` (the default) — would they buy a retrieval assistant for their
+   * own content? Weights content richness heavily, because the demo is built
+   * FROM their site.
+   *
+   * `partner` — would they put the assistant in front of THEIR customers?
+   * Weights reach and integration surface, and deliberately does not penalise
+   * a thin marketing site (see research/partner-scoring.md).
+   *
+   * ⚠️ `score` IS ONLY COMPARABLE WITHIN AN ICP. A partner on 92 and a customer
+   * on 85 are not ranked; they are measuring different quantities on a shared
+   * 0-100 scale. compareProspects therefore never puts them in competition —
+   * partner intake is bounded by a SHARE of capacity instead. If you find
+   * yourself sorting the two together, that is the bug.
+   */
+  icp?: Icp;
   /** Position within the direct list — lower runs first. Assign monotonically. */
   directSeq?: number;
   complianceTier: ComplianceTier;
@@ -155,6 +189,18 @@ export function parseQueue(text: string): QueuedProspect[] {
         `${where}: requestedBy must be "direct" or "discovered" — a typo would silently demote a ` +
           `prospect Michael asked for into the discovered band`,
       );
+    if (p.icp !== undefined && p.icp !== "customer" && p.icp !== "partner")
+      throw new Error(
+        `${where}: icp must be "customer" or "partner" — it selects which rubric the score came ` +
+          `from, and an unrecognized value would let a partner score be ranked against a customer one`,
+      );
+    if (p.source !== undefined && !isSource(p.source))
+      throw new Error(
+        `${where}: unknown source ${JSON.stringify(p.source)} — must be one of ${SOURCES.join("|")}. ` +
+          `Free text was rejected deliberately: a typo silently creates a second bucket and splits ` +
+          `one source's yield in half, so it reads as two mediocre sources instead of one good one. ` +
+          `Register a real new source in provenance.ts.`,
+      );
     if (p.requestedBy === "direct" && typeof p.directSeq !== "number")
       throw new Error(
         `${where}: a direct prospect needs directSeq (the order it was asked for). ` +
@@ -165,6 +211,8 @@ export function parseQueue(text: string): QueuedProspect[] {
       name: String(p.name),
       url: String(p.url),
       anchorCustomer: String(p.anchorCustomer),
+      ...(isSource(p.source) ? { source: p.source } : {}),
+      ...(p.icp === "customer" || p.icp === "partner" ? { icp: p.icp as Icp } : {}),
       requestedBy: p.requestedBy as "direct" | "discovered" | undefined,
       directSeq: typeof p.directSeq === "number" ? p.directSeq : undefined,
       complianceTier: p.complianceTier as ComplianceTier,
@@ -231,10 +279,33 @@ export function selectNextProspect(
   queue: QueuedProspect[],
   runsDir: string,
   apiUrl?: string,
+  opts: { partnerShare?: number } = {},
 ): QueuedProspect | undefined {
-  return queue
+  const eligible = queue
     .map((p, i) => ({ p, i }))
-    .filter(({ p }) => !p.hold && !hasRun(runsDir, p.slug, apiUrl))
+    .filter(({ p }) => !p.hold && !hasRun(runsDir, p.slug, apiUrl));
+
+  // Partner intake is capped by SHARE, not by score.
+  //
+  // A partner's score comes from a different rubric measuring a different
+  // quantity, so ranking a 92-partner against an 85-customer is comparing
+  // reach to content richness on a shared scale that means nothing. Sorting
+  // them together would let one good partner pass every customer in the
+  // queue — not because it is more valuable, but because its rubric happens to
+  // produce bigger numbers.
+  //
+  // A share also keeps the partner ICP an experiment with a bounded cost while
+  // it has no yield history, which is the honest state of it today. Raise
+  // PARTNER_INTAKE_SHARE once `npm run yield` says something.
+  const share = opts.partnerShare ?? DEFAULT_PARTNER_SHARE;
+  const started = queue.filter((p) => hasRun(runsDir, p.slug, apiUrl));
+  const startedPartners = started.filter((p) => p.icp === "partner").length;
+  // `+ 1` asks about the run we are ABOUT to start, so the very first pick can
+  // be a partner rather than requiring a customer to go first forever.
+  const partnersAllowed = started.length === 0 ? share > 0 : (startedPartners + 1) / (started.length + 1) <= share;
+
+  const pool = partnersAllowed ? eligible : eligible.filter(({ p }) => p.icp !== "partner");
+  return (pool.length ? pool : eligible.filter(({ p }) => p.icp !== "partner"))
     .sort((a, b) => compareProspects(a.p, b.p) || a.i - b.i)
     .map(({ p }) => p)[0];
 }

@@ -82,6 +82,33 @@ prospects:
   it("refuses a file with no prospects list", () => {
     expect(() => parseQueue("something: else")).toThrow(/prospects/);
   });
+
+  /**
+   * ⚠️ This covers `parseQueue`'s rejection, NOT `isSource` — the predicate is
+   * tested separately in source-yield.test.ts, and testing only the predicate
+   * leaves the validation call itself free to be deleted. Mutation-testing
+   * found exactly that: removing the `if (!isSource(...))` branch broke no
+   * test at all, in either repository.
+   *
+   * Free text is refused because a typo silently creates a SECOND bucket and
+   * splits one source's yield in half — so a good source reads as two mediocre
+   * ones, and the number is quoted before anyone notices.
+   */
+  it("refuses an unregistered source rather than opening a bucket for it", () => {
+    const bad = QUEUE.replace("score: 86", "score: 86\n    source: model_recall");
+    expect(bad).not.toBe(QUEUE); // the fixture must actually have changed
+    expect(() => parseQueue(bad)).toThrow(/unknown source/);
+  });
+
+  it("accepts a registered source", () => {
+    const ok = QUEUE.replace("score: 86", "score: 86\n    source: model-recall");
+    expect(parseQueue(ok)[0].source).toBe("model-recall");
+  });
+
+  it("refuses an unknown icp — a partner score must never rank against a customer one", () => {
+    const bad = QUEUE.replace("score: 86", "score: 86\n    icp: reseller");
+    expect(() => parseQueue(bad)).toThrow(/icp must be/);
+  });
 });
 
 describe("selectNextProspect", () => {

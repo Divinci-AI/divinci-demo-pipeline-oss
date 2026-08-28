@@ -37,6 +37,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { checkAuth, formatVerdict } from "./auth-preflight.js";
 import { intakeProspect, loadQueue, selectNextProspect } from "./intake.js";
+import { computeYield, renderYield, type YieldReport } from "./source-yield.js";
 import {
   DISCOVER_WHEN_BACKLOG_BELOW,
   discoverProspects,
@@ -745,6 +746,8 @@ export interface TickReport {
   quarantined?: string[];
   advanced: Array<{ prospect: string; run: string; from: string; outcome: string }>;
   intaken?: Array<{ prospect: string; run: string; sources: number; plannedPages: number }>;
+  /** Per-source funnel at the end of this tick — see source-yield.ts. */
+  sourceYield?: YieldReport;
   /** Queue top-up: what discovery proposed, kept, and why it dropped the rest. */
   discovered?: { added: number; considered: number; rejected: string[] };
   tornDown: number;
@@ -1254,6 +1257,19 @@ async function main(): Promise<void> {
     console.error(`[loop] tick crashed: ${(err as Error).stack ?? message}`);
   } finally {
     releaseLock();
+  }
+
+  // Per-source yield, every tick. This is the "is <source> still worth it?"
+  // number, and it is printed unconditionally: a report you have to remember
+  // to ask for is one nobody reads until they already suspect something. It is
+  // derived from files we already have, costs no API call, and is wrapped
+  // because an accounting line must never be able to fail a tick.
+  try {
+    const y = computeYield(loadQueue(QUEUE_PATH), runsDir);
+    report.sourceYield = y;
+    for (const line of renderYield(y).split("\n")) console.log(`[loop] ${line}`);
+  } catch (err) {
+    console.log(`[loop] source yield unavailable: ${(err as Error).message.split("\n")[0]}`);
   }
 
   writeFileSync(STATUS_PATH, `${JSON.stringify(report, null, 2)}\n`);

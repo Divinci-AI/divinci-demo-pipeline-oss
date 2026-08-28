@@ -313,6 +313,11 @@ export function renderQueueEntries(cands: VerifiedCandidate[], today: string): s
         // site Michael handed over directly, and an omitted field would leave
         // that to whatever `priority` the model happened to propose.
         `    requestedBy: discovered`,
+        // Stamped at the point of creation, not inferred later. The whole
+        // value of provenance is that it records what actually happened; a
+        // field filled in afterwards from "well, what else could it have been"
+        // is an assumption wearing a measurement's clothes.
+        `    source: model-recall`,
         `    complianceTier: ${c.complianceTier}`,
         ...(c.complianceFlags?.length ? [`    complianceFlags: [${c.complianceFlags.join(", ")}]`] : []),
         `    complianceNotes: ${y(c.complianceNotes)}`,
