@@ -2006,20 +2006,42 @@ async function release(): Promise<void> {
   // ⚠️ Every id must be REGISTERED and DEPLOYED in the server's assistant
   // catalog, or the release save fails its validator with
   // "assistant: bad form data".
+  const fallbacksJson = JSON.stringify(
+    DEMO_FALLBACK_ASSISTANTS.map((id) => ({ id, finetune: false })),
+  );
   try {
     await dv(
       ["release", "update", state.releaseId!,
         "--assistant", DEMO_PRIMARY_ASSISTANT,
-        "--fallback-assistants", JSON.stringify(
-          DEMO_FALLBACK_ASSISTANTS.map((id) => ({ id, finetune: false })),
-        )],
+        "--fallback-assistants", fallbacksJson],
       { workspace: state.workspaceId, profile: args.profile, timeoutMs: 120_000 },
     );
     log(`release: model chain set (${DEMO_PRIMARY_ASSISTANT} + ${DEMO_FALLBACK_ASSISTANTS.length} fallback(s))`);
   } catch (e) {
-    // Not fatal — a demo on the workspace default still answers. But say so
-    // loudly: the failure mode this guards against is silent.
-    log(`release: ⚠️  could not set the model chain (${(e as Error).message.split("\n")[0]}) — this release is SINGLE-MODEL and will go dark if its provider fails`);
+    const msg = (e as Error).message ?? "";
+    // `--fallback-assistants` has shipped for a while; `--assistant` is newer.
+    // A CLI old enough to lack the latter can still set the FALLBACKS, and a
+    // chain with a default primary is worth far more than no chain at all — so
+    // degrade to that rather than to nothing. Checked against the published
+    // package on 2026-08-28: @divinci-ai/cli 0.5.1 has --fallback-assistants
+    // and NOT --assistant, i.e. this is the state of every `npm i -g` install
+    // today, not a hypothetical.
+    if (/unknown option/i.test(msg) && /--assistant/.test(msg)) {
+      try {
+        await dv(
+          ["release", "update", state.releaseId!, "--fallback-assistants", fallbacksJson],
+          { workspace: state.workspaceId, profile: args.profile, timeoutMs: 120_000 },
+        );
+        log(`release: ⚠️  your divinci CLI predates \`--assistant\` — set FALLBACKS only. `
+          + `The primary stays the workspace default; upgrade the CLI to pin it to ${DEMO_PRIMARY_ASSISTANT}.`);
+      } catch (e2) {
+        log(`release: ⚠️  could not set any model chain (${(e2 as Error).message.split("\n")[0]}) — this release is SINGLE-MODEL and will go dark if its provider fails`);
+      }
+    } else {
+      // Not fatal — a demo on the workspace default still answers. But say so
+      // loudly: the failure mode this guards against is silent.
+      log(`release: ⚠️  could not set the model chain (${msg.split("\n")[0]}) — this release is SINGLE-MODEL and will go dark if its provider fails`);
+    }
   }
 
   // Publish via the CLI (OAuth session) — no Bearer DIVINCI_API_KEY needed.
