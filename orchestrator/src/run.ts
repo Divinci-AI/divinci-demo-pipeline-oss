@@ -1004,8 +1004,13 @@ async function ingest(): Promise<void> {
         cmd.push("--exclude-paths", src.crawl.excludePaths.join(","));
     }
     // CLI --wait defaults to a 300s ceiling — too tight for a multi-page
-    // crawl+index; the work continues server-side either way.
-    cmd.push("--wait", "--poll-interval", "15", "--timeout", src.crawl?.multi ? "1800" : "600");
+    // crawl+index; the work continues server-side either way. JS-rendered
+    // multi crawls (browser-rendering scraper) routinely exceed 30 min, so
+    // the wait ceiling is env-overridable: CRAWL_WAIT_TIMEOUT_SEC.
+    const crawlWaitSec =
+      process.env.CRAWL_WAIT_TIMEOUT_SEC ??
+      (src.crawl?.multi ? "1800" : "600");
+    cmd.push("--wait", "--poll-interval", "15", "--timeout", crawlWaitSec);
 
     log(`ingest ${src.id} (${src.tier}, ≤${limit} pages): ${src.url}`);
     // Partial-success tolerance: a multi-page crawl commonly indexes most pages
@@ -1015,7 +1020,11 @@ async function ingest(): Promise<void> {
     const before = await ragFileCount(state.workspaceId!, args.profile);
     let res: Awaited<ReturnType<typeof dv>>;
     try {
-      res = await dv(cmd, { workspace: state.workspaceId, profile: args.profile, timeoutMs: 30 * 60 * 1000 });
+      res = await dv(cmd, {
+        workspace: state.workspaceId,
+        profile: args.profile,
+        timeoutMs: Number(process.env.CRAWL_WAIT_TIMEOUT_SEC ?? 0) * 1000 || 30 * 60 * 1000,
+      });
     } catch (err) {
       const after = await ragFileCount(state.workspaceId!, args.profile);
       // Unknown ≠ empty. If the count cannot be read, do not guess that the
