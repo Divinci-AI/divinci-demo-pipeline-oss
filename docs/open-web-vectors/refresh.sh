@@ -20,6 +20,15 @@ cd "$(dirname "$0")"
 : "${CF_ACCOUNT_ID:?set CF_ACCOUNT_ID}"
 : "${CF_BROWSER_TOKEN:?set CF_BROWSER_TOKEN (needs Browser Rendering)}"
 
+# ⚠️ Strip whitespace. A token that arrives with a trailing newline — from
+# `pbpaste > file`, from a copied line, from `gh secret set < file` — produces
+# a malformed Authorization header, and Cloudflare answers that with the SAME
+# `10000 Authentication error` it uses for a token that lacks the permission.
+# One of those is a typo and the other is a dashboard trip; do not let a stray
+# byte masquerade as the second.
+CF_BROWSER_TOKEN="$(printf '%s' "$CF_BROWSER_TOKEN" | tr -d '[:space:]')"
+CF_ACCOUNT_ID="$(printf '%s' "$CF_ACCOUNT_ID" | tr -d '[:space:]')"
+
 # 9s was enough for the text and the stat bar but not always for the hero
 # illustration, which loads late — two captures on 2026-08-28 came back with
 # an empty right half and nothing about them said so.
@@ -28,6 +37,7 @@ UNIVERSE_SETTLE_MS="${UNIVERSE_SETTLE_MS:-20000}"
 
 API="https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/browser-rendering/screenshot"
 failed=0
+captured_owv=0
 
 # macOS has sips; a CI runner has ImageMagick. The script used to hardcode sips,
 # which is why it could only ever be run from one laptop.
@@ -103,6 +113,7 @@ if shot open-web-vectors "{\"url\":\"https://divinci.ai/open-web-vectors/\",
   # can change freely and the capture stays correct with no arithmetic.
   resize open-web-vectors.raw.png open-web-vectors.png 1760
   rm -f open-web-vectors.raw.png
+  captured_owv=1
 else
   echo "  ❌ open-web-vectors: giving up; the committed image is unchanged"
   failed=1
@@ -150,10 +161,29 @@ echo "── README counts ──"
 # The numbers in the alt text are the only version of them a screen reader
 # gets. Deriving them removes the "remember to update the README" step that
 # left them 14,000 sites out of date.
-./readme-counts.py || failed=1
+#
+# ⚠️ Only when the capture landed. The counts come from the API and the image
+# comes from the browser, so rewriting them independently is how you get a PR
+# whose alt text says 16,942 over a picture that says 2,588 — the exact drift
+# this script exists to close, restated as a caption that lies about the image
+# directly beneath it. The first CI run did this: a 401 on the screenshot, and
+# it went on to update the counts anyway.
+if [ "$captured_owv" = "1" ]; then
+  ./readme-counts.py || failed=1
+else
+  echo "  skipped — the capture failed, so the committed image still shows the"
+  echo "  committed numbers. Rewriting them now would caption the OLD picture"
+  echo "  with TODAY's figures."
+fi
 
 echo
-echo "✅ refreshed:"
+# "✅ refreshed" printed unconditionally, under a run where every capture had
+# failed. The summary has to report the outcome, not the intention.
+if [ "$failed" = "0" ]; then
+  echo "✅ refreshed:"
+else
+  echo "⚠️  finished with failures — the images on disk are:"
+fi
 for f in open-web-vectors.png rag-universe.png; do
   echo "   $f  $(dimensions "$f")"
 done

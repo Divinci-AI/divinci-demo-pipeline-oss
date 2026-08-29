@@ -50,6 +50,35 @@ jobs:
             exit 1
           fi
 
+          # Present is not the same as valid. The first run had both secrets
+          # set and every capture came back `10000 Authentication error`, which
+          # is what Cloudflare says for a token lacking Browser Rendering AND
+          # for a token mangled by a trailing newline — read off a screenshot
+          # failure 40 lines into a log, it looked like a broken page.
+          #
+          # `/user/tokens/verify` cannot settle it either: it reports
+          # success:false for tokens that work. So probe the actual API with a
+          # request cheap enough to be a health check.
+          token="$(printf '%s' "$CF_BROWSER_TOKEN" | tr -d '[:space:]')"
+          account="$(printf '%s' "$CF_ACCOUNT_ID" | tr -d '[:space:]')"
+          if [ "${#token}" -ne "$(printf '%s' "$CF_BROWSER_TOKEN" | wc -c | tr -d ' ')" ]; then
+            echo "::warning::CF_BROWSER_TOKEN carries surrounding whitespace — it is being trimmed, but re-set it cleanly"
+          fi
+          # A fingerprint, never the value: enough to tell "the secret is the
+          # token I minted" from "the secret is whatever else was on the
+          # clipboard", without putting a credential in a public build log.
+          echo "token fingerprint: $(printf '%s' "$token" | shasum -a 256 | cut -c1-12)  (length ${#token})"
+
+          body="$(curl -s -X POST \
+            "https://api.cloudflare.com/client/v4/accounts/$account/browser-rendering/content" \
+            -H "Authorization: Bearer $token" -H "Content-Type: application/json" \
+            -d '{"url":"https://example.com/"}' -o /dev/null -w '%{http_code}')"
+          if [ "$body" = "401" ] || [ "$body" = "403" ]; then
+            echo "::error::CF_BROWSER_TOKEN is refused by Browser Rendering (HTTP $body). Either it lacks the Account → Browser Rendering → Edit permission, or the wrong value was pasted. Compare the fingerprint above against: printf %s \"\$TOKEN\" | shasum -a 256 | cut -c1-12"
+            exit 1
+          fi
+          echo "✅ Browser Rendering accepted the token (HTTP $body)"
+
       # ubuntu-latest ships ImageMagick; refresh.sh uses `sips` when it is
       # there (a laptop) and falls back to this.
       - name: Capture and rewrite the counts
