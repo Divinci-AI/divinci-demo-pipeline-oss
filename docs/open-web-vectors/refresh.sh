@@ -49,8 +49,17 @@ resize() {  # <infile> <outfile> <max-width>
   elif command -v convert >/dev/null 2>&1; then
     convert "$1" -resize "$3x$3>" "$2"
   else
-    echo "❌ need sips (macOS) or ImageMagick to resize" >&2
+    echo "❌ need sips (macOS) or ImageMagick to resize —" >&2
+    echo "   on a runner: sudo apt-get install -y imagemagick" >&2
     return 1
+  fi
+}
+
+checksum() {  # <file> — "" when it does not exist yet
+  [ -f "$1" ] || return 0
+  if command -v shasum >/dev/null 2>&1; then shasum -a 256 "$1" | cut -d" " -f1
+  elif command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | cut -d" " -f1
+  else wc -c < "$1"  # weaker, but a resize that fails leaves the size identical
   fi
 }
 
@@ -111,9 +120,28 @@ if shot open-web-vectors "{\"url\":\"https://divinci.ai/open-web-vectors/\",
   # `.owv-hero` is exactly the region this image should show: eyebrow, headline,
   # lead and the stat bar. Letting the element define the bounds means the copy
   # can change freely and the capture stays correct with no arithmetic.
-  resize open-web-vectors.raw.png open-web-vectors.png 1760
-  rm -f open-web-vectors.raw.png
-  captured_owv=1
+  # ⚠️ The gate is "the image on disk changed", NOT "the request returned a
+  # PNG". Those came apart on the first green CI run: the capture succeeded,
+  # `resize` then failed (ubuntu-latest ships no ImageMagick), its exit status
+  # was ignored, the raw was deleted, the OLD png stayed — and the counts were
+  # rewritten on top of it. The job exited 0 and opened a PR whose alt text
+  # said 17,139 over a picture that said 16,942.
+  #
+  # Every future variant of that — a resize tool that writes a truncated file,
+  # a permissions problem, a tool that silently no-ops — fails here too,
+  # because this checks the artifact rather than the steps that produce it.
+  before="$(checksum open-web-vectors.png)"
+  if resize open-web-vectors.raw.png open-web-vectors.png 1760 &&
+     [ -s open-web-vectors.png ] &&
+     [ "$(checksum open-web-vectors.png)" != "$before" ]; then
+    captured_owv=1
+    rm -f open-web-vectors.raw.png
+  else
+    echo "  ❌ the capture arrived but open-web-vectors.png did not change —"
+    echo "     the resize step failed or wrote nothing. The raw capture is kept"
+    echo "     at open-web-vectors.raw.png."
+    failed=1
+  fi
 else
   echo "  ❌ open-web-vectors: giving up; the committed image is unchanged"
   failed=1

@@ -79,8 +79,18 @@ jobs:
           fi
           echo "✅ Browser Rendering accepted the token (HTTP $body)"
 
-      # ubuntu-latest ships ImageMagick; refresh.sh uses `sips` when it is
-      # there (a laptop) and falls back to this.
+      # ⚠️ ubuntu-latest does NOT ship ImageMagick, whatever the runner-image
+      # docs used to say. The first green run captured a fresh screenshot,
+      # failed to resize it, kept the old image and rewrote the counts anyway.
+      # Install it rather than hoping; `identify` also gives the summary line
+      # real dimensions instead of "?", which was the other tell nobody had to
+      # notice.
+      - name: ImageMagick
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq imagemagick
+          magick -version | head -1 || convert -version | head -1
+
       - name: Capture and rewrite the counts
         env:
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}

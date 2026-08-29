@@ -47,3 +47,7 @@ targets/gcp/*.auto.tfvars
 # Python bytecode from the docs/ helper scripts and their tests.
 __pycache__/
 *.pyc
+
+# Kept by refresh.sh when a capture lands but the resize fails, so the raw
+# screenshot is there to look at. Never committed.
+docs/open-web-vectors/*.raw.png
