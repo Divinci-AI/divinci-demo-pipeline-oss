@@ -29,10 +29,9 @@ cd "$(dirname "$0")"
 CF_BROWSER_TOKEN="$(printf '%s' "$CF_BROWSER_TOKEN" | tr -d '[:space:]')"
 CF_ACCOUNT_ID="$(printf '%s' "$CF_ACCOUNT_ID" | tr -d '[:space:]')"
 
-# 9s was enough for the text and the stat bar but not always for the hero
-# illustration, which loads late — two captures on 2026-08-28 came back with
-# an empty right half and nothing about them said so.
-OWV_SETTLE_MS="${OWV_SETTLE_MS:-12000}"
+# Settle time AFTER `load` has fired, so this is a small top-up rather than a
+# guess at the whole page. See the waitUntil note on the capture below.
+OWV_SETTLE_MS="${OWV_SETTLE_MS:-6000}"
 UNIVERSE_SETTLE_MS="${UNIVERSE_SETTLE_MS:-20000}"
 
 API="https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/browser-rendering/screenshot"
@@ -102,9 +101,15 @@ shot() {  # <name> <json body>
 echo "── Open Web Vectors ──"
 # ⚠️ NOT networkidle0. Both pages carry a live chat widget and a status poller,
 # so the network never goes idle and navigation times out at 45s every time.
+#
+# `load` IS safe, and better than the `domcontentloaded` + long-guess this used
+# to do: it waits for the stylesheets and fonts specifically. A capture from a
+# cold runner on 2026-08-29 fell back to system fonts and re-wrapped the
+# headline to three lines — a picture of the page that nobody visiting the page
+# would recognise. Waiting on the resources costs ~8s total instead of ~16s.
 if shot open-web-vectors "{\"url\":\"https://divinci.ai/open-web-vectors/\",
   \"viewport\":{\"width\":1440,\"height\":1200,\"deviceScaleFactor\":2},
-  \"gotoOptions\":{\"waitUntil\":\"domcontentloaded\",\"timeout\":45000},
+  \"gotoOptions\":{\"waitUntil\":\"load\",\"timeout\":45000},
   \"waitForTimeout\":$OWV_SETTLE_MS,
   \"selector\":\".owv-hero\",
   \"screenshotOptions\":{\"type\":\"png\"}}"; then
@@ -130,6 +135,14 @@ if shot open-web-vectors "{\"url\":\"https://divinci.ai/open-web-vectors/\",
   # Every future variant of that — a resize tool that writes a truncated file,
   # a permissions problem, a tool that silently no-ops — fails here too,
   # because this checks the artifact rather than the steps that produce it.
+  # ⚠️ The hero robot is `loading="lazy"` in the page markup, and it is ABOVE
+  # THE FOLD, so whether headless Chrome has fetched it by capture time is a
+  # coin flip — observed present and absent across identical requests, with the
+  # asset itself serving 200/36KB every time. Neither a longer settle nor
+  # `scrollPage` fixes it; the durable fix is `loading="eager"` on that <img>,
+  # in the site repo. Until then: LOOK at the picture. A hero with an empty
+  # right half is a valid PNG, correctly sized, with the right numbers in it —
+  # which is exactly the kind of wrong no check here can see.
   before="$(checksum open-web-vectors.png)"
   if resize open-web-vectors.raw.png open-web-vectors.png 1760 &&
      [ -s open-web-vectors.png ] &&

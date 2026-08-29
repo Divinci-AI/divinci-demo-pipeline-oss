@@ -95,12 +95,6 @@ jobs:
         env:
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           CF_BROWSER_TOKEN: ${{ secrets.CF_BROWSER_TOKEN }}
-          # Longer than the 12s default. A runner gets a cold edge and no
-          # browser cache, and the hero illustration loads last — the first
-          # PR this job opened had correct numbers and an empty right half,
-          # which no check would ever have caught because the capture, the
-          # resize and the counts were all fine.
-          OWV_SETTLE_MS: "20000"
           # REFRESH_UNIVERSE is deliberately NOT set. That capture can return a
           # perfectly valid PNG of an unsettled force layout, which is worse
           # than the image already committed — it needs a human to look at it.
