@@ -28,6 +28,7 @@ import { personSurnames } from "./headshot-finder.js";
 import { isSystemFont } from "./brand-extract.js";
 import { lazyEnv } from "./require-env.js";
 import { resolveLandingHost, type LandingHost } from "./landing-host.js";
+import { PLACEHOLDER_TEXT } from "./demo-preflight.js";
 
 const execFileP = promisify(execFile);
 
@@ -1516,6 +1517,99 @@ export interface DeployResult {
 }
 
 /**
+ * The words a VISITOR reads on a built page — markup, scripts and styles gone.
+ *
+ * This is not a nicety. The first version of the gate below matched
+ * `PLACEHOLDER_TEXT` against raw HTML and refused EVERY deploy, healthy demos
+ * included, because `/\bplaceholder\b/i` matches the email field's
+ * `placeholder="you@example.com"` attribute — which every built page has. A
+ * guard that grounds the fleet is worse than the defect it was written for.
+ *
+ * demo-preflight does not need this because it asks a real browser for
+ * rendered text. This reads files, so it has to do the stripping itself.
+ */
+export function visibleText(html: string): string {
+  return html
+    .replace(/<(script|style|noscript)\b[^>]*>[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&(?:nbsp|#x27|#39|quot|amp|lt|gt|mdash|#x2014);/gi, (e) =>
+      ({ "&nbsp;": " ", "&#x27;": "'", "&#39;": "'", "&quot;": '"', "&amp;": "&", "&lt;": "<", "&gt;": ">", "&mdash;": "—", "&#x2014;": "—" })[e.toLowerCase()] ?? " ",
+    )
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Refuse to deploy a site whose BUILT pages still carry the template's
+ * placeholder copy.
+ *
+ * Every other guard in this file protects one INPUT — the logo, the favicon,
+ * the bios, the generated en.ts. This one reads the OUTPUT, immediately before
+ * the deploy, and so it holds no matter which input failed.
+ *
+ * It exists because a demo went live on 2026-08-28 reading "Acme Expert" in
+ * its <title>, og: tags, corpus headline, chat input placeholder and all three
+ * conversation starters — under the prospect's own demo host. Nothing was
+ * broken in a way any existing guard could see:
+ *
+ *   - The copy generator failed, so NO `en.draft.ts` was ever written. The
+ *     loud "generated en.ts REJECTED" warning above only fires when a draft
+ *     EXISTS and mismatches, so the absent-draft case passed in silence.
+ *   - That prospect's PREVIOUS run had good copy. The rebuild overwrote a
+ *     CORRECT live demo with the neutral template — a re-run is not only an
+ *     additive operation.
+ *   - demo-preflight DID catch it — `/\bacme (?:expert|corp)\b/i`, twice,
+ *     blocking — but preflight runs at outreach (Gate 3), which is AFTER the
+ *     deploy. So the prospect was never emailed and the placeholder page was
+ *     public anyway.
+ *
+ * The lesson is the shape, not the string: a gate on SENDING is not a gate on
+ * PUBLISHING. Same patterns as preflight, deliberately imported rather than
+ * re-declared — here the two really are the same job (read a rendered page,
+ * decide whether a human wrote it), separated only in time.
+ */
+export function assertNoPlaceholderCopy(siteDir: string): void {
+  const distDir = join(siteDir, "dist");
+  if (!existsSync(distDir)) return;
+
+  const pages: string[] = [];
+  const walk = (dir: string): void => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, e.name);
+      if (e.isDirectory()) walk(full);
+      else if (e.name.endsWith(".html")) pages.push(full);
+    }
+  };
+  walk(distDir);
+
+  const hits: string[] = [];
+  for (const page of pages) {
+    const text = visibleText(readFileSync(page, "utf8"));
+    for (const re of PLACEHOLDER_TEXT) {
+      const m = text.match(re);
+      if (!m) continue;
+      const rel = page.slice(distDir.length + 1);
+      // The matched TEXT, plus enough around it to recognise where it renders.
+      const at = text.indexOf(m[0]);
+      const context = text.slice(Math.max(0, at - 60), at + m[0].length + 60);
+      hits.push(`${rel}: ${re} → …${context}…`);
+      break; // one line per page is enough to act on
+    }
+  }
+  if (!hits.length) return;
+
+  throw new Error(
+    `⛔ DEPLOY BLOCKED — ${hits.length} of ${pages.length} built page(s) still carry the ` +
+      `template's placeholder copy. Deploying would publish another company's name ` +
+      `on this prospect's demo.\n` +
+      hits.map((h) => `    ${h}`).join("\n") +
+      `\n    fix: regenerate this run's copy (the landing step's copy generator), or ` +
+      `copy a good en.draft.ts from a previous run of the same prospect, then rebuild.`,
+  );
+}
+
+/**
  * Build + deploy the branded landing worker. Writes the brand config + assets
  * (caller drops real logo/hero into <landingDir>/brand/ first; falls back to the
  * template's neutral placeholders), then hands the built site to the
@@ -1658,6 +1752,21 @@ export async function buildAndDeployLanding(
           `fallback in its component instead of a key in the neutral en.ts.`,
       );
     }
+  } else {
+    // No draft AT ALL — copy generation never produced one (its call failed,
+    // and run.ts logs that as a skip and carries on). This used to be the
+    // silent path: the branch above only speaks when a draft EXISTS and
+    // mismatches, so the one case where NOTHING was generated said nothing.
+    // A demo shipped on it. Say it as loudly as the rejection does;
+    // assertNoPlaceholderCopy is what actually stops the deploy.
+    console.warn(
+      `[landing] \u26d4 NO generated en.ts found at ${enDraft} \u2014 the demo would ship with ` +
+        `NEUTRAL "Acme Expert" copy in its title, og: tags, chat welcome, conversation ` +
+        `starters and CTA.\n` +
+        `[landing]    cause: the landing step's copy generation failed or was skipped.\n` +
+        `[landing]    fix: re-run the landing step, or copy a good en.draft.ts from a previous ` +
+        `run of this prospect.`,
+    );
   }
 
   // Copy any prospect assets the caller staged into <landingDir>/brand/.
@@ -1750,6 +1859,11 @@ export async function buildAndDeployLanding(
     // language keeps the rich design (not the plain template page).
     await spliceBespokeLocales(landingDir, siteDir, homepage);
   }
+
+  // Last thing before the site becomes public. See assertNoPlaceholderCopy:
+  // this reads the BUILT pages, so it is the one check that does not care
+  // which upstream step failed.
+  assertNoPlaceholderCopy(siteDir);
 
   const deployed = await host.deploy(siteDir, hostCfg);
 
