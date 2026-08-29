@@ -22,6 +22,7 @@ import { promisify } from "node:util";
 import { existsSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { safeGet } from "./safe-fetch.js";
 
 const execFileP = promisify(execFile);
 
@@ -144,25 +145,36 @@ export async function ingestDocument(
   const name = documentFileName(url);
   const title = opts.title ?? name;
 
-  const resp = await fetch(url, {
-    redirect: "follow",
-    headers: { "user-agent": UA, accept: "*/*" },
-    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-  });
-  if (!resp.ok) throw new Error(`download failed: HTTP ${resp.status}`);
+  /**
+   * SSRF-guarded. `assembleManifest` proves the source URL is on the
+   * prospect's own domain; it says nothing about where a REDIRECT goes. A
+   * bare fetch with redirect:follow would let a prospect site (or anything
+   * that can influence its markup) steer this download onto cloud metadata or
+   * a service on the operator's machine — and whatever came back would be
+   * ingested into a demo corpus and published.
+   *
+   * The size cap moves into safeGet, which stops READING at the cap and
+   * throws by default. That is stricter than the old content-length check: a
+   * server that lies about its length no longer gets to decide.
+   */
+  let resp;
+  try {
+    resp = await safeGet(url, {
+      headers: { "user-agent": UA, accept: "*/*" },
+      timeoutMs: FETCH_TIMEOUT_MS,
+      maxBytes: MAX_DOCUMENT_BYTES,
+      maxRedirects: 5,
+    });
+  } catch (e) {
+    const err = e as Error & { ssrf?: boolean };
+    throw new Error(err.ssrf ? `refused for safety: ${err.message}` : `download failed: ${err.message}`);
+  }
+  if (resp.status < 200 || resp.status >= 300) throw new Error(`download failed: HTTP ${resp.status}`);
 
-  // Trust the header only as an EARLY out. The body is checked below either
-  // way — a server that lies about the length also lies about the type.
-  const declared = Number(resp.headers.get("content-length") ?? 0);
-  if (declared > MAX_DOCUMENT_BYTES)
-    throw new Error(`document is ${Math.round(declared / 1024 / 1024)}MB — over the ${MAX_DOCUMENT_BYTES / 1024 / 1024}MB cap`);
-
-  const buf = Buffer.from(await resp.arrayBuffer());
+  const buf = resp.body;
   if (buf.byteLength === 0) throw new Error("download was empty");
-  if (buf.byteLength > MAX_DOCUMENT_BYTES)
-    throw new Error(`document is ${Math.round(buf.byteLength / 1024 / 1024)}MB — over the ${MAX_DOCUMENT_BYTES / 1024 / 1024}MB cap`);
 
-  const verdict = looksLikeDocument(buf, resp.headers.get("content-type"));
+  const verdict = looksLikeDocument(buf, String(resp.headers["content-type"] ?? ""));
   if (!verdict.ok) throw new Error(verdict.reason);
 
   if (opts.dryRun) return { url, file: `${workDir}/${name}`, title, bytes: buf.byteLength };
