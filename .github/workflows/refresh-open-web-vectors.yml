@@ -1,0 +1,88 @@
+name: Refresh Open Web Vectors screenshot
+
+# The README shows a screenshot of https://divinci.ai/open-web-vectors/ and
+# repeats its six live figures in the alt text. Both are the argument for
+# contributing to the corpus, and both were kept current by remembering to —
+# which held for one refresh and then drifted about 14,000 sites.
+#
+# This opens a PR when they move. It does not push to main: the capture is a
+# picture, and a picture can succeed and still be wrong (a page mid-load, a
+# layout change), so a human looks at it. What is automated is NOTICING.
+
+on:
+  schedule:
+    # Weekly. The corpus grows ~150 sites/day, so a week is roughly a 1,000-site
+    # step — visible in the image, and not so often that the PR becomes noise.
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: refresh-owv
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    # A fork has neither the secrets nor a reason to refresh the upstream
+    # README, and a scheduled job that fails weekly in every fork is how people
+    # learn to ignore a red badge.
+    if: github.repository == 'Divinci-AI/divinci-demo-pipeline-oss'
+    steps:
+      - uses: actions/checkout@v4
+
+      # ⚠️ Fail, do not skip. A missing token means this job has been quietly
+      # doing nothing since whenever the secret was removed, while reporting
+      # green — coverage-shaped nothing. The failure names what to set.
+      - name: Credentials are present
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_BROWSER_TOKEN: ${{ secrets.CF_BROWSER_TOKEN }}
+        run: |
+          missing=""
+          [ -n "$CF_ACCOUNT_ID" ] || missing="$missing CF_ACCOUNT_ID"
+          [ -n "$CF_BROWSER_TOKEN" ] || missing="$missing CF_BROWSER_TOKEN"
+          if [ -n "$missing" ]; then
+            echo "::error::missing repository secret(s):$missing — CF_BROWSER_TOKEN needs the Browser Rendering permission"
+            exit 1
+          fi
+
+      # ubuntu-latest ships ImageMagick; refresh.sh uses `sips` when it is
+      # there (a laptop) and falls back to this.
+      - name: Capture and rewrite the counts
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_BROWSER_TOKEN: ${{ secrets.CF_BROWSER_TOKEN }}
+          # REFRESH_UNIVERSE is deliberately NOT set. That capture can return a
+          # perfectly valid PNG of an unsettled force layout, which is worse
+          # than the image already committed — it needs a human to look at it.
+          # See the note in refresh.sh.
+        run: ./docs/open-web-vectors/refresh.sh
+
+      - name: Open a PR if anything moved
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: chore/refresh-open-web-vectors
+          # One rolling branch, force-pushed each week: the pending PR should
+          # always show the CURRENT numbers, not a queue of stale ones.
+          title: "docs: refresh the Open Web Vectors screenshot and counts"
+          commit-message: "docs: refresh the Open Web Vectors screenshot and counts"
+          add-paths: |
+            README.md
+            docs/open-web-vectors/open-web-vectors.png
+          body: |
+            Automated weekly refresh of the Open Web Vectors hero screenshot and
+            the six live figures quoted in its README alt text.
+
+            **Look at the image before merging.** The capture is bounded by the
+            `.owv-hero` selector, so a copy change cannot crop the stat bar out
+            of frame any more — but a page that was still loading, or a layout
+            change, produces a valid PNG of the wrong thing. The numbers in the
+            alt text come from the public directory API, read seconds after the
+            capture, so they should match the picture to within a few sites.
+
+            The RAG universe image is not refreshed here; see the note in
+            `docs/open-web-vectors/refresh.sh`.

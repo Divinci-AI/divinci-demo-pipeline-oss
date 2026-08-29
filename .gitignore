@@ -43,3 +43,7 @@ targets/**/node_modules/
 targets/gcp/.terraform/
 targets/gcp/terraform.tfstate*
 targets/gcp/*.auto.tfvars
+
+# Python bytecode from the docs/ helper scripts and their tests.
+__pycache__/
+*.pyc

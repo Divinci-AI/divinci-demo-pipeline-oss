@@ -205,6 +205,16 @@ jobs:
             exit 1
           fi
 
+      - name: README count-refresh mechanics
+        run: |
+          # docs/open-web-vectors/readme-counts.py rewrites the six live
+          # figures quoted in the README's alt text. Its failure mode is to
+          # write a plausible sentence that is wrong — a regex that stops at
+          # the decimal point in "4.5 GB", a median that rounds the other way
+          # from the page's JavaScript — so the mechanics are pinned here.
+          # No network: the live read is exercised by the weekly refresh job.
+          python3 docs/open-web-vectors/test_readme_counts.py
+
       - name: No run data beyond the synthetic fixture
         run: |
           # runs/ holds real companies' crawled corpora and outreach drafts.
