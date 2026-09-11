@@ -990,6 +990,10 @@ async function ingest(): Promise<void> {
           sitemapCache.set(host, all);
           const d = decideScoping({ urlPath, sitemapUrls: all, limit });
           if (!d.scope) derived = [];
+          // A page-URL source: restrict to the exact path rather than the
+          // `${urlPath}/` section form, which matches nothing and would let the
+          // host-wide sitemap crawl duplicate another source's pages.
+          else if (d.singlePage) derived = [urlPath];
           log(`ingest ${src.id}: ${d.reason}`);
         } catch (err) {
           // Sitemap unreachable: derive anyway. Doing what the manifest says is

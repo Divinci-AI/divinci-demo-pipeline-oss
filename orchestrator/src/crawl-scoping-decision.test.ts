@@ -73,4 +73,47 @@ describe("decideScoping", () => {
     expect(d.matched).toBe(1);
     expect(d.scope).toBe(true);
   });
+
+  // Regression: a manifest that sets sitemap:true on several sources against the
+  // same small sitemap, where some sources point at PAGES rather than sections.
+  // `${urlPath}/` matches nothing for a page, so scoping was refused and each
+  // fell back to a host-wide crawl of the identical URL set — one observed site
+  // produced 48 files and 141 crawled pages for 16 real pages. The duplicates
+  // then crowd the top-k at retrieval.
+  describe("a source that points at a page, not a section", () => {
+    const site = sitemap([
+      "/", "/about.html", "/contact.html", "/how-we-work.html", "/services.html",
+      "/services-advisory.html", "/services-literacy.html", "/services-voice-agents.html",
+      "/insights.html", "/insights-off-switch.html", "/insights-pilots-stall.html",
+    ]);
+
+    it("confines to the single path instead of crawling the whole host", () => {
+      const d = decideScoping({ urlPath: "/services.html", sitemapUrls: site, limit: 40 });
+      expect(d.singlePage).toBe(true);
+      expect(d.scope).toBe(true);
+      expect(d.matched).toBe(0);
+      expect(d.reason).toContain("not a section");
+    });
+
+    it("does the same for the insights hub", () => {
+      const d = decideScoping({ urlPath: "/insights.html", sitemapUrls: site, limit: 60 });
+      expect(d.singlePage).toBe(true);
+    });
+
+    it("still refuses to scope when the path is in NEITHER form", () => {
+      // Not a page in the sitemap and nothing beneath it: a host-wide crawl is
+      // the only way to find anything, so the old behaviour must survive.
+      const d = decideScoping({ urlPath: "/does-not-exist", sitemapUrls: site, limit: 40 });
+      expect(d.singlePage).toBe(false);
+      expect(d.scope).toBe(false);
+    });
+
+    it("a real section is unaffected — it scopes, and is not a single page", () => {
+      const urls = sitemap(["/blog", "/blog/a", "/blog/b", "/other"]);
+      const d = decideScoping({ urlPath: "/blog", sitemapUrls: urls, limit: 10 });
+      expect(d.singlePage).toBe(false);
+      expect(d.scope).toBe(true);
+      expect(d.matched).toBe(2);
+    });
+  });
 });

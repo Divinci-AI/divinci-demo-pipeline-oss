@@ -30,6 +30,12 @@ export interface ScopingDecision {
   /** One line for the run log. Always populated — silence is the failure mode. */
   reason: string;
   matched: number;
+  /**
+   * The source URL is itself a page in the sitemap, with nothing beneath it.
+   * Confine the crawl to that ONE path instead of falling back to a host-wide
+   * `--sitemap` crawl, which would re-ingest what a root source already covers.
+   */
+  singlePage: boolean;
 }
 
 export function decideScoping(input: ScopingInput): ScopingDecision {
@@ -44,7 +50,28 @@ export function decideScoping(input: ScopingInput): ScopingDecision {
 
   // No sitemap to judge against: do what the manifest says.
   if (!sitemapUrls.length) {
-    return { scope: true, matched, reason: `scoping to ${urlPath}/ (no sitemap to check against)` };
+    return { scope: true, matched, singlePage: false, reason: `scoping to ${urlPath}/ (no sitemap to check against)` };
+  }
+
+  // The source points at a PAGE, not a section — it is in the sitemap itself and
+  // nothing lives beneath it. Deriving `${urlPath}/` matches nothing, and the
+  // old fallback was a host-wide `--sitemap` crawl: a manifest that sets
+  // sitemap:true on `/services.html` and `/insights.html` alongside a root
+  // source makes all three take the same URLs, so a 16-page site yields 48
+  // files. Duplicate chunks then crowd the top-k at retrieval time. Confining
+  // to the one path keeps the page and drops the re-crawl.
+  const isPageInSitemap = sitemapUrls.some((u) => {
+    try { return new URL(u).pathname.replace(/\/+$/, "") === urlPath; } catch { return false; }
+  });
+  if (matched === 0 && isPageInSitemap) {
+    return {
+      scope: true,
+      matched,
+      singlePage: true,
+      reason:
+        `${urlPath} is a page in the sitemap, not a section — confining to that one path ` +
+        `(a host-wide crawl here re-ingests what another source already covers)`,
+    };
   }
 
   // Matching nothing means an EMPTY crawl, which is strictly worse than the old
@@ -53,6 +80,7 @@ export function decideScoping(input: ScopingInput): ScopingDecision {
     return {
       scope: false,
       matched,
+      singlePage: false,
       reason:
         `⚠️ path ${urlPath}/ matches 0 of ${sitemapUrls.length} sitemap URLs — ` +
         `NOT scoping (would crawl nothing). The manifest's path does not exist on this site; re-author it.`,
@@ -64,6 +92,7 @@ export function decideScoping(input: ScopingInput): ScopingDecision {
   return {
     scope: true,
     matched,
+    singlePage: false,
     reason:
       `--sitemap ignores the URL path — scoping to ${urlPath}/ ` +
       `(${matched} of ${sitemapUrls.length} sitemap URLs, limit ${limit})` +

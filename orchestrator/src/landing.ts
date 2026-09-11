@@ -1942,6 +1942,12 @@ export async function buildAndDeployLanding(
 }
 
 /**
+ * Anonymous messages a demo visitor gets before the release cuts them off.
+ * The platform default is 1, which ends an evaluation after a single question.
+ */
+export const DEMO_ANON_MESSAGE_CAP = 20;
+
+/**
  * Make a freshly-created workspace's default DRAFT release demo-ready BEFORE
  * publishing: attach the RAG vector (so the chat is grounded) and open anonymous
  * chat (so the demo link works without login). GET-merge-POST so we never drop
@@ -1975,6 +1981,13 @@ export async function configureDemoRelease(
   // enforces the per-email quota itself). NB: do NOT send freeChatGate here —
   // an object shape the /update schema rejects ("Json at slug does not exist").
   body.allowAnonymousChat = true;
+  // A demo prospect gets ONE question at the platform default, which reads as a
+  // broken demo rather than a quota. `maxAnonymousChatMessages` is in the `keep`
+  // list above, so it is only PRESERVED when already set — it was never set, and
+  // every demo shipped with the default until this was fixed. The per-email
+  // quota is enforced by the landing worker, so this cap is not the control that
+  // matters; it just has to be high enough that a real evaluation isn't cut off.
+  body.maxAnonymousChatMessages = DEMO_ANON_MESSAGE_CAP;
   await execFileP(
     "divinci", ["api", "POST", `/white-label/${workspaceId}/release/${releaseId}/update`, "--body", JSON.stringify(body), "--no-color"],
     { timeout: 120_000, maxBuffer: 16 * 1024 * 1024, env: OAUTH_ENV },
