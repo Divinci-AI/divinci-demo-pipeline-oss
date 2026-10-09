@@ -26,6 +26,7 @@ import { fileURLToPath } from "node:url";
 import { explainEnTsMismatch } from "./copy-gen.js";
 import { personSurnames } from "./headshot-finder.js";
 import { isSystemFont } from "./brand-extract.js";
+import { safeFontStack, safeCssToken, safeFontLinks } from "./css-safe.js";
 import { lazyEnv } from "./require-env.js";
 import { resolveLandingHost, type LandingHost } from "./landing-host.js";
 import { PLACEHOLDER_TEXT } from "./demo-preflight.js";
@@ -266,6 +267,15 @@ export interface LandingBrandDraft {
   displayFontWeight?: string;
   displayLetterSpacing?: string;
   displayFontVariationSettings?: string;
+  displayTextTransform?: string;
+  /** The page's real h1-h3 face, when distinct from body. Separate from the
+   *  display (wordmark) face above. A licensed face is already replaced by an
+   *  open substitute at extraction; `headingSubstituteFor` names the original. */
+  headingFontFamily?: string;
+  headingFontWeight?: string;
+  headingLetterSpacing?: string;
+  headingTextTransform?: string;
+  headingSubstituteFor?: string;
   /** Logo is light/white (built for a dark header) → hero darkens it. */
   logoIsLight?: boolean;
   /** Per-prospect optical nudge for the AI mark, px. See alignAiMark. */
@@ -320,16 +330,28 @@ export function brandObjectLiteral(d: LandingBrandDraft): string {
     // `display` is omitted, not defaulted to `family`: the template reads it as
     // `display ?? family`, so writing the body font here would be a no-op that
     // hides whether a distinct heading face was ever found.
+    // Every font value below came off a PROSPECT'S website and lands in a <style> block on
+    // the demo's own domain, so each is run through an allowlist (css-safe.ts) HERE, the single
+    // choke point from a draft to brand.config.ts. A value that fails is dropped and the
+    // template falls back to its default; it is never "escaped" into something that might parse.
     fonts: {
-      family: d.fontFamily || "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
-      ...(d.displayFontFamily ? { display: d.displayFontFamily } : {}),
-      ...(d.displayFontStyle ? { displayStyle: d.displayFontStyle } : {}),
-      ...(d.displayFontWeight ? { displayWeight: d.displayFontWeight } : {}),
-      ...(d.displayLetterSpacing ? { displayLetterSpacing: d.displayLetterSpacing } : {}),
-      ...(d.displayFontVariationSettings ? { displayVariationSettings: d.displayFontVariationSettings } : {}),
+      family: safeFontStack(d.fontFamily) ?? "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+      ...(safeFontStack(d.displayFontFamily) ? { display: safeFontStack(d.displayFontFamily) } : {}),
+      ...(safeCssToken(d.displayFontStyle) ? { displayStyle: safeCssToken(d.displayFontStyle) } : {}),
+      ...(safeCssToken(d.displayFontWeight) ? { displayWeight: safeCssToken(d.displayFontWeight) } : {}),
+      ...(safeCssToken(d.displayLetterSpacing) ? { displayLetterSpacing: safeCssToken(d.displayLetterSpacing) } : {}),
+      ...(safeCssToken(d.displayFontVariationSettings) ? { displayVariationSettings: safeCssToken(d.displayFontVariationSettings) } : {}),
+      ...(safeCssToken(d.displayTextTransform) ? { displayTransform: safeCssToken(d.displayTextTransform) } : {}),
+      // Only when a distinct heading face was found. Omitted otherwise, so the
+      // template renders headings exactly as it always has.
+      ...(safeFontStack(d.headingFontFamily) ? { headingFamily: safeFontStack(d.headingFontFamily) } : {}),
+      ...(safeFontStack(d.headingFontFamily) && safeCssToken(d.headingFontWeight) ? { headingFontWeight: safeCssToken(d.headingFontWeight) } : {}),
+      ...(safeFontStack(d.headingFontFamily) && safeCssToken(d.headingLetterSpacing) ? { headingTracking: safeCssToken(d.headingLetterSpacing) } : {}),
+      ...(safeFontStack(d.headingFontFamily) && safeCssToken(d.headingTextTransform) ? { headingTransform: safeCssToken(d.headingTextTransform) } : {}),
+      ...(safeFontStack(d.headingFontFamily) && safeCssToken(d.headingSubstituteFor) ? { headingSubstituteFor: safeCssToken(d.headingSubstituteFor) } : {}),
       headingWeight: 700,
       bodyWeight: 400,
-      links: pruneDeadFontLinks(d.fontLinks ?? []),
+      links: safeFontLinks(pruneDeadFontLinks(d.fontLinks ?? [])),
     },
     links: { mainSite: d.mainSite, signupUrl: d.signupUrl, loginUrl: d.loginUrl, bioCreditUrl: d.mainSite, hasLogin: d.hasLogin ?? false },
     divinci: { releaseId: d.releaseId, apiBase: d.apiBase, whitelabelId: d.whitelabelId },
@@ -383,7 +405,11 @@ export function applyBrandConfig(originalSource: string, d: LandingBrandDraft): 
   if (!re.test(originalSource)) {
     throw new Error("applyBrandConfig: could not find `export const brand: BrandConfig = {…};` in template brand.config.ts");
   }
-  return originalSource.replace(re, `export const brand: BrandConfig = ${brandObjectLiteral(d)};`);
+  // A FUNCTION, not a string: the replacement carries prospect-derived text, and in a replacement
+  // STRING `$&`, `$'`, `` $` `` and `$1` are expanded. A site name containing "$&" would otherwise
+  // splice the whole old template object into the new config.
+  const literal = `export const brand: BrandConfig = ${brandObjectLiteral(d)};`;
+  return originalSource.replace(re, () => literal);
 }
 
 /** Ensure an isolated working copy of the template exists for this run. */
@@ -452,6 +478,10 @@ export const BACKFILLABLE_BRAND_FIELDS = [
   "displayFontWeight",
   "displayLetterSpacing",
   "displayFontVariationSettings",
+  "displayTextTransform",
+  // NOT the heading* fields: a heading family applied without the stylesheet that loads it
+  // falls back to generic sans-serif, which is WORSE than the body face it replaces. They are
+  // set together with their font link, at extraction.
   "logoIsMark",
 ] as const;
 
@@ -696,7 +726,7 @@ function syncBioArrayArity(siteDir: string, key: "roles" | "bodies", count: numb
   const items = m[2].match(/(?<!\\)"(?:[^"\\]|\\.)*"/g) ?? [];
   if (items.length === count) return;
   const filler = Array.from({ length: count }, (_, i) => `      ${JSON.stringify(BIO_FILLER[key](i))},`).join("\n");
-  const out = src.replace(m[0], `${m[1]}\n${filler}${m[3]}`);
+  const out = src.replace(m[0], () => `${m[1]}\n${filler}${m[3]}`);
   writeFileSync(f, out);
   console.log(`[landing] neutral en.ts bios.${key} arity ${items.length} → ${count} (shape-validation parity)`);
 }
@@ -753,7 +783,7 @@ export function stripPlaceholderBios(enPath: string): number {
     return '""';
   });
   if (!n) return 0;
-  writeFileSync(enPath, src.replace(m[0], `${m[1]}${body}${m[3]}`));
+  writeFileSync(enPath, src.replace(m[0], () => `${m[1]}${body}${m[3]}`));
   return n;
 }
 
@@ -816,7 +846,7 @@ export function dropMisattributedBios(enPath: string, bios: Array<{ name: string
     i += 1;
     return bad.has(i) ? '""' : whole;
   });
-  writeFileSync(enPath, src.replace(m[0], `${m[1]}${rebuilt}${m[3]}`));
+  writeFileSync(enPath, src.replace(m[0], () => `${m[1]}${rebuilt}${m[3]}`));
   return [...bad];
 }
 
@@ -1081,6 +1111,8 @@ export function readableOn(bg: string): string {
  */
 export function pruneDeadFontLinks(links: string[]): string[] {
   return links.filter((href) => {
+    // A bare typekit.net origin is a preconnect hint, not a kit: it loads no font.
+    if (/typekit\.net\/?$/.test(href.split("?")[0])) return false;
     if (!/fonts\.googleapis\.com\/css/.test(href)) return true;
     let fams: string[];
     try {
@@ -1424,7 +1456,7 @@ function patchEmbedBridge(siteDir: string): void {
     </script>
 `;
   if (src.includes("</body>")) {
-    src = src.replace("</body>", `${script}  </body>`);
+    src = src.replace("</body>", () => `${script}  </body>`);
     writeFileSync(embedPath, src);
     console.log("[landing] patched /embed/ with auto-resize + ask bridge");
   } else {
