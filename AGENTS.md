@@ -32,7 +32,8 @@ them toward keeping a divergence they never asked for.
 
 ```sh
 cd orchestrator && npm ci
-npm test          # 66 files, ~1170 tests, no network
+npm test          # 82 files, ~1590 tests, no network
+                  # (the brand-extraction e2e tests need `npx playwright install chromium`; without it they skip)
 npm run smoke     # whole pipeline, no external calls, no credentials
 ```
 

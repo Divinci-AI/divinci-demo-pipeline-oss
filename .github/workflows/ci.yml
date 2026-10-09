@@ -31,6 +31,12 @@ jobs:
 
       - run: npm ci
 
+      # The brand-extraction end-to-end tests drive a real Chromium against local fixture
+      # pages (including a hostile one). Without a browser they SKIP, which would leave the
+      # font-injection guard unproven in CI, so install one. The tests themselves stay offline.
+      - name: Install Chromium for the extraction tests
+        run: npx playwright install --with-deps chromium
+
       - name: Typecheck
         run: npx tsc --noEmit
 

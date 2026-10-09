@@ -73,6 +73,10 @@ describe("backfillBrandDraft", () => {
     expect(draft.logoIsMark).toBe(true);
   });
 
+  it("never auto-backfills a heading field (it must arrive with its stylesheet link)", () => {
+    for (const k of BACKFILLABLE_BRAND_FIELDS) expect(k).not.toMatch(/^heading/);
+  });
+
   it("covers exactly the fields added after the existing drafts were written", () => {
     expect([...BACKFILLABLE_BRAND_FIELDS]).toEqual([
       "displayFontFamily",
@@ -80,6 +84,7 @@ describe("backfillBrandDraft", () => {
       "displayFontWeight",
       "displayLetterSpacing",
       "displayFontVariationSettings",
+      "displayTextTransform",
       "logoIsMark",
     ]);
   });

@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { pruneDeadFontLinks } from "./landing.js";
 import { brandObjectLiteral, applyBrandConfig, reconcileAdvertisedHost, npmInstallEnv, misattributedBioBodies, defaultAiNudge, defaultHeaderAiNudge, type LandingBrandDraft } from "./landing.js";
 
 const draft: LandingBrandDraft = {
@@ -286,5 +287,63 @@ describe("the advertised host is bound to the host actually deployed to", () => 
     const cfg = brandObjectLiteral(reconciled);
     expect(cfg).toContain("demo-acmespine-landing.vercel.app");
     expect(cfg).not.toContain("workers.dev");
+  });
+});
+
+describe("heading font in the brand config", () => {
+  it("emits nothing when no distinct heading face was found (every existing demo)", () => {
+    const f = JSON.parse(brandObjectLiteral(draft)).fonts;
+    expect(f.headingFamily).toBeUndefined();
+    expect(f.headingTransform).toBeUndefined();
+    expect(f.headingWeight).toBe(700);
+  });
+
+  it("emits the heading treatment when one was found", () => {
+    const f = JSON.parse(brandObjectLiteral({
+      ...draft,
+      headingFontFamily: '"Bebas Neue", sans-serif',
+      headingFontWeight: "600",
+      headingLetterSpacing: "-2.9px",
+      headingTextTransform: "uppercase",
+      headingSubstituteFor: "rama-gothic-e",
+    })).fonts;
+    expect(f.headingFamily).toBe('"Bebas Neue", sans-serif');
+    expect(f.headingFontWeight).toBe("600");
+    expect(f.headingTracking).toBe("-2.9px");
+    expect(f.headingTransform).toBe("uppercase");
+    expect(f.headingSubstituteFor).toBe("rama-gothic-e");
+  });
+
+  it("does not emit heading detail without a heading family", () => {
+    const f = JSON.parse(brandObjectLiteral({ ...draft, headingTextTransform: "uppercase", headingFontWeight: "600" })).fonts;
+    expect(f.headingTransform).toBeUndefined();
+    expect(f.headingFontWeight).toBeUndefined();
+  });
+});
+
+describe("pruneDeadFontLinks and typekit", () => {
+  it("drops a bare typekit origin but keeps a real kit", () => {
+    const kit = "https://use.typekit.net/ik/abc123.css";
+    expect(pruneDeadFontLinks(["https://use.typekit.net/", kit])).toEqual([kit]);
+  });
+});
+
+describe("wordmark text-transform", () => {
+  it("is omitted unless the wordmark is transformed", () => {
+    expect(JSON.parse(brandObjectLiteral(draft)).fonts.displayTransform).toBeUndefined();
+    expect(JSON.parse(brandObjectLiteral({ ...draft, displayTextTransform: "uppercase" })).fonts.displayTransform).toBe("uppercase");
+  });
+});
+
+describe("applyBrandConfig does not expand $-patterns from prospect text", () => {
+  const tpl = "// head\nexport const brand: BrandConfig = {\n  identity: { siteName: \"Acme\" },\n};\n// tail\n";
+  it.each(["$&", "$'", "$`", "$1", "$$", "a $& b $' c $` d"])("keeps %j literal", (name) => {
+    const out = applyBrandConfig(tpl, { ...draft, siteName: name, lockupName: name, productName: name, legalName: name });
+    expect(out.startsWith("// head\nexport const brand: BrandConfig = ")).toBe(true);
+    expect(out.endsWith("};\n// tail\n")).toBe(true);
+    expect(out.split("// head").length).toBe(2);           // the template header was not duplicated
+    expect(out.split("// tail").length).toBe(2);           // ...nor the footer
+    expect(out).not.toContain('siteName: "Acme"');         // the old object is gone
+    expect(JSON.parse(out.slice(out.indexOf("= ") + 2, out.lastIndexOf("};") + 1)).identity.siteName).toBe(name);
   });
 });

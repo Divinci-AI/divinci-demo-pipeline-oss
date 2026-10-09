@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { rgbToHsl, hslToHex, lum, sat, buildPalette, withSansFallback, withGenericFallback, googleFontsUrl, aiProductName, brandNameWithoutAiSuffix, logoIsMark, type RawColors, usableInlineSvg, normalizeExtractedSvg } from "./brand-extract.js";
+import { resolveTypography, HEADING_SUBSTITUTE_WEIGHT, trackingInEm, isGenericFont, resolveBodyFamily, cleanFontLinks, substituteHeadingFamily, preferLoadedWebfont } from "./brand-extract.js";
 
 /** A minimal but real PNG header: signature + IHDR with the given dimensions. */
 function png(w: number, h: number): Buffer {
@@ -400,5 +401,143 @@ describe("usableInlineSvg: the real acmezone mark", () => {
     // apple-touch-icon, which is a real image, per this module's rule that no
     // logo beats a blank one.
     expect(usableInlineSvg(REAL_ACMEZONE)).toBe(false);
+  });
+});
+
+/**
+ * A Squarespace site: <body> computes to the generic fallback while every
+ * paragraph is Space Mono and every heading is Rama Gothic E. Reading body gave
+ * "sans-serif", which the old webfont test accepted as a real font, so the whole
+ * demo rendered in the browser default.
+ */
+describe("body font on a site that styles children, not <body>", () => {
+  const spaceMonoLink = "https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap";
+
+  it("treats generic keywords as generic", () => {
+    for (const f of ["sans-serif", "serif", "monospace", "system-ui", "ui-sans-serif"]) expect(isGenericFont(f)).toBe(true);
+    expect(isGenericFont('"Space Mono", monospace')).toBe(false);
+    expect(isGenericFont("sans-serif, Arial")).toBe(true);
+  });
+
+  it("takes the paragraph face when body reads generic", () => {
+    expect(resolveBodyFamily("sans-serif", '"Space Mono"', [])).toBe('"Space Mono"');
+  });
+
+  it("keeps the body face when body is a real webfont", () => {
+    expect(resolveBodyFamily('"Inter", sans-serif', '"Space Mono"', [])).toBe('"Inter", sans-serif');
+  });
+
+  it("does not adopt a system or generic paragraph face", () => {
+    expect(resolveBodyFamily("sans-serif", "Arial", [])).toBe("sans-serif");
+    expect(resolveBodyFamily("sans-serif", "serif", [])).toBe("sans-serif");
+  });
+
+  it("falls back to a loaded Google family when nothing else names a font", () => {
+    expect(resolveBodyFamily("sans-serif", undefined, [spaceMonoLink])).toBe("Space Mono");
+    expect(preferLoadedWebfont("sans-serif", [spaceMonoLink])).toBe("Space Mono");
+  });
+
+  it("leaves a generic reading alone when there is nothing to correct it with", () => {
+    expect(resolveBodyFamily("sans-serif", undefined, [])).toBe("sans-serif");
+  });
+});
+
+describe("font links", () => {
+  it("drops a bare typekit origin (a preconnect hint, not a kit)", () => {
+    const kit = "https://use.typekit.net/ik/33LYcYfN21zytks8tR8fc12G-o68HAomW2cjs4DRR7wfe13JXnX1Iyvh.css";
+    expect(cleanFontLinks(["https://use.typekit.net/", "https://use.typekit.net", kit])).toEqual([kit]);
+  });
+  it("drops unparseable entries rather than shipping them", () => {
+    expect(cleanFontLinks(["not a url", "https://fonts.googleapis.com/css2?family=Inter"])).toEqual(["https://fonts.googleapis.com/css2?family=Inter"]);
+  });
+});
+
+describe("licensed heading faces are substituted, never loaded", () => {
+  it("maps Rama Gothic E to an open-licence lookalike", () => {
+    expect(substituteHeadingFamily("rama-gothic-e")).toBe("Bebas Neue");
+    expect(substituteHeadingFamily('"Rama Gothic E", sans-serif')).toBe("Bebas Neue");
+  });
+  it("has no substitute for a face it was never told about", () => {
+    expect(substituteHeadingFamily("Some Unknown Face")).toBeUndefined();
+    expect(substituteHeadingFamily(undefined)).toBeUndefined();
+  });
+});
+
+describe("trackingInEm", () => {
+  it("converts Acme's measured heading tracking to em", () => {
+    expect(trackingInEm("-2.8992px", "96.64px")).toBe("-0.030em");
+  });
+  it("returns undefined for normal, zero, or unusable input", () => {
+    expect(trackingInEm("normal", "96px")).toBeUndefined();
+    expect(trackingInEm("0px", "96px")).toBeUndefined();
+    expect(trackingInEm("-2px", undefined)).toBeUndefined();
+    expect(trackingInEm("-2px", "0px")).toBeUndefined();
+    expect(trackingInEm(undefined, "16px")).toBeUndefined();
+  });
+});
+
+describe("resolveTypography (the one implementation shared by the extractor and the font repair)", () => {
+  const google = (fam: string) => `https://fonts.googleapis.com/css2?family=${fam.replace(/ /g, "+")}:wght@400;700&display=swap`;
+  const ACME = {
+    fontFamily: "sans-serif", textFont: '"Space Mono"',
+    heading: { family: "rama-gothic-e", weight: "600", letterSpacing: "-2.8992px", textTransform: "uppercase", fontSize: "96.64px" },
+    display: { family: "rama-gothic-e", weight: "600", letterSpacing: "-2.8992px", textTransform: "uppercase" },
+    fontLinks: [google("Space Mono"), "https://use.typekit.net/"],
+  };
+  const servesAll = async () => true;
+  const servesNothing = async () => false;
+  const servesOnly = (...names: string[]) => async (u: string) => names.some((n) => u.includes(n.replace(/ /g, "+")));
+
+  it("A Squarespace site: body = the page's loaded Space Mono, headings = Bebas Neue standing in for Rama Gothic E", async () => {
+    const t = await resolveTypography(ACME, servesOnly("Bebas Neue"));
+    expect(t.fontFamily).toMatch(/^"?Space Mono"?,/);
+    expect(t.headingFontFamily).toMatch(/Bebas Neue/);
+    expect(t.headingSubstituteFor).toBe("rama-gothic-e");
+    expect(t.headingFontWeight).toBe(HEADING_SUBSTITUTE_WEIGHT);   // not 600: Bebas has one weight, 600 would be a faux bold
+    expect(t.headingLetterSpacing).toBe("-0.030em");
+    expect(t.headingTextTransform).toBe("uppercase");
+    expect(t.fontLinks).toContain(google("Space Mono"));
+    expect(t.fontLinks.some((l) => l.includes("Bebas+Neue"))).toBe(true);   // the heading ships WITH its stylesheet
+    expect(t.fontLinks).not.toContain("https://use.typekit.net/");
+  });
+
+  it("no heading is invented when Google serves neither the face nor a substitute", async () => {
+    const t = await resolveTypography({ ...ACME, heading: { ...ACME.heading, family: "some-licensed-face" } }, servesNothing);
+    expect(t.headingFontFamily).toBeUndefined();
+    expect(t.headingFontWeight).toBeUndefined();
+    expect(t.fontLinks.every((l) => !/Bebas/.test(l))).toBe(true);
+  });
+
+  it("a heading in the same face as the body is not a distinct heading", async () => {
+    const t = await resolveTypography({ fontFamily: '"Inter", sans-serif', heading: { family: '"Inter", sans-serif', weight: "700", letterSpacing: "normal", textTransform: "none", fontSize: "32px" }, fontLinks: [google("Inter")] }, servesAll);
+    expect(t.headingFontFamily).toBeUndefined();
+  });
+
+  it("a paragraph in a licensed face does not displace the Google font the page loads", async () => {
+    const t = await resolveTypography({ fontFamily: "sans-serif", textFont: "proxima-nova", fontLinks: [google("Poppins")] }, servesNothing);
+    expect(t.fontFamily).toMatch(/^"?Poppins"?,/);
+  });
+
+  it("a body face that is neither loaded nor on Google falls back to the generic, with no 403 link", async () => {
+    const t = await resolveTypography({ fontFamily: "sans-serif", textFont: "proxima-nova", fontLinks: [] }, servesNothing);
+    expect(t.fontFamily).toMatch(/^sans-serif|ui-sans-serif/);
+    expect(t.fontLinks).toEqual([]);
+  });
+
+  it("a body face that Google serves is kept and its link added", async () => {
+    const t = await resolveTypography({ fontFamily: "sans-serif", textFont: "Lora", fontLinks: [] }, servesOnly("Lora"));
+    expect(t.fontFamily).toMatch(/Lora/);
+    expect(t.fontLinks.some((l) => l.includes("Lora"))).toBe(true);
+  });
+
+  it("never asks Google about a family name that is not a family name", async () => {
+    const asked: string[] = [];
+    await resolveTypography({ fontFamily: "sans-serif", textFont: 'x&z=</style><script>', heading: { family: 'Roboto&z=</style>', weight: "700", letterSpacing: "0px", textTransform: "none", fontSize: "20px" }, fontLinks: [] }, async (u) => { asked.push(u); return true; });
+    expect(asked.filter((u) => /[<>&]z=|<\/style|<script/.test(u))).toEqual([]);
+  });
+
+  it("every returned string passes the allowlists", async () => {
+    const t = await resolveTypography(ACME, servesAll);
+    for (const v of [t.fontFamily, t.displayFontFamily, t.headingFontFamily]) if (v) expect(v).toMatch(/^[A-Za-z0-9 _\-"',.]+$/);
   });
 });

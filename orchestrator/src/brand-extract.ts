@@ -17,6 +17,7 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { chromium } from "playwright";
+import { isAllowedFontLink, safeFontStack, safeCssToken } from "./css-safe.js";
 
 export interface ExtractedBrand {
   palette: { primary: string; dark: string; mid: string; accent: string; cream: string; soft: string; bubble: string; text: string };
@@ -36,6 +37,16 @@ export interface ExtractedBrand {
   displayFontWeight?: string;
   displayLetterSpacing?: string;
   displayFontVariationSettings?: string;
+  displayTextTransform?: string;
+  /** The face of the page's real HEADINGS (h1-h3), when it differs from the
+   *  body. Separate from `display`, which is the logo wordmark's face. A
+   *  licensed face we cannot serve is replaced by an open substitute, and
+   *  `headingSubstituteFor` records what it stands in for. */
+  headingFontFamily?: string;
+  headingFontWeight?: string;
+  headingLetterSpacing?: string;
+  headingTextTransform?: string;
+  headingSubstituteFor?: string;
   /** Webfont stylesheet URLs to load so the real client font actually renders
    *  (captured from the site + a constructed Google Fonts css2 link). */
   fontLinks?: string[];
@@ -75,6 +86,9 @@ export interface RawColors {
    */
   bodyBg?: string;
   fontFamily?: string;
+  /** Computed face of a real paragraph; the body reading when <body> is generic. */
+  textFont?: string;
+  heading?: HeadingType;
   display?: DisplayType;
   fontLinks?: string[];
   siteName?: string;
@@ -152,7 +166,10 @@ export function loadedGoogleFamilies(links: string[] | undefined): string[] {
  */
 export function preferLoadedWebfont(family: string | undefined, links: string[] | undefined): string | undefined {
   const first = (family || "").split(",")[0].replace(/["']/g, "").trim();
-  if (first && !isSystemFont(first)) return family;
+  // A generic keyword ("sans-serif") is not a webfont either. Squarespace puts
+  // its real faces on p/h2/nav and leaves <body> on the fallback, so body reads
+  // "sans-serif" -- which used to pass this test and ship as the brand font.
+  if (first && !isSystemFont(first) && !isGenericFont(first)) return family;
   const loaded = loadedGoogleFamilies(links);
   return loaded.length ? loaded[0] : family;
 }
@@ -160,6 +177,80 @@ export function preferLoadedWebfont(family: string | undefined, links: string[] 
 /** Is this family already on the visitor's machine (so never worth fetching)? */
 export function isSystemFont(family: string): boolean {
   return SYSTEM_FONTS.has(family.replace(/["']/g, "").trim().toLowerCase());
+}
+
+/** Is this a CSS generic keyword ("sans-serif", "system-ui", ...) rather than a
+ *  named family? A generic reading means the element inherited the UA fallback. */
+export function isGenericFont(family: string): boolean {
+  return GENERIC_FONTS.has(family.split(",")[0].replace(/["']/g, "").trim().toLowerCase());
+}
+
+/**
+ * The body face. <body>'s computed font is the wrong place to read it on sites that
+ * style children (a Squarespace site: body "sans-serif", every paragraph Space Mono). When body
+ * reads generic, take a paragraph's face instead, but only a face we can SERVE: one the
+ * page itself loads from Google, else (if the page loads any Google font) that one, else
+ * the paragraph's own face, which the caller must probe before shipping. A paragraph in a
+ * licensed face (e.g. Typekit's proxima-nova) must not displace a loadable Google family.
+ */
+export function resolveBodyFamily(bodyFamily: string | undefined, textFamily: string | undefined, links: string[] | undefined): string | undefined {
+  const bodyFirst = (bodyFamily || "").split(",")[0].replace(/["']/g, "").trim();
+  const textFirst = (textFamily || "").split(",")[0].replace(/["']/g, "").trim();
+  if ((!bodyFirst || isGenericFont(bodyFirst)) && textFirst && !isGenericFont(textFirst) && !isSystemFont(textFirst)) {
+    const loaded = loadedGoogleFamilies(links);
+    if (loaded.some((f) => f.toLowerCase() === textFirst.toLowerCase())) return textFamily;
+    if (loaded.length) return loaded[0];
+    return textFamily;
+  }
+  return preferLoadedWebfont(bodyFamily, links);
+}
+
+/** Keep only font stylesheet URLs we may emit on a demo page: https, from a known font
+ *  host, with a real path (a bare `https://use.typekit.net/` is a preconnect hint, not a
+ *  kit). Allowlisted by HOST: the in-page filter is only a substring match. */
+export function cleanFontLinks(links: string[] | undefined): string[] {
+  return (links ?? []).filter(isAllowedFontLink);
+}
+
+/**
+ * Faces we can name but must NOT load: licensed per site (Adobe Fonts kits are
+ * bound to the customer's domain), so the demo cannot serve them. Each maps to
+ * the closest OPEN-LICENCE face, shipped as a substitute and labelled as one.
+ * Add entries only for faces seen on real prospects, and only OFL/Apache
+ * lookalikes.
+ */
+export const HEADING_SUBSTITUTES: Record<string, string> = {
+  "rama-gothic-e": "Bebas Neue",
+  "rama gothic e": "Bebas Neue",
+};
+
+/** The open substitutes above are single-weight (regular). Declaring the original's 600 on them would make the browser fake a bold. */
+export const HEADING_SUBSTITUTE_WEIGHT = "400";
+
+export function substituteHeadingFamily(family: string | undefined): string | undefined {
+  const first = (family || "").split(",")[0].replace(/["']/g, "").trim().toLowerCase();
+  return HEADING_SUBSTITUTES[first];
+}
+
+/**
+ * Letter-spacing as EM. Computed tracking comes back in px at the size it was
+ * measured (-2.9px on a 96px heading); shipped as px it is wrong at every other
+ * size. Undefined for "normal" or when either input is unusable.
+ */
+export function trackingInEm(letterSpacing: string | undefined, fontSize: string | undefined): string | undefined {
+  const ls = parseFloat(letterSpacing ?? "");
+  const fs = parseFloat(fontSize ?? "");
+  if (!/px\s*$/.test(letterSpacing ?? "") || !Number.isFinite(ls) || !Number.isFinite(fs) || fs <= 0 || ls === 0) return undefined;
+  return `${(ls / fs).toFixed(3)}em`;
+}
+
+/** The heading treatment, read off a real h1/h2/h3. */
+export interface HeadingType {
+  family: string;
+  weight: string;
+  letterSpacing: string;
+  textTransform: string;
+  fontSize: string;
 }
 
 /** Ensure a font stack ends in a generic sans fallback — so an unloaded/missing
@@ -174,6 +265,8 @@ export function withSansFallback(family?: string): string {
 
 /** The display treatment read off the brand's own wordmark element. */
 export interface DisplayType {
+  /** text-transform of the wordmark element ("uppercase" for an all-caps logo). */
+  textTransform?: string;
   family: string;
   style?: string;
   weight?: string;
@@ -196,10 +289,14 @@ export interface DisplayType {
  * validated against the actual font by Google, so a family without `opsz` 400s
  * on the first candidate — hence a list to try in order rather than one guess.
  */
+/** Google Fonts family names are letters, digits, spaces and hyphens. Anything else is not a family, and must never be put in a URL. */
+export const GOOGLE_FAMILY_NAME = /^[A-Za-z0-9][A-Za-z0-9 \-]{0,59}$/;
+
 export function googleFontsCandidates(family?: string, opts: { italic?: boolean; opsz?: boolean } = {}): string[] {
   const first = (family || "").split(",")[0].replace(/["']/g, "").trim();
   if (!first || GENERIC_FONTS.has(first.toLowerCase())) return [];
   if (isSystemFont(first)) return [];
+  if (!GOOGLE_FAMILY_NAME.test(first)) return [];
   const name = first.replace(/\s+/g, "+");
   const url = (spec: string) => `https://fonts.googleapis.com/css2?family=${name}:${spec}&display=swap`;
   const out: string[] = [];
@@ -396,6 +493,7 @@ export function googleFontsUrl(family?: string): string | null {
   if (!first || GENERIC_FONTS.has(first.toLowerCase())) return null;
   // A system font is already on the machine; asking Google for it returns 403.
   if (isSystemFont(first)) return null;
+  if (!GOOGLE_FAMILY_NAME.test(first)) return null;
   return `https://fonts.googleapis.com/css2?family=${first.replace(/\s+/g, "+")}:wght@400;600;700&display=swap`;
 }
 
@@ -637,17 +735,29 @@ export function normalizeExtractedSvg(svg: string): string {
   return svg.replace(/^(\s*<svg\b)/i, '$1 xmlns="http://www.w3.org/2000/svg"');
 }
 
-export async function extractBrand(url: string, outDir: string): Promise<ExtractedBrand> {
-  const browser = await chromium.launch();
-  try {
-    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-    await page.goto(url, { waitUntil: "networkidle", timeout: 45_000 }).catch(() => page.goto(url, { waitUntil: "domcontentloaded", timeout: 30_000 }));
-
-    // NOTE: passed as a STRING, not a function — tsx/esbuild's keepNames adds a
-    // `__name` helper to named function expressions that isn't defined in the
-    // browser context (ReferenceError: __name is not defined). A string body is
-    // sent verbatim and runs cleanly in-page.
-    const BROWSER_SCRIPT = `(() => {
+/**
+ * The in-page extraction script, run by `page.evaluate`. A self-contained string (no
+ * interpolation) so tests can run it in a real browser against fixture pages.
+ */
+export const BROWSER_SCRIPT = `(() => {
+      // Is this element something a visitor actually sees as page content? Hidden,
+      // zero-size, screen-reader-only, cookie-consent and dialog/modal elements carry
+      // their own (often unrelated) typography and must not set the brand's fonts.
+      var NOISE = '[class*="cookie" i],[id*="cookie" i],[class*="consent" i],[id*="consent" i],[class*="onetrust" i],[id*="onetrust" i],[class*="gdpr" i],[class*="sr-only" i],[class*="visually-hidden" i],[role="dialog"],[aria-modal="true"],[class*="popup" i],[class*="modal" i]';
+      // allowFaded: accept opacity:0 elements that are otherwise real (sized, displayed, visible).
+      // Scroll-reveal libraries (Squarespace's .preFade, AOS, WOW) hold below-the-fold copy at
+      // opacity:0 until it is scrolled to, so on such a page EVERY paragraph reads as invisible.
+      // Callers try strict first and fall back to this, so a hidden decoy never wins over real copy.
+      function usable(e, allowFaded) {
+        if (!e) return false;
+        var r = e.getBoundingClientRect();
+        if (r.width < 2 || r.height < 2) return false;
+        var cs = getComputedStyle(e);
+        if (cs.visibility === "hidden" || cs.display === "none") return false;
+        if (!allowFaded && parseFloat(cs.opacity) === 0) return false;
+        if (e.closest && e.closest(NOISE)) return false;
+        return true;
+      }
       function parse(c) {
         var m = c.match(/rgba?\\(([^)]+)\\)/);
         if (!m) return null;
@@ -691,6 +801,31 @@ export async function extractBrand(url: string, outDir: string): Promise<Extract
         buttonBg: btn ? (parse(getComputedStyle(btn).backgroundColor) || undefined) : undefined,
         linkColor: link ? (parse(getComputedStyle(link).color) || undefined) : undefined,
         fontFamily: getComputedStyle(document.body).fontFamily,
+        // A real paragraph's face: the body reading when <body> itself is just
+        // the UA fallback (sites that style p/nav/h2 and leave body alone).
+        textFont: (function () {
+          var ps = document.querySelectorAll("main p, article p");
+          var all = ps.length ? Array.prototype.slice.call(ps).concat(Array.prototype.slice.call(document.querySelectorAll("p"))) : document.querySelectorAll("p");
+          for (var pass = 0; pass < 2; pass++) {
+            for (var i = 0; i < all.length; i++) {
+              if (usable(all[i], pass === 1) && (all[i].textContent || "").trim().length >= 40) return getComputedStyle(all[i]).fontFamily;
+            }
+          }
+          return undefined;
+        })(),
+        // The page's real HEADING treatment (h1-h3), distinct from the logo.
+        heading: (function () {
+          var hs = document.querySelectorAll("main h1, main h2, main h3, h1, h2, h3");
+          for (var pass = 0; pass < 2; pass++) {
+            for (var i = 0; i < hs.length; i++) {
+              var t = (hs[i].textContent || "").trim();
+              if (t.length < 3 || t.length > 120 || !usable(hs[i], pass === 1)) continue;
+              var cs = getComputedStyle(hs[i]);
+              return { family: cs.fontFamily, weight: cs.fontWeight, letterSpacing: cs.letterSpacing, textTransform: cs.textTransform, fontSize: cs.fontSize };
+            }
+          }
+          return undefined;
+        })(),
         // The DISPLAY face, read off a real heading rather than the body.
         // Reported only when it actually differs, so "no distinct heading font"
         // is expressible and the template can fall back rather than pinning the
@@ -725,6 +860,7 @@ export async function extractBrand(url: string, outDir: string): Promise<Extract
                 style: cs.fontStyle,
                 weight: cs.fontWeight,
                 letterSpacing: cs.letterSpacing,
+                textTransform: cs.textTransform,
                 variationSettings: cs.fontVariationSettings,
               };
             }
@@ -749,6 +885,133 @@ export async function extractBrand(url: string, outDir: string): Promise<Extract
         })(),
       };
     })()`;
+
+/** Everything font-related the extractor decides, as one value. */
+export interface Typography {
+  fontFamily: string;
+  displayFontFamily?: string;
+  displayFontStyle?: string;
+  displayFontWeight?: string;
+  displayLetterSpacing?: string;
+  displayFontVariationSettings?: string;
+  displayTextTransform?: string;
+  headingFontFamily?: string;
+  headingFontWeight?: string;
+  headingLetterSpacing?: string;
+  headingTextTransform?: string;
+  headingSubstituteFor?: string;
+  fontLinks: string[];
+}
+
+/**
+ * Turn what the in-page script read into the fonts a demo will ship: the body, display and heading
+ * faces, and the stylesheet links that load them. `probe` answers "does Google Fonts serve this URL?"
+ * (injected so the extractor uses its browser's request context, tests use a stub, and the font
+ * repair tool shares this exact logic instead of keeping a second copy that drifts).
+ */
+export async function resolveTypography(
+  raw: Pick<RawColors, "fontFamily" | "textFont" | "heading" | "display" | "fontLinks">,
+  probe: (url: string) => Promise<boolean>,
+): Promise<Typography> {
+  const disp = raw.display;
+  // Same correction as the body face: a system-font reading on a page that
+  // loads a webfont is a mis-sample. BioRenew's heading face read "Georgia"
+  // against a site whose --headlinefont is 'Inter'.
+  const displayFontFamily = withGenericFallback(preferLoadedWebfont(disp?.family, raw.fontLinks));
+
+  // Load the display family too. Without its stylesheet the stack resolves to
+  // the fallback and the wordmark silently renders in Georgia — which looks
+  // like a styling bug rather than a missing webfont.
+  //
+  // Probe the candidates in order and keep the first that actually serves:
+  // the richest form is not valid for every family, and an unvalidated guess
+  // fails as a 404 the browser never reports.
+  let displayLink: string | undefined;
+  for (const cand of googleFontsCandidates(disp?.family, {
+    italic: (disp?.style ?? "").includes("italic"),
+    opsz: (disp?.variationSettings ?? "").includes("opsz"),
+  })) {
+    if (await probe(cand)) { displayLink = cand; break; }
+  }
+
+  // A system-font reading is corrected against the fonts the page LOADS —
+  // see preferLoadedWebfont. Done before the links are built so the
+  // constructed URL matches the family we actually ship.
+  let bodyFamily = resolveBodyFamily(raw.fontFamily, raw.textFont, raw.fontLinks);
+  // A body face we neither load nor can serve must not ship: the constructed Google
+  // link for it would be a render-blocking 403, and the face would not render anyway.
+  // The page's own Google families need no probe (the page loads them); anything else does.
+  {
+    const first = (bodyFamily || "").split(",")[0].replace(/["']/g, "").trim();
+    const loaded = loadedGoogleFamilies(raw.fontLinks).map((f) => f.toLowerCase());
+    if (first && !isGenericFont(first) && !isSystemFont(first) && !loaded.includes(first.toLowerCase())) {
+      const url = googleFontsUrl(bodyFamily);
+      const served = url ? await probe(url) : false;
+      if (!served) {
+        console.warn(`[brand] body face "${first}" is not servable (not on Google Fonts, not loaded by the page) -- using the generic fallback`);
+        bodyFamily = raw.fontFamily && isGenericFont(raw.fontFamily.split(",")[0]) ? raw.fontFamily : undefined;
+      }
+    }
+  }
+
+  // Headings. Distinct from body and from the logo wordmark. A face we can
+  // load from Google is used as read; a licensed one (Adobe/Typekit) is swapped
+  // for an open lookalike, and anything else we cannot serve is left unset so
+  // the template keeps the body face rather than shipping a dead stack.
+  let headingFamily: string | undefined;
+  let headingLink: string | undefined;
+  let headingSubstituteFor: string | undefined;
+  const hd = raw.heading;
+  const bodyFirst = (bodyFamily || "").split(",")[0].replace(/["']/g, "").trim().toLowerCase();
+  const headFirst = (hd?.family || "").split(",")[0].replace(/["']/g, "").trim();
+  if (hd && headFirst && !isGenericFont(headFirst) && !isSystemFont(headFirst) && headFirst.toLowerCase() !== bodyFirst) {
+    const sub = substituteHeadingFamily(hd.family);
+    const wanted = sub ?? headFirst;
+    for (const cand of googleFontsCandidates(wanted, {})) {
+      if (await probe(cand)) { headingLink = cand; headingFamily = withGenericFallback(`"${wanted}"`); break; }
+    }
+    if (headingFamily && sub) headingSubstituteFor = headFirst;
+    if (!headingFamily) console.warn(`[brand] heading face "${headFirst}" is not servable (not on Google Fonts, no known open substitute) -- headings keep the body face`);
+  }
+
+  const constructed = [googleFontsUrl(bodyFamily), displayLink, headingLink].filter((u): u is string => Boolean(u));
+  const fontLinks = Array.from(new Set([...constructed, ...cleanFontLinks(raw.fontLinks)]));
+
+  // Drop values that merely restate the browser default — carrying "normal"
+  // and "400" through to the template would override a future default with a
+  // value nobody chose.
+  const meaningful = (v: string | undefined, ...defaults: string[]) =>
+    v && !defaults.includes(v.trim()) ? v.trim() : undefined;
+
+  return {
+    fontFamily: safeFontStack(withSansFallback(bodyFamily)) ?? withSansFallback(undefined),
+    displayFontFamily: safeFontStack(displayFontFamily),
+    displayFontStyle: meaningful(disp?.style, "normal"),
+    displayFontWeight: meaningful(disp?.weight, "400", "normal"),
+    displayLetterSpacing: meaningful(disp?.letterSpacing, "normal", "0px"),
+    displayFontVariationSettings: meaningful(disp?.variationSettings, "normal", "none"),
+    displayTextTransform: meaningful(disp?.textTransform, "none"),
+    ...(headingFamily ? {
+      headingFontFamily: safeFontStack(headingFamily),
+      headingFontWeight: headingSubstituteFor ? HEADING_SUBSTITUTE_WEIGHT : safeCssToken(hd?.weight),
+      headingLetterSpacing: trackingInEm(hd?.letterSpacing, hd?.fontSize),
+      headingTextTransform: meaningful(hd?.textTransform, "none"),
+      headingSubstituteFor,
+    } : {}),
+    fontLinks,
+  };
+}
+
+export async function extractBrand(url: string, outDir: string): Promise<ExtractedBrand> {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+    await page.goto(url, { waitUntil: "networkidle", timeout: 45_000 }).catch(() => page.goto(url, { waitUntil: "domcontentloaded", timeout: 30_000 }));
+
+    // NOTE: passed as a STRING, not a function — tsx/esbuild's keepNames adds a
+    // `__name` helper to named function expressions that isn't defined in the
+    // browser context (ReferenceError: __name is not defined). A string body is
+    // sent verbatim and runs cleanly in-page.
     const raw = (await page.evaluate(BROWSER_SCRIPT)) as RawColors;
 
     // Download / write the logo.
@@ -831,51 +1094,13 @@ export async function extractBrand(url: string, outDir: string): Promise<Extract
         /* measurement is best-effort — keep the header-background inference */
       }
     }
-    const disp = raw.display;
-    // Same correction as the body face: a system-font reading on a page that
-    // loads a webfont is a mis-sample. Acme Renew's heading face read "Georgia"
-    // against a site whose --headlinefont is 'Inter'.
-    const displayFontFamily = withGenericFallback(preferLoadedWebfont(disp?.family, raw.fontLinks));
+    const typo = await resolveTypography(raw, async (url) => {
+      try { return (await page.context().request.get(url, { timeout: 10_000 })).ok(); } catch { return false; }
+    });
 
-    // Load the display family too. Without its stylesheet the stack resolves to
-    // the fallback and the wordmark silently renders in Georgia — which looks
-    // like a styling bug rather than a missing webfont.
-    //
-    // Probe the candidates in order and keep the first that actually serves:
-    // the richest form is not valid for every family, and an unvalidated guess
-    // fails as a 404 the browser never reports.
-    let displayLink: string | undefined;
-    for (const cand of googleFontsCandidates(disp?.family, {
-      italic: (disp?.style ?? "").includes("italic"),
-      opsz: (disp?.variationSettings ?? "").includes("opsz"),
-    })) {
-      try {
-        const r = await page.context().request.get(cand, { timeout: 10_000 });
-        if (r.ok()) { displayLink = cand; break; }
-      } catch { /* try the next candidate */ }
-    }
-
-    // A system-font reading is corrected against the fonts the page LOADS —
-    // see preferLoadedWebfont. Done before the links are built so the
-    // constructed URL matches the family we actually ship.
-    const bodyFamily = preferLoadedWebfont(raw.fontFamily, raw.fontLinks);
-    const constructed = [googleFontsUrl(bodyFamily), displayLink].filter((u): u is string => Boolean(u));
-    const fontLinks = Array.from(new Set([...constructed, ...(raw.fontLinks ?? [])]));
-
-    // Drop values that merely restate the browser default — carrying "normal"
-    // and "400" through to the template would override a future default with a
-    // value nobody chose.
-    const meaningful = (v: string | undefined, ...defaults: string[]) =>
-      v && !defaults.includes(v.trim()) ? v.trim() : undefined;
     return {
       palette: buildPalette(raw),
-      fontFamily: withSansFallback(bodyFamily),
-      displayFontFamily,
-      displayFontStyle: meaningful(disp?.style, "normal"),
-      displayFontWeight: meaningful(disp?.weight, "400", "normal"),
-      displayLetterSpacing: meaningful(disp?.letterSpacing, "normal", "0px"),
-      displayFontVariationSettings: meaningful(disp?.variationSettings, "normal", "none"),
-      fontLinks,
+      ...typo,
       logoIsMark: isMark,
       logoFile,
       siteName: raw.siteName,
