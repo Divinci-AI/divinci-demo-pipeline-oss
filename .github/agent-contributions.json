@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "opt_in": true,
+  "contact": "@mikeumus",
+  "policy_url": "https://github.com/Divinci-AI/divinci-demo-pipeline-oss/blob/main/CONTRIBUTING.md",
+  "review_by": "2027-04-01",
+  "task_label": "agent-ready",
+  "label_applied_by": ["mikeumus"],
+  "max_open_agent_prs": 1,
+  "max_diff_lines": 200,
+  "allowed_paths": ["orchestrator/src/**/*.test.ts"],
+  "forbidden_paths": ["runs/**"],
+  "disclosure": { "mechanism": "pr_body", "text": "AI assistance: yes (tool: Common Contributions). Labelled ai-assisted." },
+  "certification": { "dco": "signed-off-by", "cla": "none" }
+}
